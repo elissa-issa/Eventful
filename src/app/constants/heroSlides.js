@@ -6,7 +6,7 @@ export const HERO_SLIDES = [
     eyebrow: 'Elegant Celebrations',
     title: 'Perfectly Planned Wedding Moments',
     description:
-      'Browse venues, decor, catering, and entertainement built around full event experiences.',
+      'Browse venues, decor, catering, and entertainement built around full event.',
   },
   {
     id: 'birthday',
@@ -15,7 +15,7 @@ export const HERO_SLIDES = [
     eyebrow: 'Family Events',
     title: 'Memorable Birthday Party Setups',
     description:
-      'Mix entertainment, venues, food, and styling packages without leaving the homepage flow.',
+      'Mix entertainment, food, and styling packages without leaving the homepage flow.',
   },
   {
     id: 'corporate',
@@ -24,6 +24,6 @@ export const HERO_SLIDES = [
     eyebrow: 'Professional Events',
     title: 'Polished Corporate Event Experiences',
     description:
-      'Compare event-ready bundles and connect with vendors for polished business experiences.',
+      'Compare event-ready bundles and connect with vendors for polished experiences.',
   },
 ]
