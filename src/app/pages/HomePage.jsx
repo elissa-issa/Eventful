@@ -4,11 +4,12 @@ import ArrowForwardIosRoundedIcon from '@mui/icons-material/ArrowForwardIosRound
 import { Box, Button, IconButton, Stack, Typography } from '@mui/material'
 import { BUNDLE_CARDS } from '../constants/bundleCards'
 import { CATEGORY_CARDS } from '../constants/categoryCards'
+import { COLORS } from '../constants/colors'
 import { VENDOR_CARDS } from '../constants/vendorCards'
 import BundleCard from '../shared/components/BundleCard'
 import CategoryCard from '../shared/components/CategoryCard'
+import HomeHero from '../shared/components/HomeHero'
 import VendorCard from '../shared/components/VendorCard'
-import { COLORS } from '../constants/colors'
 
 function HomePage() {
   const [favoriteCards, setFavoriteCards] = useState({})
@@ -147,6 +148,7 @@ function HomePage() {
 
   return (
     <Stack spacing={3} sx={{ backgroundColor: COLORS.surface }}>
+      <HomeHero />
 
       <Stack direction="row" alignItems="center" justifyContent="space-between">
         <Typography variant="h5" sx={{ color: COLORS.primary, fontWeight: 800 }}>
@@ -214,13 +216,15 @@ function HomePage() {
               primaryButtonLabel={card.primaryButtonLabel}
               onPrimaryButtonClick={() => console.log(`View plan clicked: ${card.id}`)}
               secondaryButtonLabel={card.secondaryButtonLabel}
-              onSecondaryButtonClick={() => console.log(`Add to cart clicked: ${card.id}`)}
+              onSecondaryButtonClick={() =>
+                console.log(`Add to cart clicked: ${card.id}`)
+              }
             />
           </Box>
         ))}
-          </Box>
-          
-                <Stack direction="row" alignItems="center" justifyContent="space-between">
+      </Box>
+
+      <Stack direction="row" alignItems="center" justifyContent="space-between">
         <Typography variant="h5" sx={{ color: COLORS.primary, fontWeight: 800 }}>
           Categories
         </Typography>
@@ -248,8 +252,7 @@ function HomePage() {
             <ArrowForwardIosRoundedIcon sx={{ fontSize: 18 }} />
           </IconButton>
         </Stack>
-          </Stack>
-          
+      </Stack>
 
       <Box
         ref={categoriesRowRef}
@@ -364,7 +367,7 @@ function HomePage() {
           </Button>
         </Box>
       </Box>
-          
+
       <Stack direction="row" alignItems="center" justifyContent="space-between">
         <Typography variant="h5" sx={{ color: COLORS.primary, fontWeight: 800 }}>
           Partners
@@ -393,8 +396,7 @@ function HomePage() {
             <ArrowForwardIosRoundedIcon sx={{ fontSize: 18 }} />
           </IconButton>
         </Stack>
-    </Stack>
-          
+      </Stack>
 
       <Box
         ref={vendorsRowRef}
@@ -421,10 +423,7 @@ function HomePage() {
               scrollSnapAlign: 'start',
             }}
           >
-            <VendorCard
-              imageSrc={vendor.imageSrc}
-              imageAlt={vendor.imageAlt}
-            />
+            <VendorCard imageSrc={vendor.imageSrc} imageAlt={vendor.imageAlt} />
           </Box>
         ))}
       </Box>

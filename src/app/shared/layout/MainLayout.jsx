@@ -15,7 +15,7 @@ function MainLayout() {
       }}
     >
       <Navbar />
-      <Container maxWidth="lg" sx={{ py: 5, flexGrow: 1 }}>
+      <Container maxWidth="lg" sx={{ pt: 0, pb: 5, flexGrow: 1 }}>
         <Outlet />
       </Container>
       <Footer />

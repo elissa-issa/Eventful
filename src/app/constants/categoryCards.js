@@ -29,7 +29,7 @@ export const CATEGORY_CARDS = [
   {
     id: 'entertainment',
     title: 'Entertainment',
-    description: 'Keep your guests entertained with live music, DJs, and performances.',
+    description: 'Entertainement with music, DJs, and performances.',
     buttonLabel: 'View All',
     imageSrc:
       'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=900&q=80',
