@@ -6,6 +6,7 @@ import { BUNDLE_CARDS } from '../constants/bundleCards'
 import { CATEGORY_CARDS } from '../constants/categoryCards'
 import { COLORS } from '../constants/colors'
 import { VENDOR_CARDS } from '../constants/vendorCards'
+import AlertDialog from '../shared/components/AlertDialog'
 import BundleCard from '../shared/components/BundleCard'
 import CategoryCard from '../shared/components/CategoryCard'
 import HomeHero from '../shared/components/HomeHero'
@@ -13,6 +14,7 @@ import VendorCard from '../shared/components/VendorCard'
 
 function HomePage() {
   const [favoriteCards, setFavoriteCards] = useState({})
+  const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
   const [canScrollCategoriesLeft, setCanScrollCategoriesLeft] = useState(false)
@@ -28,6 +30,14 @@ function HomePage() {
       ...current,
       [cardId]: !current[cardId],
     }))
+  }
+
+  const handleAddToCartClick = () => {
+    setIsSignInDialogOpen(true)
+  }
+
+  const handleCloseSignInDialog = () => {
+    setIsSignInDialogOpen(false)
   }
 
   const updateScrollState = () => {
@@ -216,9 +226,7 @@ function HomePage() {
               primaryButtonLabel={card.primaryButtonLabel}
               onPrimaryButtonClick={() => console.log(`View plan clicked: ${card.id}`)}
               secondaryButtonLabel={card.secondaryButtonLabel}
-              onSecondaryButtonClick={() =>
-                console.log(`Add to cart clicked: ${card.id}`)
-              }
+              onSecondaryButtonClick={handleAddToCartClick}
             />
           </Box>
         ))}
@@ -427,6 +435,21 @@ function HomePage() {
           </Box>
         ))}
       </Box>
+
+      <AlertDialog
+        open={isSignInDialogOpen}
+        onClose={handleCloseSignInDialog}
+        iconBackgroundColor={COLORS.primary}
+        title="Sign in to continue"
+        titleColor={COLORS.primary}
+        description="To be able to add items to your cart or favorites please sign in now"
+        primaryButtonText="Sign in"
+        primaryButtonColor={COLORS.accent}
+        onPrimaryButtonClick={handleCloseSignInDialog}
+        secondaryActionText="Back to guest mode"
+        secondaryActionColor={COLORS.primary}
+        onSecondaryActionClick={handleCloseSignInDialog}
+      />
     </Stack>
   )
 }
