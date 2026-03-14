@@ -6,7 +6,8 @@ import Navbar from '../navigation/Navbar'
 
 function MainLayout() {
   const location = useLocation()
-  const isSignUpPage = location.pathname === '/sign-up'
+  const isAuthPage =
+    location.pathname === '/sign-up' || location.pathname === '/login'
 
   return (
     <Box
@@ -18,7 +19,7 @@ function MainLayout() {
       }}
     >
       <Navbar />
-      <Container maxWidth="lg" sx={{ pt: 0, pb: isSignUpPage ? 0 : 5, flexGrow: 1 }}>
+      <Container maxWidth="lg" sx={{ pt: 0, pb: isAuthPage ? 0 : 5, flexGrow: 1 }}>
         <Outlet />
       </Container>
       <Footer />

@@ -7,6 +7,7 @@ import ContactUsPage from '../pages/ContactUsPage'
 import FavoritesPage from '../pages/FavoritesPage'
 import ProfilePage from '../pages/ProfilePage'
 import VendorsPage from '../pages/VendorsPage'
+import LoginPage from '../pages/LoginPage'
 import SignUpPage from '../pages/SignUpPage'
 import HomePage from '../pages/HomePage'
 
@@ -23,6 +24,7 @@ function AppRoutes() {
         <Route path="/favorites" element={<FavoritesPage />} />
         <Route path="/cart" element={<CartPage />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/login" element={<LoginPage />} />
         <Route path="/sign-up" element={<SignUpPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/home" replace />} />
