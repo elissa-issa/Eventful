@@ -1,17 +1,23 @@
 import EventAvailableIcon from '@mui/icons-material/EventAvailable'
-import Person from '@mui/icons-material/Person'
+import FavoriteBorderRoundedIcon from '@mui/icons-material/FavoriteBorderRounded'
+import MicRoundedIcon from '@mui/icons-material/MicRounded'
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
+import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined'
+import TuneRoundedIcon from '@mui/icons-material/TuneRounded'
 import {
   AppBar,
+  Avatar,
   Box,
-  Button,
   Container,
   Link,
+  IconButton,
+  InputAdornment,
+  OutlinedInput,
   Stack,
   Toolbar,
   Typography,
 } from '@mui/material'
-import { NavLink, useNavigate } from 'react-router-dom'
-import { Link as RouterLink } from 'react-router-dom'
+import { Link as RouterLink, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { COLORS } from '../../constants/colors'
 import { navItems } from './navItems'
 
@@ -25,6 +31,8 @@ const getLinkStyles = ({ isActive }) => ({
 })
 
 function Navbar() {
+  const isLoggedIn = true
+  const isServicesPage = useLocation().pathname === '/services'
   const navigate = useNavigate()
 
   return (
@@ -66,7 +74,7 @@ function Navbar() {
           <Stack
             direction="row"
             spacing={3}
-            sx={{ display: { xs: 'none', md: 'flex' }, flexGrow: 1 }}
+            sx={{ display: { xs: 'none', md: 'flex' }, mr: 3 }}
           >
             {navItems.map(({ label, path }) => (
               <NavLink key={path} to={path} style={getLinkStyles}>
@@ -75,22 +83,85 @@ function Navbar() {
             ))}
           </Stack>
 
-          <Box sx={{ flexGrow: { xs: 1, md: 0 } }} />
+          <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'flex-end' }}>
+            <OutlinedInput
+              size="small"
+              placeholder="Search"
+              startAdornment={
+                <InputAdornment position="start">
+                  <SearchRoundedIcon sx={{ color: COLORS.textLight, fontSize: 18 }} />
+                </InputAdornment>
+              }
+              endAdornment={
+                <InputAdornment position="end">
+                  <MicRoundedIcon sx={{ color: COLORS.textLight, fontSize: 18 }} />
+                </InputAdornment>
+              }
+              sx={{
+                display: { xs: 'none', md: 'flex' },
+                mr: 2,
+                width: 300,
+                height: 36,
+                borderRadius: '999px',
+                backgroundColor: '#f6f6f8',
+                color: COLORS.textMuted,
+                '& .MuiOutlinedInput-notchedOutline': {
+                  border: 'none',
+                },
+              }}
+            />
+          </Box>
 
-          <Button
-            variant="contained"
-            size="small"
-            startIcon={<Person />}
-            onClick={() => navigate('/sign-up')}
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={0.5}
             sx={{
-              borderRadius: '999px',
-              textTransform: 'none',
-              fontWeight: 700,
-              px: 2,
+              ml: 0.5,
+              color: COLORS.primary,
             }}
           >
-            Sign Up
-          </Button>
+            {isServicesPage ? (
+              <IconButton
+                aria-label="Open filters"
+                sx={{ color: COLORS.primary }}
+              >
+                <TuneRoundedIcon />
+              </IconButton>
+            ) : null}
+
+            {isLoggedIn ? (
+              <>
+                <IconButton
+                  aria-label="Open favorites"
+                  onClick={() => navigate('/favorites')}
+                  sx={{ color: COLORS.primary }}
+                >
+                  <FavoriteBorderRoundedIcon />
+                </IconButton>
+
+                <IconButton
+                  aria-label="Open cart"
+                  onClick={() => navigate('/cart')}
+                  sx={{ color: COLORS.primary }}
+                >
+                  <ShoppingCartOutlinedIcon />
+                </IconButton>
+
+                <IconButton
+                  aria-label="Open profile"
+                  onClick={() => navigate('/profile')}
+                  sx={{ p: 0.5, ml: 0.25 }}
+                >
+                  <Avatar
+                    src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=160&q=80"
+                    alt="Profile"
+                    sx={{ width: 28, height: 28 }}
+                  />
+                </IconButton>
+              </>
+            ) : null}
+          </Stack>
         </Toolbar>
       </Container>
     </AppBar>
