@@ -291,7 +291,7 @@ function SignUpPage() {
               Already have an account?{' '}
               <Link
                 component={RouterLink}
-                to="/home"
+                to="/login"
                 underline="always"
                 sx={{ color: COLORS.surface, fontWeight: 700 }}
               >
