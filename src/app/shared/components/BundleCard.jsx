@@ -23,18 +23,24 @@ function BundleCard({
   onPrimaryButtonClick,
   secondaryButtonLabel,
   onSecondaryButtonClick,
+  maxWidth = 320,
+  imageHeight = 230,
+  cardBorderRadius = 1.5,
+  contentPaddingX = 0,
+  contentPaddingTop = 0,
+  contentPaddingBottom = 16,
 }) {
   return (
     <Card
       elevation={0}
       sx={{
         width: '100%',
-        maxWidth: 320,
-        borderRadius: 1.5,
+        maxWidth,
+        borderRadius: cardBorderRadius,
         overflow: 'hidden',
       }}
     >
-      <Box sx={{ position: 'relative', height: 230 }}>
+      <Box sx={{ position: 'relative', height: imageHeight }}>
         <Box
           component="img"
           src={imageSrc}
@@ -44,7 +50,7 @@ function BundleCard({
             height: '100%',
             objectFit: 'cover',
             display: 'block',
-            borderRadius: 1.5,
+            borderRadius: cardBorderRadius,
           }}
         />
         <IconButton
@@ -67,7 +73,13 @@ function BundleCard({
         </IconButton>
       </Box>
 
-      <CardContent sx={{ pr:0,pl:0 }}>
+      <CardContent
+        sx={{
+          px: contentPaddingX,
+          pt: contentPaddingTop,
+          pb: `${contentPaddingBottom}px`,
+        }}
+      >
         <Typography
           variant="h6"
           sx={{

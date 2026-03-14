@@ -13,6 +13,7 @@ import HomeHero from '../shared/components/HomeHero'
 import VendorCard from '../shared/components/VendorCard'
 
 function HomePage() {
+  const isLoggedIn = false
   const [favoriteCards, setFavoriteCards] = useState({})
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
@@ -26,6 +27,11 @@ function HomePage() {
   const vendorsRowRef = useRef(null)
 
   const handleFavoriteToggle = (cardId) => {
+    if (!isLoggedIn) {
+      setIsSignInDialogOpen(true)
+      return
+    }
+
     setFavoriteCards((current) => ({
       ...current,
       [cardId]: !current[cardId],
@@ -33,7 +39,10 @@ function HomePage() {
   }
 
   const handleAddToCartClick = () => {
-    setIsSignInDialogOpen(true)
+    if (!isLoggedIn) {
+      setIsSignInDialogOpen(true)
+      return
+    }
   }
 
   const handleCloseSignInDialog = () => {

@@ -1,0 +1,83 @@
+export const MENU_ITEMS = [
+  {
+    id: 'lebanese-grill-1',
+    imageSrc:
+      'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1200&q=80',
+    imageAlt: 'Lebanese grill platter',
+    title: 'Lebanese Grill',
+    description: 'A mix of meat, tawouk, kafta with vegetables sides',
+    guestText: 'Guests: 20 - 100',
+    priceText: '15$/Person',
+    discountLabel: '20% off for 50+ persons',
+    vendorLogoSrc:
+      'https://dummyimage.com/120x54/ffffff/cc3b1e.png&text=Pain+d%27Or',
+    vendorLogoAlt: 'Pain d Or logo',
+  },
+  {
+    id: 'birthday-cake-1',
+    imageSrc:
+      'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1200&q=80',
+    imageAlt: 'Chocolate birthday cake',
+    title: 'Birthday Cake',
+    description: 'Cake with frosting of your choice and chocolate',
+    guestText: 'Guests: 2 - 20',
+    priceText: '15$/Person',
+    discountLabel: 'Vegan',
+    vendorLogoSrc:
+      'https://dummyimage.com/120x54/f7efe7/a88c65.png&text=Al+Safir',
+    vendorLogoAlt: 'Al Safir logo',
+  },
+  {
+    id: 'mixed-lunch-menu-1',
+    imageSrc:
+      'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1200&q=80',
+    imageAlt: 'Mixed lunch table setup',
+    title: 'Mixed Lunch Menu',
+    description: 'Chicken with rice, salads served with wine',
+    guestText: 'Guests: 20 - 100',
+    priceText: '15$/Person',
+    vendorLogoSrc:
+      'https://dummyimage.com/120x54/ffffff/cc3b1e.png&text=Pain+d%27Or',
+    vendorLogoAlt: 'Pain d Or logo',
+  },
+  {
+    id: 'lebanese-grill-2',
+    imageSrc:
+      'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1200&q=80',
+    imageAlt: 'Lebanese grill platter',
+    title: 'Lebanese Grill',
+    description: 'A mix of meat, tawouk, kafta with vegetables sides',
+    guestText: 'Guests: 20 - 100',
+    priceText: '15$/Person',
+    discountLabel: '20% off for 50+ persons',
+    vendorLogoSrc:
+      'https://dummyimage.com/120x54/ffffff/cc3b1e.png&text=Pain+d%27Or',
+    vendorLogoAlt: 'Pain d Or logo',
+  },
+  {
+    id: 'birthday-cake-2',
+    imageSrc:
+      'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1200&q=80',
+    imageAlt: 'Chocolate birthday cake',
+    title: 'Birthday Cake',
+    description: 'Cake with frosting of your choice and chocolate',
+    guestText: 'Guests: 2 - 20',
+    priceText: '15$/Person',
+    vendorLogoSrc:
+      'https://dummyimage.com/120x54/f7efe7/a88c65.png&text=Al+Safir',
+    vendorLogoAlt: 'Al Safir logo',
+  },
+  {
+    id: 'mixed-lunch-menu-2',
+    imageSrc:
+      'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1200&q=80',
+    imageAlt: 'Mixed lunch table setup',
+    title: 'Mixed Lunch Menu',
+    description: 'Chicken with rice, salads served with wine',
+    guestText: 'Guests: 20 - 100',
+    priceText: '15$/Person',
+    vendorLogoSrc:
+      'https://dummyimage.com/120x54/ffffff/cc3b1e.png&text=Pain+d%27Or',
+    vendorLogoAlt: 'Pain d Or logo',
+  },
+]

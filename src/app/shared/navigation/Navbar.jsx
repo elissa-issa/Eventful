@@ -5,11 +5,13 @@ import {
   Box,
   Button,
   Container,
+  Link,
   Stack,
   Toolbar,
   Typography,
 } from '@mui/material'
 import { NavLink, useNavigate } from 'react-router-dom'
+import { Link as RouterLink } from 'react-router-dom'
 import { COLORS } from '../../constants/colors'
 import { navItems } from './navItems'
 
@@ -37,7 +39,21 @@ function Navbar() {
     >
       <Container maxWidth="xl">
         <Toolbar sx={{ minHeight: 64, px: { xs: 0, sm: 1 } }}>
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ mr: 4 }}>
+          <Stack
+            component={Link}
+            to="/home"
+            underline="none"
+            color="inherit"
+            component={RouterLink}
+            direction="row"
+            alignItems="center"
+            spacing={1}
+            sx={{
+              mr: 4,
+              textDecoration: 'none',
+              cursor: 'pointer',
+            }}
+          >
             <EventAvailableIcon sx={{ color: COLORS.primary }} />
             <Typography
               variant="h6"
