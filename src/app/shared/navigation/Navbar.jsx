@@ -9,7 +9,6 @@ import {
   Avatar,
   Box,
   Container,
-  Link,
   IconButton,
   InputAdornment,
   OutlinedInput,
@@ -32,8 +31,25 @@ const getLinkStyles = ({ isActive }) => ({
 
 function Navbar() {
   const isLoggedIn = true
-  const isServicesPage = useLocation().pathname === '/services'
+  const location = useLocation()
+  const isServicesPage = location.pathname === '/services'
   const navigate = useNavigate()
+  const handleFilterToggle = () => {
+    const params = new URLSearchParams(location.search)
+    const nextHash = location.hash || '#venues'
+
+    if (params.get('filters') === 'open') {
+      params.delete('filters')
+    } else {
+      params.set('filters', 'open')
+    }
+
+    navigate({
+      pathname: location.pathname,
+      hash: nextHash,
+      search: params.toString() ? `?${params.toString()}` : '',
+    })
+  }
 
   return (
     <AppBar
@@ -48,11 +64,8 @@ function Navbar() {
       <Container maxWidth="xl">
         <Toolbar sx={{ minHeight: 64, px: { xs: 0, sm: 1 } }}>
           <Stack
-            component={Link}
-            to="/home"
-            underline="none"
-            color="inherit"
             component={RouterLink}
+            to="/home"
             direction="row"
             alignItems="center"
             spacing={1}
@@ -60,6 +73,7 @@ function Navbar() {
               mr: 4,
               textDecoration: 'none',
               cursor: 'pointer',
+              color: 'inherit',
             }}
           >
             <EventAvailableIcon sx={{ color: COLORS.primary }} />
@@ -124,6 +138,7 @@ function Navbar() {
             {isServicesPage ? (
               <IconButton
                 aria-label="Open filters"
+                onClick={handleFilterToggle}
                 sx={{ color: COLORS.primary }}
               >
                 <TuneRoundedIcon />
