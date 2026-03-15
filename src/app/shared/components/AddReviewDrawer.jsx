@@ -2,7 +2,7 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import StarRoundedIcon from '@mui/icons-material/StarRounded'
 import {
   Button,
-  Drawer,
+  Dialog,
   IconButton,
   Rating,
   Stack,
@@ -27,19 +27,16 @@ function AddReviewDrawer({
   onPostReviewClick,
 }) {
   return (
-    <Drawer
-      anchor="bottom"
+    <Dialog
+      fullWidth
+      maxWidth="sm"
       open={open}
       onClose={onClose}
       PaperProps={{
         sx: {
           width: '100%',
           maxWidth: 520,
-          mx: 'auto',
-          borderTopLeftRadius: 12,
-          borderTopRightRadius: 12,
-          borderBottomLeftRadius: 0,
-          borderBottomRightRadius: 0,
+          borderRadius: 3,
           overflow: 'hidden',
         },
       }}
@@ -177,7 +174,7 @@ function AddReviewDrawer({
           </Stack>
         </Stack>
       </Stack>
-    </Drawer>
+    </Dialog>
   )
 }
 

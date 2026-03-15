@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import MainLayout from '../shared/layout/MainLayout'
 import CartPage from '../pages/CartPage'
+import ServiceItemPage from '../pages/ServiceItemPage'
 import ServicesPage from '../pages/ServicesPage'
 import CustomizePage from '../pages/CustomizePage'
 import ContactUsPage from '../pages/ContactUsPage'
@@ -18,6 +19,7 @@ function AppRoutes() {
         <Route index element={<Navigate to="/home" replace />} />
         <Route path="/home" element={<HomePage />} />
         <Route path="/services" element={<ServicesPage />} />
+        <Route path="/services/:section/:itemId" element={<ServiceItemPage />} />
         <Route path="/customize" element={<CustomizePage />} />
         <Route path="/contact-us" element={<ContactUsPage />} />
         <Route path="/vendors" element={<VendorsPage />} />

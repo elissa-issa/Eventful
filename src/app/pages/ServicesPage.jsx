@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Box } from '@mui/material'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { BUNDLE_CARDS } from '../constants/bundleCards'
 import { DECORATION_ITEMS } from '../constants/decorationItems'
 import { ENTERTAINMENT_ITEMS } from '../constants/entertainmentItems'
@@ -10,15 +10,14 @@ import { COLORS } from '../constants/colors'
 import AlertDialog from '../shared/components/AlertDialog'
 import BundleCard from '../shared/components/BundleCard'
 import ServiceCard from '../shared/components/ServiceCard'
-import ServiceItemGalleryDialog from '../shared/components/ServiceItemGalleryDialog'
 import ServicesSubnav from '../shared/navigation/ServicesSubnav'
 
 function ServicesPage() {
   const isLoggedIn = false
   const location = useLocation()
+  const navigate = useNavigate()
   const [favoriteItems, setFavoriteItems] = useState({})
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
-  const [selectedServiceItem, setSelectedServiceItem] = useState(null)
 
   const activeSection = location.hash.replace('#', '') || 'menus'
 
@@ -52,21 +51,6 @@ function ServicesPage() {
 
   const activeItems = itemsBySection[activeSection] || []
   const isBundleSection = activeSection === 'bundles'
-  const selectedGalleryImages =
-    selectedServiceItem == null
-      ? []
-      : [
-          {
-            src: selectedServiceItem.imageSrc,
-            alt: selectedServiceItem.imageAlt,
-          },
-          ...activeItems
-            .filter((item) => item.id !== selectedServiceItem.id && item.imageSrc !== selectedServiceItem.imageSrc)
-            .map((item) => ({
-              src: item.imageSrc,
-              alt: item.imageAlt,
-            })),
-        ]
 
   return (
     <>
@@ -125,23 +109,11 @@ function ServicesPage() {
                 vendorLogoAlt={item.vendorLogoAlt}
                 isFavorite={Boolean(favoriteItems[item.id])}
                 onFavoriteToggle={() => handleFavoriteToggle(item.id)}
-                onViewButtonClick={() => setSelectedServiceItem(item)}
+                onViewButtonClick={() => navigate(`/services/${activeSection}/${item.id}`)}
                 onCartButtonClick={handleProtectedAction}
               />
             ))}
       </Box>
-
-      <ServiceItemGalleryDialog
-        open={Boolean(selectedServiceItem)}
-        onClose={() => setSelectedServiceItem(null)}
-        title={selectedServiceItem?.title}
-        images={selectedGalleryImages}
-        discountLabel={selectedServiceItem?.discountLabel}
-        isFavorite={selectedServiceItem ? Boolean(favoriteItems[selectedServiceItem.id]) : false}
-        onFavoriteToggle={
-          selectedServiceItem ? () => handleFavoriteToggle(selectedServiceItem.id) : undefined
-        }
-      />
 
       <AlertDialog
         open={isSignInDialogOpen}

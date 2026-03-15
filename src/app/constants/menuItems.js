@@ -6,9 +6,15 @@ export const MENU_ITEMS = [
     imageAlt: 'Lebanese grill platter',
     title: 'Lebanese Grill',
     description: 'A mix of meat, tawouk, kafta with vegetables sides',
+    detailsDescription:
+      'A mix of meat, tawouk, kafta. Served with fries, onions, tomato, peppers, parsley and bread on the side along with a garlic dip.',
     guestText: 'Guests: 20 - 100',
     priceText: '15$/Person',
     discountLabel: '20% off for 50+ persons',
+    vendorName: 'Pain d’Or',
+    vendorLocation: 'Beirut',
+    ratingValue: 4.5,
+    reviewCount: 120,
     vendorLogoSrc:
       'https://dummyimage.com/120x54/ffffff/cc3b1e.png&text=Pain+d%27Or',
     vendorLogoAlt: 'Pain d Or logo',
@@ -20,9 +26,15 @@ export const MENU_ITEMS = [
     imageAlt: 'Chocolate birthday cake',
     title: 'Birthday Cake',
     description: 'Cake with frosting of your choice and chocolate',
+    detailsDescription:
+      'Chocolate birthday cake with frosting of your choice, layered sponge, and decorative toppings for intimate celebrations.',
     guestText: 'Guests: 2 - 20',
     priceText: '15$/Person',
     discountLabel: 'Vegan',
+    vendorName: 'Al Safir',
+    vendorLocation: 'Beirut',
+    ratingValue: 4.7,
+    reviewCount: 86,
     vendorLogoSrc:
       'https://dummyimage.com/120x54/f7efe7/a88c65.png&text=Al+Safir',
     vendorLogoAlt: 'Al Safir logo',
@@ -34,8 +46,14 @@ export const MENU_ITEMS = [
     imageAlt: 'Mixed lunch table setup',
     title: 'Mixed Lunch Menu',
     description: 'Chicken with rice, salads served with wine',
+    detailsDescription:
+      'Chicken with rice, seasonal salads, appetizers, and dessert options served as a complete lunch menu for medium to large events.',
     guestText: 'Guests: 20 - 100',
     priceText: '15$/Person',
+    vendorName: 'Pain d’Or',
+    vendorLocation: 'Beirut',
+    ratingValue: 4.3,
+    reviewCount: 95,
     vendorLogoSrc:
       'https://dummyimage.com/120x54/ffffff/cc3b1e.png&text=Pain+d%27Or',
     vendorLogoAlt: 'Pain d Or logo',
@@ -47,9 +65,15 @@ export const MENU_ITEMS = [
     imageAlt: 'Lebanese grill platter',
     title: 'Lebanese Grill',
     description: 'A mix of meat, tawouk, kafta with vegetables sides',
+    detailsDescription:
+      'A mix of meat, tawouk, kafta. Served with fries, onions, tomato, peppers, parsley and bread on the side along with a garlic dip.',
     guestText: 'Guests: 20 - 100',
     priceText: '15$/Person',
     discountLabel: '20% off for 50+ persons',
+    vendorName: 'Pain d’Or',
+    vendorLocation: 'Beirut',
+    ratingValue: 4.5,
+    reviewCount: 120,
     vendorLogoSrc:
       'https://dummyimage.com/120x54/ffffff/cc3b1e.png&text=Pain+d%27Or',
     vendorLogoAlt: 'Pain d Or logo',
@@ -61,8 +85,14 @@ export const MENU_ITEMS = [
     imageAlt: 'Chocolate birthday cake',
     title: 'Birthday Cake',
     description: 'Cake with frosting of your choice and chocolate',
+    detailsDescription:
+      'Chocolate birthday cake with frosting of your choice, layered sponge, and decorative toppings for intimate celebrations.',
     guestText: 'Guests: 2 - 20',
     priceText: '15$/Person',
+    vendorName: 'Al Safir',
+    vendorLocation: 'Beirut',
+    ratingValue: 4.7,
+    reviewCount: 86,
     vendorLogoSrc:
       'https://dummyimage.com/120x54/f7efe7/a88c65.png&text=Al+Safir',
     vendorLogoAlt: 'Al Safir logo',
@@ -74,8 +104,14 @@ export const MENU_ITEMS = [
     imageAlt: 'Mixed lunch table setup',
     title: 'Mixed Lunch Menu',
     description: 'Chicken with rice, salads served with wine',
+    detailsDescription:
+      'Chicken with rice, seasonal salads, appetizers, and dessert options served as a complete lunch menu for medium to large events.',
     guestText: 'Guests: 20 - 100',
     priceText: '15$/Person',
+    vendorName: 'Pain d’Or',
+    vendorLocation: 'Beirut',
+    ratingValue: 4.3,
+    reviewCount: 95,
     vendorLogoSrc:
       'https://dummyimage.com/120x54/ffffff/cc3b1e.png&text=Pain+d%27Or',
     vendorLogoAlt: 'Pain d Or logo',
