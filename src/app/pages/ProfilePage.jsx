@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import FavoriteRoundedIcon from '@mui/icons-material/FavoriteRounded'
 import PersonOutlineRoundedIcon from '@mui/icons-material/PersonOutlineRounded'
 import ShoppingCartRoundedIcon from '@mui/icons-material/ShoppingCartRounded'
@@ -13,6 +14,7 @@ import {
   Typography,
 } from '@mui/material'
 import { COLORS } from '../constants/colors'
+import AddLocationDialog from '../shared/components/AddLocationDialog'
 import {
   profileFields,
   profileFieldStyles,
@@ -22,6 +24,8 @@ import {
 } from '../constants/profilePage'
 
 function ProfilePage() {
+  const [isAddLocationDialogOpen, setIsAddLocationDialogOpen] = useState(false)
+
   return (
     <Box
       sx={{
@@ -405,6 +409,9 @@ function ProfilePage() {
                   <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
                     <Stack spacing={1.2} alignItems="center">
                       <Box
+                        component="button"
+                        type="button"
+                        onClick={() => setIsAddLocationDialogOpen(true)}
                         sx={{
                           width: '100%',
                           maxWidth: 210,
@@ -416,6 +423,13 @@ function ProfilePage() {
                           alignItems: 'center',
                           justifyContent: 'center',
                           gap: 1.5,
+                          border: 0,
+                          cursor: 'pointer',
+                          transition: 'transform 180ms ease, background-color 180ms ease',
+                          '&:hover': {
+                            backgroundColor: '#b4b4b4',
+                            transform: 'translateY(-2px)',
+                          },
                         }}
                       >
                         <Box
@@ -443,6 +457,11 @@ function ProfilePage() {
           </Grid>
         </Grid>
       </Box>
+
+      <AddLocationDialog
+        open={isAddLocationDialogOpen}
+        onClose={() => setIsAddLocationDialogOpen(false)}
+      />
     </Box>
   )
 }

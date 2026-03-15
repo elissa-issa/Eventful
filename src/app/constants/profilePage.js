@@ -31,6 +31,39 @@ export const profileLocations = [
   { id: 2, label: 'Home Bhamdoun' },
 ]
 
+export const addLocationFields = [
+  {
+    id: 'locationName',
+    label: 'Location Name',
+    placeholder: 'e.g. Home, La Marina Venue',
+  },
+  {
+    id: 'city',
+    label: 'City',
+    placeholder: 'e.g. Jounieh',
+  },
+  {
+    id: 'streetAddress',
+    label: 'Street Address',
+    placeholder: 'e.g. 45 Marina Road, Jounieh',
+  },
+  {
+    id: 'mobileNumber',
+    label: 'Mobile Number',
+    placeholder: 'e.g. +961 70 123 456',
+  },
+  {
+    id: 'apartmentFloor',
+    label: 'Apartment / Floor (optional)',
+    placeholder: 'e.g. Apt. 3B, 2nd Floor',
+  },
+  {
+    id: 'zipCode',
+    label: 'ZIP / Postal Code',
+    placeholder: 'e.g. 1200',
+  },
+]
+
 export const profileFieldStyles = {
   '& .MuiOutlinedInput-root': {
     borderRadius: 1.5,
