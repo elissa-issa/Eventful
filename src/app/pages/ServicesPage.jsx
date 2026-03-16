@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Box } from '@mui/material'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { BUNDLE_CARDS } from '../constants/bundleCards'
 import { DECORATION_ITEMS } from '../constants/decorationItems'
 import { ENTERTAINMENT_ITEMS } from '../constants/entertainmentItems'
@@ -16,11 +16,21 @@ import ServicesSubnav from '../shared/navigation/ServicesSubnav'
 function ServicesPage() {
   const isLoggedIn = false
   const location = useLocation()
+  const navigate = useNavigate()
   const [favoriteItems, setFavoriteItems] = useState({})
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const [selectedServiceItem, setSelectedServiceItem] = useState(null)
 
   const activeSection = location.hash.replace('#', '') || 'menus'
+
+  const handleCloseSignInDialog = () => {
+    setIsSignInDialogOpen(false)
+  }
+
+  const handleSignUpRedirect = () => {
+    handleCloseSignInDialog()
+    navigate('/sign-up')
+  }
 
   const handleProtectedAction = () => {
     if (!isLoggedIn) {
@@ -145,16 +155,16 @@ function ServicesPage() {
 
       <AlertDialog
         open={isSignInDialogOpen}
-        onClose={() => setIsSignInDialogOpen(false)}
+        onClose={handleCloseSignInDialog}
         title="Sign in to continue"
         titleColor={COLORS.primary}
         description="To be able to add items to your cart or favorites please sign in now"
         primaryButtonText="Sign in"
         primaryButtonColor={COLORS.accent}
-        onPrimaryButtonClick={() => setIsSignInDialogOpen(false)}
+        onPrimaryButtonClick={handleSignUpRedirect}
         secondaryActionText="Back to guest mode"
         secondaryActionColor={COLORS.primary}
-        onSecondaryActionClick={() => setIsSignInDialogOpen(false)}
+        onSecondaryActionClick={handleCloseSignInDialog}
       />
     </>
   )
