@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import ArrowBackIosNewRoundedIcon from '@mui/icons-material/ArrowBackIosNewRounded'
 import ArrowForwardIosRoundedIcon from '@mui/icons-material/ArrowForwardIosRounded'
 import { Box, Button, IconButton, Stack, Typography } from '@mui/material'
+import { useNavigate } from 'react-router-dom'
 import { BUNDLE_CARDS } from '../constants/bundleCards'
 import { CATEGORY_CARDS } from '../constants/categoryCards'
 import { COLORS } from '../constants/colors'
@@ -14,6 +15,7 @@ import VendorCard from '../shared/components/VendorCard'
 
 function HomePage() {
   const isLoggedIn = false
+  const navigate = useNavigate()
   const [favoriteCards, setFavoriteCards] = useState({})
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
@@ -47,6 +49,11 @@ function HomePage() {
 
   const handleCloseSignInDialog = () => {
     setIsSignInDialogOpen(false)
+  }
+
+  const handleSignUpRedirect = () => {
+    handleCloseSignInDialog()
+    navigate('/sign-up')
   }
 
   const updateScrollState = () => {
@@ -454,7 +461,7 @@ function HomePage() {
         description="To be able to add items to your cart or favorites please sign in now"
         primaryButtonText="Sign in"
         primaryButtonColor={COLORS.accent}
-        onPrimaryButtonClick={handleCloseSignInDialog}
+        onPrimaryButtonClick={handleSignUpRedirect}
         secondaryActionText="Back to guest mode"
         secondaryActionColor={COLORS.primary}
         onSecondaryActionClick={handleCloseSignInDialog}

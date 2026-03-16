@@ -68,6 +68,15 @@ function ServicesPage() {
 
   const activeSection = location.hash.replace('#', '') || 'menus'
 
+  const handleCloseSignInDialog = () => {
+    setIsSignInDialogOpen(false)
+  }
+
+  const handleSignUpRedirect = () => {
+    handleCloseSignInDialog()
+    navigate('/sign-up')
+  }
+
   const handleProtectedAction = () => {
     if (!isLoggedIn) {
       setIsSignInDialogOpen(true)
@@ -430,16 +439,16 @@ function ServicesPage() {
 
       <AlertDialog
         open={isSignInDialogOpen}
-        onClose={() => setIsSignInDialogOpen(false)}
+        onClose={handleCloseSignInDialog}
         title="Sign in to continue"
         titleColor={COLORS.primary}
         description="To be able to add items to your cart or favorites please sign in now"
         primaryButtonText="Sign in"
         primaryButtonColor={COLORS.accent}
-        onPrimaryButtonClick={() => setIsSignInDialogOpen(false)}
+        onPrimaryButtonClick={handleSignUpRedirect}
         secondaryActionText="Back to guest mode"
         secondaryActionColor={COLORS.primary}
-        onSecondaryActionClick={() => setIsSignInDialogOpen(false)}
+        onSecondaryActionClick={handleCloseSignInDialog}
       />
     </>
   )
