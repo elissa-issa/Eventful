@@ -26,9 +26,12 @@ function ServiceCard({
       sx={{
         width: '100%',
         maxWidth: 400,
+        height: '100%',
         borderRadius: 2,
         overflow: 'hidden',
         backgroundColor: COLORS.surface,
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
       <Box sx={{ position: 'relative', height: 312 }}>
@@ -82,8 +85,16 @@ function ServiceCard({
         </IconButton>
       </Box>
 
-      <CardContent sx={{ px: 0.5, pt: 1.8, pb: 1.6 }}>
-        <Stack spacing={1.3}>
+      <CardContent
+        sx={{
+          px: 0.5,
+          pt: 1.8,
+          pb: 1.6,
+          flexGrow: 1,
+          display: 'flex',
+        }}
+      >
+        <Stack spacing={1.3} sx={{ flexGrow: 1, width: '100%' }}>
           <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
             <Typography
               variant="h6"
@@ -114,18 +125,22 @@ function ServiceCard({
             ) : null}
           </Stack>
 
-          {description ? (
-            <Typography
-              variant="body2"
-              sx={{
-                color: '#7b7b7b',
-                fontSize: '0.95rem',
-                lineHeight: 1.25,
-              }}
-            >
-              {description}
-            </Typography>
-          ) : null}
+          <Typography
+            variant="body2"
+            sx={{
+              color: '#7b7b7b',
+              fontSize: '0.95rem',
+              lineHeight: 1.25,
+              height: '2.5rem',
+              display: '-webkit-box',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              WebkitBoxOrient: 'vertical',
+              WebkitLineClamp: 2,
+            }}
+          >
+            {description || ''}
+          </Typography>
 
           {guestText ? (
             <Typography
@@ -152,7 +167,7 @@ function ServiceCard({
             {priceText}
           </Typography>
 
-          <Stack direction="row" spacing={2} sx={{ pt: 0.6 }}>
+          <Stack direction="row" spacing={2} sx={{ pt: 0.6, mt: 'auto' }}>
             <Button
               fullWidth
               disableElevation

@@ -10,7 +10,9 @@ import { VENUE_ITEMS } from '../constants/venueItems'
 import { COLORS } from '../constants/colors'
 import AddReviewDrawer from '../shared/components/AddReviewDrawer'
 import AlertDialog from '../shared/components/AlertDialog'
+import BundlePlanItems from '../shared/components/BundlePlanItems'
 import ReviewsSection from '../shared/components/ReviewsSection'
+import ReviewsDrawer from '../shared/components/ReviewsDrawer'
 import ServiceItemGalleryDialog from '../shared/components/ServiceItemGalleryDialog'
 
 const itemsBySection = {
@@ -29,10 +31,13 @@ function ServiceItemPage() {
   const [favoriteItems, setFavoriteItems] = useState({})
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const [isAddReviewDrawerOpen, setIsAddReviewDrawerOpen] = useState(false)
+  const [isReviewsDrawerOpen, setIsReviewsDrawerOpen] = useState(false)
   const [reviewText, setReviewText] = useState('')
   const [reviewRating, setReviewRating] = useState(0)
+  const [selectedBundleImageSrc, setSelectedBundleImageSrc] = useState(null)
 
   const activeItems = useMemo(() => itemsBySection[section] || [], [section])
+  const isBundleSection = section === 'bundles'
   const selectedItem = activeItems.find((item) => item.id === itemId)
 
   const galleryImages = useMemo(() => {
@@ -40,11 +45,19 @@ function ServiceItemPage() {
       return []
     }
 
+    const planImages = selectedItem.planItems
+      ? selectedItem.planItems.map((item) => ({
+          src: item.imageSrc,
+          alt: item.imageAlt,
+        }))
+      : []
+
     const galleryCandidates = [
       {
         src: selectedItem.imageSrc,
         alt: selectedItem.imageAlt,
       },
+      ...planImages,
       ...activeItems
         .filter((item) => item.id !== selectedItem.id)
         .map((item) => ({
@@ -58,31 +71,101 @@ function ServiceItemPage() {
         collection.findIndex((candidate) => candidate.src === image.src) === index
     )
   }, [activeItems, selectedItem])
+  const activeBundleImageSrc =
+    isBundleSection &&
+    selectedBundleImageSrc &&
+    galleryImages.some((image) => image.src === selectedBundleImageSrc)
+      ? selectedBundleImageSrc
+      : undefined
+  const pricingConfig = useMemo(() => {
+    if (!selectedItem) {
+      return undefined
+    }
+
+    const percentDiscountMatch = selectedItem.discountLabel?.match(/(\d+)% off for (\d+)\+/i)
+    const freeUnitsDiscountMatch = selectedItem.discountLabel?.match(/buy (\d+) get (\d+) for free/i)
+
+    if (section === 'menus') {
+      return {
+        baseAmount: selectedItem.priceValue ?? 0,
+        calculationType: 'per_unit',
+        unitLabel: 'people',
+        defaultQuantity: 1,
+        discount: percentDiscountMatch
+          ? {
+              type: 'percentage',
+              value: Number(percentDiscountMatch[1]),
+              minQuantity: Number(percentDiscountMatch[2]),
+              label: selectedItem.discountLabel,
+            }
+          : undefined,
+      }
+    }
+
+    if (section === 'decorations') {
+      return {
+        baseAmount: selectedItem.priceValue ?? 0,
+        calculationType: 'per_unit',
+        unitLabel: 'items',
+        defaultQuantity: 1,
+        discount: freeUnitsDiscountMatch
+          ? {
+              type: 'free_units',
+              buyQuantity: Number(freeUnitsDiscountMatch[1]),
+              freeQuantity: Number(freeUnitsDiscountMatch[2]),
+              minQuantity:
+                Number(freeUnitsDiscountMatch[1]) + Number(freeUnitsDiscountMatch[2]),
+              label: selectedItem.discountLabel,
+            }
+          : undefined,
+      }
+    }
+
+    if (section === 'venues') {
+      return {
+        baseAmount: selectedItem.priceValue ?? 0,
+        calculationType: 'flat',
+        unitLabel: 'booking',
+        defaultQuantity: 1,
+      }
+    }
+
+    if (section === 'entertainment') {
+      return {
+        baseAmount: selectedItem.priceValue ?? 0,
+        calculationType: 'flat',
+        unitLabel: 'booking',
+        defaultQuantity: 1,
+      }
+    }
+
+    if (section === 'bundles') {
+      return {
+        baseAmount: selectedItem.priceValue ?? 0,
+        calculationType: 'flat',
+        unitLabel: 'plan',
+        defaultQuantity: 1,
+      }
+    }
+
+    return undefined
+  }, [section, selectedItem])
 
   const sampleReviews = useMemo(
-    () => [
-      {
-        id: 'review-1',
-        author: 'Charbel',
-        dateLabel: '22 Jul',
-        rating: 4.5,
+    () =>
+      Array.from({ length: 12 }, (_, index) => ({
+        id: `review-${index + 1}`,
+        author: index % 2 === 0 ? 'Charbel' : 'Maya',
+        dateLabel: index % 3 === 0 ? '22 Jul' : index % 3 === 1 ? '18 Jul' : '11 Jul',
+        rating: index % 4 === 0 ? 4.5 : 5,
         avatarSrc:
-          'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&q=80',
+          index % 2 === 0
+            ? 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&q=80'
+            : 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80',
         content:
           'The plate offered a tasty mix of meat, tawouk, and kafta, perfectly complemented by fresh vegetable sides. The flavors blended well together, creating a satisfying and well-balanced meal that was both filling and enjoyable.',
-      },
-      {
-        id: 'review-2',
-        author: 'Charbel',
-        dateLabel: '22 Jul',
-        rating: 4.5,
-        avatarSrc:
-          'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&q=80',
-        content:
-          'The plate offered a tasty mix of meat, tawouk, and kafta, perfectly complemented by fresh vegetable sides. The flavors blended well together, creating a satisfying and well-balanced meal that was both filling and enjoyable.',
-      },
-    ],
-    []
+      })),
+    [],
   )
 
   const handleProtectedAction = () => {
@@ -127,6 +210,14 @@ function ServiceItemPage() {
     setReviewRating(0)
   }
 
+  const handleOpenReviewsDrawer = () => {
+    setIsReviewsDrawerOpen(true)
+  }
+
+  const handleCloseReviewsDrawer = () => {
+    setIsReviewsDrawerOpen(false)
+  }
+
   if (!selectedItem) {
     return <Navigate to="/services" replace />
   }
@@ -135,6 +226,7 @@ function ServiceItemPage() {
     <>
       <Box sx={{ minHeight: 'calc(100vh - 180px)' }}>
         <ServiceItemGalleryDialog
+          key={selectedItem.id}
           title={selectedItem.title}
           images={galleryImages}
           discountLabel={selectedItem.discountLabel}
@@ -147,31 +239,65 @@ function ServiceItemPage() {
           reviewCount={selectedItem.reviewCount}
           description={selectedItem.detailsDescription || selectedItem.description}
           priceText={selectedItem.priceText}
+          detailBadgeText={selectedItem.detailBadgeText}
+          supportingInfoText={selectedItem.supportingInfoText || selectedItem.guestText}
+          showPeopleSelector={selectedItem.showPeopleSelector}
+          peopleLabel={selectedItem.peopleLabel}
+          datePlaceholder={selectedItem.datePlaceholder}
+          timePlaceholder={selectedItem.timePlaceholder}
+          actionButtonText={selectedItem.actionButtonText}
+          pricing={pricingConfig}
+          selectedImageSrc={activeBundleImageSrc}
+          onSelectedImageChange={isBundleSection ? setSelectedBundleImageSrc : undefined}
           onAddToCart={handleProtectedAction}
           onFavoriteToggle={handleFavoriteToggle}
           onBack={() => navigate(`/services#${section}`)}
+          belowGalleryContent={
+            isBundleSection ? (
+              <BundlePlanItems
+                items={selectedItem.planItems}
+                selectedImageSrc={activeBundleImageSrc || selectedItem.imageSrc}
+                onItemSelect={setSelectedBundleImageSrc}
+              />
+            ) : null
+          }
           leftBottomContent={
-            <ReviewsSection
-              averageRating={selectedItem.ratingValue ?? 4.5}
-              reviewCount={selectedItem.reviewCount ?? 120}
-              reviews={sampleReviews}
-              onAddReviewClick={handleOpenAddReviewDrawer}
-              onViewAllClick={() => console.log(`View all reviews clicked: ${selectedItem.id}`)}
-            />
+            isBundleSection ? null : (
+              <ReviewsSection
+                averageRating={selectedItem.ratingValue ?? 4.5}
+                reviewCount={selectedItem.reviewCount ?? 120}
+                reviews={sampleReviews}
+                onAddReviewClick={handleOpenAddReviewDrawer}
+                onViewAllClick={handleOpenReviewsDrawer}
+              />
+            )
           }
         />
       </Box>
 
-      <AddReviewDrawer
-        open={isAddReviewDrawerOpen}
-        onClose={handleCloseAddReviewDrawer}
-        reviewValue={reviewText}
-        onReviewChange={setReviewText}
-        ratingValue={reviewRating}
-        onRatingChange={setReviewRating}
-        onAddPictureClick={() => console.log(`Add review picture clicked: ${selectedItem.id}`)}
-        onPostReviewClick={handlePostReview}
-      />
+      {isBundleSection ? null : (
+        <AddReviewDrawer
+          open={isAddReviewDrawerOpen}
+          onClose={handleCloseAddReviewDrawer}
+          reviewValue={reviewText}
+          onReviewChange={setReviewText}
+          ratingValue={reviewRating}
+          onRatingChange={setReviewRating}
+          onAddPictureClick={() => console.log(`Add review picture clicked: ${selectedItem.id}`)}
+          onPostReviewClick={handlePostReview}
+        />
+      )}
+
+      {isReviewsDrawerOpen && !isBundleSection ? (
+        <ReviewsDrawer
+          open={isReviewsDrawerOpen}
+          onClose={handleCloseReviewsDrawer}
+          averageRating={selectedItem.ratingValue ?? 4.5}
+          reviewCount={selectedItem.reviewCount ?? 120}
+          reviews={sampleReviews}
+          onAddReviewClick={handleOpenAddReviewDrawer}
+        />
+      ) : null}
 
       <AlertDialog
         open={isSignInDialogOpen}

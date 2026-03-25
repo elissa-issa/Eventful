@@ -10,6 +10,7 @@ import {
   Box,
   Button,
   IconButton,
+  InputBase,
   Rating,
   Stack,
   Typography,
@@ -36,39 +37,78 @@ function ServiceItemGalleryDialog({
   reviewCount = 120,
   description,
   priceText,
+  detailBadgeText,
+  supportingInfoText,
+  showPeopleSelector = true,
+  peopleLabel = 'Number of people',
+  datePlaceholder = 'Select Delivery Date',
+  timePlaceholder = 'Select Delivery Time',
+  actionButtonText = 'Add to Cart',
+  pricing,
+  selectedImageSrc,
+  onSelectedImageChange,
   onAddToCart,
   onBack,
+  belowGalleryContent,
   leftBottomContent,
 }) {
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [peopleCount, setPeopleCount] = useState(0)
+  const [peopleCount, setPeopleCount] = useState(() => pricing?.defaultQuantity ?? 1)
   const [deliveryDate, setDeliveryDate] = useState(null)
   const [deliveryTime, setDeliveryTime] = useState(null)
 
-  const activeImage = images[currentIndex] || images[0]
+  const activeIndex = useMemo(() => {
+    if (selectedImageSrc) {
+      const nextIndex = images.findIndex((image) => image.src === selectedImageSrc)
+
+      if (nextIndex !== -1) {
+        return nextIndex
+      }
+    }
+
+    return currentIndex
+  }, [currentIndex, images, selectedImageSrc])
+  const activeImage = images[activeIndex] || images[0]
   const today = dayjs().startOf('day')
   const minimumAllowedTime = dayjs().add(2, 'hour').startOf('minute')
   const isTodaySelected =
     deliveryDate != null && dayjs(deliveryDate).isSame(dayjs(), 'day')
 
   const thumbnailImages = useMemo(
-    () => images.filter((_, index) => index !== currentIndex).slice(0, 4),
-    [currentIndex, images]
+    () => images.filter((_, index) => index !== activeIndex).slice(0, 4),
+    [activeIndex, images]
   )
 
+  const setActiveImageByIndex = (nextIndex) => {
+    const boundedIndex =
+      nextIndex < 0 ? images.length - 1 : nextIndex >= images.length ? 0 : nextIndex
+    const nextImage = images[boundedIndex]
+
+    if (!nextImage) {
+      return
+    }
+
+    if (onSelectedImageChange) {
+      onSelectedImageChange(nextImage.src)
+      return
+    }
+
+    setCurrentIndex(boundedIndex)
+  }
+
   const handlePrevious = () => {
-    setCurrentIndex((current) => (current === 0 ? images.length - 1 : current - 1))
+    setActiveImageByIndex(activeIndex - 1)
   }
 
   const handleNext = () => {
-    setCurrentIndex((current) => (current === images.length - 1 ? 0 : current + 1))
+    setActiveImageByIndex(activeIndex + 1)
   }
 
   const handleThumbnailClick = (thumbnailSrc) => {
     const nextIndex = images.findIndex((image) => image.src === thumbnailSrc)
 
     if (nextIndex !== -1) {
-      setCurrentIndex(nextIndex)
+      setActiveImageByIndex(nextIndex)
     }
   }
 
@@ -76,6 +116,17 @@ function ServiceItemGalleryDialog({
     setPeopleCount((current) =>
       direction === 'increase' ? current + 1 : Math.max(0, current - 1)
     )
+  }
+
+  const handlePeopleInputChange = (event) => {
+    const nextValue = event.target.value.replace(/\D/g, '')
+
+    if (nextValue === '') {
+      setPeopleCount(0)
+      return
+    }
+
+    setPeopleCount(Number(nextValue))
   }
 
   const shouldDisableDate = (value) => {
@@ -101,6 +152,65 @@ function ServiceItemGalleryDialog({
 
     return false
   }
+
+  const formatPrice = (value) => {
+    if (!Number.isFinite(value)) {
+      return '$0'
+    }
+
+    const roundedValue =
+      Math.abs(value - Math.round(value)) < 0.001 ? Math.round(value).toString() : value.toFixed(2)
+
+    return `$${roundedValue}`
+  }
+
+  const quantityForPricing = showPeopleSelector ? peopleCount : (pricing?.defaultQuantity ?? 1)
+  const baseAmount = pricing?.baseAmount ?? 0
+  const calculationType = pricing?.calculationType ?? 'flat'
+  const rawTotal =
+    calculationType === 'per_unit' ? baseAmount * Math.max(quantityForPricing, 0) : baseAmount
+
+  let discountedTotal = rawTotal
+  let savingsAmount = 0
+  let appliedDiscountLabel = ''
+
+  if (pricing?.discount && quantityForPricing > 0) {
+    const { discount } = pricing
+
+    if (
+      discount.type === 'percentage' &&
+      quantityForPricing >= discount.minQuantity
+    ) {
+      discountedTotal = rawTotal * (1 - discount.value / 100)
+      savingsAmount = rawTotal - discountedTotal
+      appliedDiscountLabel =
+        discount.label || `${discount.value}% off for ${discount.minQuantity}+`
+    }
+
+    if (
+      discount.type === 'free_units' &&
+      quantityForPricing >= discount.minQuantity &&
+      calculationType === 'per_unit'
+    ) {
+      const bundleSize = discount.buyQuantity + discount.freeQuantity
+      const fullBundles = Math.floor(quantityForPricing / bundleSize)
+      const remainingUnits = quantityForPricing % bundleSize
+      const chargedUnits =
+        fullBundles * discount.buyQuantity + Math.min(remainingUnits, discount.buyQuantity)
+
+      discountedTotal = chargedUnits * baseAmount
+      savingsAmount = rawTotal - discountedTotal
+      appliedDiscountLabel =
+        discount.label ||
+        `Buy ${discount.buyQuantity} get ${discount.freeQuantity} free`
+    }
+  }
+
+  const hasDiscount = savingsAmount > 0.001
+  const estimateLabel =
+    calculationType === 'per_unit'
+      ? `Estimated total for ${quantityForPricing} ${pricing?.unitLabel || 'units'}`
+      : `Estimated total`
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -287,6 +397,8 @@ function ServiceItemGalleryDialog({
             </Stack>
           ) : null}
 
+          {belowGalleryContent ? <Box sx={{ mt: 2.25 }}>{belowGalleryContent}</Box> : null}
+
           {leftBottomContent ? (
             <Box sx={{ mt: 2.25 }}>
               {leftBottomContent}
@@ -373,67 +485,168 @@ function ServiceItemGalleryDialog({
             ) : null}
 
             {priceText ? (
-              <Typography
-                variant="h4"
-                sx={{ color: COLORS.primary, fontWeight: 800, fontSize: '2rem' }}
-              >
-                {priceText}
-              </Typography>
+              <Stack spacing={0.6}>
+                {detailBadgeText ? (
+                  <Box
+                    sx={{
+                      alignSelf: 'flex-start',
+                      px: 1.2,
+                      py: 0.45,
+                      borderRadius: 1,
+                      backgroundColor: 'rgba(43, 120, 204, 0.12)',
+                      color: COLORS.primary,
+                    }}
+                  >
+                    <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, lineHeight: 1 }}>
+                      {detailBadgeText}
+                    </Typography>
+                  </Box>
+                ) : null}
+
+                <Typography
+                  variant="h4"
+                  sx={{ color: COLORS.primary, fontWeight: 800, fontSize: '2rem' }}
+                >
+                  {priceText}
+                </Typography>
+
+                {supportingInfoText ? (
+                  <Typography
+                    variant="body1"
+                    sx={{ color: COLORS.textLight, fontSize: '0.98rem', fontWeight: 500 }}
+                  >
+                    {supportingInfoText}
+                  </Typography>
+                ) : null}
+
+                <Box
+                  sx={{
+                    mt: 0.65,
+                    px: 1.35,
+                    py: 1.1,
+                    borderRadius: 1.5,
+                    backgroundColor: 'rgba(43, 120, 204, 0.08)',
+                    border: `1px solid ${COLORS.borderStrong}`,
+                  }}
+                >
+                  <Stack spacing={0.35}>
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+                      <Typography
+                        variant="body2"
+                        sx={{ color: COLORS.textLight, fontSize: '0.9rem', fontWeight: 600 }}
+                      >
+                        {estimateLabel}
+                      </Typography>
+
+                      <Typography
+                        sx={{
+                          color: COLORS.primary,
+                          fontSize: '1.2rem',
+                          fontWeight: 800,
+                          lineHeight: 1.1,
+                          textAlign: 'right',
+                        }}
+                      >
+                        {formatPrice(discountedTotal)}
+                      </Typography>
+                    </Stack>
+
+                    {hasDiscount ? (
+                      <Stack spacing={0.2}>
+                        <Typography
+                          sx={{
+                            color: COLORS.textLight,
+                            fontSize: '0.95rem',
+                            textDecoration: 'line-through',
+                          }}
+                        >
+                          {formatPrice(rawTotal)}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            color: COLORS.accent,
+                            fontSize: '0.9rem',
+                            fontWeight: 600,
+                          }}
+                        >
+                          Save {formatPrice(savingsAmount)}{appliedDiscountLabel ? ` with ${appliedDiscountLabel}` : ''}
+                        </Typography>
+                      </Stack>
+                    ) : null}
+                  </Stack>
+                </Box>
+              </Stack>
             ) : null}
 
             <Stack spacing={1}>
-              <Stack direction="row" alignItems="center" justifyContent="space-between">
-                <Typography variant="body1" sx={{ color: COLORS.textLight, fontSize: '1rem' }}>
-                  Number of people
-                </Typography>
+              {showPeopleSelector ? (
+                <Stack direction="row" alignItems="center" justifyContent="space-between">
+                  <Typography variant="body1" sx={{ color: COLORS.textLight, fontSize: '1rem' }}>
+                    {peopleLabel}
+                  </Typography>
 
-                <Stack direction="row" alignItems="center" spacing={1}>
-                  <IconButton
-                    aria-label="Decrease people count"
-                    onClick={() => handlePeopleChange('decrease')}
-                    sx={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 1.5,
-                      backgroundColor: COLORS.footer,
-                      color: COLORS.surface,
-                      '&:hover': {
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <IconButton
+                      aria-label="Decrease people count"
+                      onClick={() => handlePeopleChange('decrease')}
+                      sx={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: 1.5,
+                        backgroundColor: COLORS.footer,
+                        color: COLORS.surface,
+                        '&:hover': {
+                          backgroundColor: COLORS.primary,
+                        },
+                      }}
+                    >
+                      <RemoveRoundedIcon />
+                    </IconButton>
+
+                    <InputBase
+                      inputProps={{
+                        inputMode: 'numeric',
+                        pattern: '[0-9]*',
+                        min: 0,
+                        'aria-label': peopleLabel,
+                      }}
+                      value={peopleCount}
+                      onChange={handlePeopleInputChange}
+                      sx={{
+                        width: 54,
+                        height: 34,
+                        px: 1,
+                        borderRadius: 1.2,
+                        border: `1px solid ${COLORS.borderStrong}`,
+                        backgroundColor: COLORS.surface,
+                        color: COLORS.textMuted,
+                        fontWeight: 700,
+                        '& input': {
+                          p: 0,
+                          textAlign: 'center',
+                        },
+                      }}
+                    />
+
+                    <IconButton
+                      aria-label="Increase people count"
+                      onClick={() => handlePeopleChange('increase')}
+                      sx={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: 1.5,
                         backgroundColor: COLORS.primary,
-                      },
-                    }}
-                  >
-                    <RemoveRoundedIcon />
-                  </IconButton>
-
-                  <Box
-                    sx={{
-                      minWidth: 34,
-                      textAlign: 'center',
-                      color: COLORS.textMuted,
-                      fontWeight: 700,
-                    }}
-                  >
-                    {peopleCount}
-                  </Box>
-
-                  <IconButton
-                    aria-label="Increase people count"
-                    onClick={() => handlePeopleChange('increase')}
-                    sx={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 1.5,
-                      backgroundColor: COLORS.primary,
-                      color: COLORS.surface,
-                      '&:hover': {
-                        backgroundColor: COLORS.primaryHover,
-                      },
-                    }}
-                  >
-                    <AddRoundedIcon />
-                  </IconButton>
+                        color: COLORS.surface,
+                        '&:hover': {
+                          backgroundColor: COLORS.primaryHover,
+                        },
+                      }}
+                    >
+                      <AddRoundedIcon />
+                    </IconButton>
+                  </Stack>
                 </Stack>
-              </Stack>
+              ) : null}
 
               <DatePicker
                 value={deliveryDate}
@@ -456,7 +669,7 @@ function ServiceItemGalleryDialog({
                 slotProps={{
                   textField: {
                     fullWidth: true,
-                    placeholder: 'Select Delivery Date',
+                    placeholder: datePlaceholder,
                   },
                 }}
                 sx={{
@@ -488,7 +701,7 @@ function ServiceItemGalleryDialog({
                 slotProps={{
                   textField: {
                     fullWidth: true,
-                    placeholder: 'Select Delivery Time',
+                    placeholder: timePlaceholder,
                   },
                 }}
                 sx={{
@@ -519,7 +732,7 @@ function ServiceItemGalleryDialog({
                 },
               }}
             >
-              Add to Cart
+              {actionButtonText}
             </Button>
           </Stack>
         </Box>

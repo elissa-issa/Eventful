@@ -1,14 +1,7 @@
 import { Box, Button, Stack } from '@mui/material'
 import { Link as RouterLink, useLocation } from 'react-router-dom'
 import { COLORS } from '../../constants/colors'
-
-const serviceNavItems = [
-  { label: 'Bundles', hash: '#bundles' },
-  { label: 'Venues', hash: '#venues' },
-  { label: 'Menus', hash: '#menus' },
-  { label: 'Decorations', hash: '#decorations' },
-  { label: 'Entertainment', hash: '#entertainment' },
-]
+import { serviceNavItems } from './navItems'
 
 function ServicesSubnav() {
   const location = useLocation()
@@ -46,7 +39,13 @@ function ServicesSubnav() {
             backgroundColor: COLORS.primary,
           }}
         >
-          {serviceNavItems.map((item) => {
+          {[...serviceNavItems]
+            .sort((leftItem, rightItem) => {
+              const order = ['#bundles', '#venues', '#menus', '#decorations', '#entertainment']
+
+              return order.indexOf(leftItem.hash) - order.indexOf(rightItem.hash)
+            })
+            .map((item) => {
             const isActive = activeHash === item.hash
 
             return (
@@ -73,7 +72,7 @@ function ServicesSubnav() {
                 {item.label}
               </Button>
             )
-          })}
+            })}
         </Stack>
       </Box>
     </Box>

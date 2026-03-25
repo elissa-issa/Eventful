@@ -392,7 +392,7 @@ function ServicesPage() {
                   leftText={item.leftText}
                   rightText={item.rightText}
                   primaryButtonLabel={item.primaryButtonLabel}
-                  onPrimaryButtonClick={() => console.log(`View plan clicked: ${itemKey}`)}
+                  onPrimaryButtonClick={() => navigate(`/services/bundles/${item.id}`)}
                   secondaryButtonLabel={item.secondaryButtonLabel}
                   onSecondaryButtonClick={handleProtectedAction}
                   maxWidth={400}

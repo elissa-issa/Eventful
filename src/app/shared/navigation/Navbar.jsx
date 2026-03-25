@@ -18,6 +18,7 @@ import {
   Typography,
 } from '@mui/material'
 import { Link as RouterLink, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import { useAuth } from '../../auth/useAuth'
 import { COLORS } from '../../constants/colors'
 import { navItems } from './navItems'
@@ -37,6 +38,7 @@ function Navbar() {
   const navigate = useNavigate()
   const { isAuthenticated, user } = useAuth()
   const avatarLabel = `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`.trim() || 'U'
+  const [hoveredItem, setHoveredItem] = useState(null)
 
   const handleFilterToggle = () => {
     const params = new URLSearchParams(location.search)
@@ -92,13 +94,122 @@ function Navbar() {
           <Stack
             direction="row"
             spacing={3}
-            sx={{ display: { xs: 'none', md: 'flex' }, mr: 3 }}
+            sx={{
+              display: { xs: 'none', md: 'flex' },
+              mr: 3,
+              alignItems: 'center',
+              minHeight: 64,
+            }}
           >
-            {navItems.map(({ label, path }) => (
-              <NavLink key={path} to={path} style={getLinkStyles}>
-                {label}
-              </NavLink>
-            ))}
+            {navItems.map(({ label, path, children }) => {
+              if (!children) {
+                return (
+                  <NavLink
+                    key={path}
+                    to={path}
+                    style={{
+                      ...getLinkStyles({ isActive: location.pathname === path }),
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      minHeight: 64,
+                    }}
+                  >
+                    {label}
+                  </NavLink>
+                )
+              }
+
+              const isActive = location.pathname === path
+              const isOpen = hoveredItem === path
+
+              return (
+                <Box
+                  key={path}
+                  onMouseEnter={() => setHoveredItem(path)}
+                  onMouseLeave={() => setHoveredItem(null)}
+                  sx={{
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    minHeight: 64,
+                    '&::after': isOpen
+                      ? {
+                          content: '""',
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          width: '100%',
+                          height: 14,
+                        }
+                      : undefined,
+                  }}
+                >
+                  <NavLink
+                    to={path}
+                    style={() => ({
+                      color: isActive ? COLORS.primary : COLORS.primaryHover,
+                      textDecoration: 'none',
+                      fontSize: '0.9rem',
+                      fontWeight: 700,
+                      borderBottom: isActive
+                        ? `2px solid ${COLORS.primary}`
+                        : '2px solid transparent',
+                      paddingBottom: '2px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      minHeight: 64,
+                    })}
+                  >
+                    {label}
+                  </NavLink>
+
+                  {isOpen ? (
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 'calc(100% - 2px)',
+                        left: -16,
+                        minWidth: 144,
+                        pt: 1.75,
+                        pb: 1.25,
+                        px: 2,
+                        borderRadius: 1.25,
+                        backgroundColor: COLORS.surface,
+                        border: `1px solid ${COLORS.borderStrong}`,
+                        boxShadow: '0 6px 18px rgba(15, 45, 75, 0.18)',
+                        zIndex: 20,
+                      }}
+                    >
+                      <Stack spacing={1.1}>
+                        {children.map((child) => (
+                          <Box
+                            key={child.hash}
+                            component={RouterLink}
+                            to={{ pathname: path, hash: child.hash }}
+                            sx={{
+                              color:
+                                location.pathname === path && location.hash === child.hash
+                                  ? COLORS.primary
+                                  : COLORS.primaryHover,
+                              textDecoration: 'none',
+                              fontSize: '0.92rem',
+                              fontWeight: 500,
+                              lineHeight: 1.1,
+                              py: 0.15,
+                              '&:hover': {
+                                color: COLORS.primary,
+                              },
+                            }}
+                          >
+                            {child.label}
+                          </Box>
+                        ))}
+                      </Stack>
+                    </Box>
+                  ) : null}
+                </Box>
+              )
+            })}
           </Stack>
 
           <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'flex-end' }}>

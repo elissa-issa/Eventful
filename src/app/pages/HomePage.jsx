@@ -246,7 +246,7 @@ function HomePage() {
               leftText={card.leftText}
               rightText={card.rightText}
               primaryButtonLabel={card.primaryButtonLabel}
-              onPrimaryButtonClick={() => console.log(`View plan clicked: ${card.id}`)}
+              onPrimaryButtonClick={() => navigate(`/services/bundles/${card.id}`)}
               secondaryButtonLabel={card.secondaryButtonLabel}
               onSecondaryButtonClick={handleAddToCartClick}
             />
