@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import Visibility from '@mui/icons-material/Visibility'
 import VisibilityOff from '@mui/icons-material/VisibilityOff'
 import {
+  Alert,
   Box,
   Button,
   Checkbox,
@@ -13,18 +14,28 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import { Link as RouterLink } from 'react-router-dom'
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom'
 import facebookIcon from '../../assets/facebookicon.svg'
 import googleIcon from '../../assets/Google.svg'
+import { useAuth } from '../auth/useAuth'
 import { COLORS } from '../constants/colors'
 import {
   signUpBackgroundImage,
   signUpTextFieldStyles,
 } from '../constants/signUpPage'
+import { loginUser } from '../services/auth'
 
 function LoginPage() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const { login } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [stayLoggedIn, setStayLoggedIn] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const redirectPath = location.state?.from || '/profile'
 
   const passwordAdornment = useMemo(
     () => (
@@ -40,6 +51,26 @@ function LoginPage() {
     ),
     [showPassword],
   )
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    setErrorMessage('')
+    setIsSubmitting(true)
+
+    try {
+      const result = await loginUser({
+        email,
+        password,
+      })
+
+      login(result.data, stayLoggedIn)
+      navigate(redirectPath, { replace: true })
+    } catch (error) {
+      setErrorMessage(error.message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <Box
@@ -87,12 +118,17 @@ function LoginPage() {
           Login
         </Typography>
 
-        <Stack spacing={1}>
+        <Stack component="form" spacing={1} onSubmit={handleSubmit}>
+          {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+
           <TextField
             fullWidth
             size="small"
-            placeholder="Username"
+            placeholder="Email"
+            type="email"
             variant="outlined"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
             sx={signUpTextFieldStyles}
           />
 
@@ -102,6 +138,8 @@ function LoginPage() {
             placeholder="Password"
             type={showPassword ? 'text' : 'password'}
             variant="outlined"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
             slotProps={{ input: { endAdornment: passwordAdornment } }}
             sx={signUpTextFieldStyles}
           />
@@ -134,8 +172,10 @@ function LoginPage() {
           />
 
           <Button
+            type="submit"
             variant="contained"
             fullWidth
+            disabled={isSubmitting}
             sx={{
               py: 1.1,
               borderRadius: 1,
@@ -148,7 +188,7 @@ function LoginPage() {
               },
             }}
           >
-            Login
+            {isSubmitting ? 'Logging in...' : 'Login'}
           </Button>
 
           <Link

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Box } from '@mui/material'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { useAuth } from '../auth/useAuth'
 import { BUNDLE_CARDS } from '../constants/bundleCards'
 import { DECORATION_ITEMS } from '../constants/decorationItems'
 import { ENTERTAINMENT_ITEMS } from '../constants/entertainmentItems'
@@ -51,14 +52,21 @@ const DEFAULT_ENTERTAINMENT_FILTERS = {
   categories: [],
 }
 
+const ITEMS_BY_SECTION = {
+  bundles: BUNDLE_CARDS,
+  menus: MENU_ITEMS,
+  venues: VENUE_ITEMS,
+  decorations: DECORATION_ITEMS,
+  entertainment: ENTERTAINMENT_ITEMS,
+}
+
 function ServicesPage() {
-  const isLoggedIn = false
   const location = useLocation()
   const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
   const [favoriteItems, setFavoriteItems] = useState({})
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
-  const [selectedServiceItem, setSelectedServiceItem] = useState(null)
   const [venueFilters, setVenueFilters] = useState(DEFAULT_VENUE_FILTERS)
   const [menuFilters, setMenuFilters] = useState(DEFAULT_MENU_FILTERS)
   const [decorationFilters, setDecorationFilters] = useState(DEFAULT_DECORATION_FILTERS)
@@ -72,13 +80,17 @@ function ServicesPage() {
     setIsSignInDialogOpen(false)
   }
 
-  const handleSignUpRedirect = () => {
+  const handleLoginRedirect = () => {
     handleCloseSignInDialog()
-    navigate('/sign-up')
+    navigate('/login', {
+      state: {
+        from: `${location.pathname}${location.search}${location.hash}`,
+      },
+    })
   }
 
   const handleProtectedAction = () => {
-    if (!isLoggedIn) {
+    if (!isAuthenticated) {
       setIsSignInDialogOpen(true)
       return true
     }
@@ -97,15 +109,7 @@ function ServicesPage() {
     }))
   }
 
-  const itemsBySection = {
-    bundles: BUNDLE_CARDS,
-    menus: MENU_ITEMS,
-    venues: VENUE_ITEMS,
-    decorations: DECORATION_ITEMS,
-    entertainment: ENTERTAINMENT_ITEMS,
-  }
-
-  const activeItems = itemsBySection[activeSection] || []
+  const activeItems = useMemo(() => ITEMS_BY_SECTION[activeSection] || [], [activeSection])
   const isBundleSection = activeSection === 'bundles'
   const isDecorationSection = activeSection === 'decorations'
   const isEntertainmentSection = activeSection === 'entertainment'
@@ -246,22 +250,6 @@ function ServicesPage() {
         : isEntertainmentSection
           ? filteredEntertainmentItems
           : activeItems
-  const selectedGalleryImages =
-    selectedServiceItem == null
-      ? []
-      : [
-          {
-            src: selectedServiceItem.imageSrc,
-            alt: selectedServiceItem.imageAlt,
-          },
-          ...displayedItems
-            .filter((item) => item.id !== selectedServiceItem.id && item.imageSrc !== selectedServiceItem.imageSrc)
-            .map((item) => ({
-              src: item.imageSrc,
-              alt: item.imageAlt,
-            })),
-        ]
-
   const handleCloseVenueFilter = () => {
     const nextParams = new URLSearchParams(searchParams)
     nextParams.delete('filters')
@@ -445,7 +433,7 @@ function ServicesPage() {
         description="To be able to add items to your cart or favorites please sign in now"
         primaryButtonText="Sign in"
         primaryButtonColor={COLORS.accent}
-        onPrimaryButtonClick={handleSignUpRedirect}
+        onPrimaryButtonClick={handleLoginRedirect}
         secondaryActionText="Back to guest mode"
         secondaryActionColor={COLORS.primary}
         onSecondaryActionClick={handleCloseSignInDialog}

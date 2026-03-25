@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import Visibility from '@mui/icons-material/Visibility'
 import VisibilityOff from '@mui/icons-material/VisibilityOff'
 import {
+  Alert,
   Box,
   Button,
   Grid,
@@ -16,19 +17,34 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
 import { DatePicker } from '@mui/x-date-pickers/DatePicker'
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
 import dayjs from 'dayjs'
-import { Link as RouterLink } from 'react-router-dom'
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom'
 import facebookIcon from '../../assets/facebookicon.svg'
 import googleIcon from '../../assets/Google.svg'
+import { useAuth } from '../auth/useAuth'
 import { COLORS } from '../constants/colors'
 import {
   signUpBackgroundImage,
   signUpTextFieldStyles,
 } from '../constants/signUpPage'
+import { signupUser } from '../services/auth'
 
 function SignUpPage() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const { login } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [birthday, setBirthday] = useState(null)
+  const [formValues, setFormValues] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  })
+  const [errorMessage, setErrorMessage] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const redirectPath = location.state?.from || '/profile'
 
   const passwordAdornment = useMemo(
     () => (
@@ -59,6 +75,39 @@ function SignUpPage() {
     ),
     [showConfirmPassword],
   )
+
+  const handleFieldChange = (fieldName) => (event) => {
+    setFormValues((currentValues) => ({
+      ...currentValues,
+      [fieldName]: event.target.value,
+    }))
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    setErrorMessage('')
+
+    if (formValues.password !== formValues.confirmPassword) {
+      setErrorMessage('Passwords do not match')
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      const result = await signupUser({
+        ...formValues,
+        birthday: birthday ? birthday.toISOString() : null,
+      })
+
+      login(result.data)
+      navigate(redirectPath, { replace: true })
+    } catch (error) {
+      setErrorMessage(error.message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -94,18 +143,21 @@ function SignUpPage() {
             border: '1px solid rgba(255, 255, 255, 0.22)',
           }}
         >
-            <Typography
-              variant="h3"
-              align="center"
-              sx={{
-                color: COLORS.surface,
-                fontWeight: 800,
-                fontSize: { xs: '2.1rem', md: '2.6rem' },
-                mb: 4,
-              }}
-            >
-              Signup
-            </Typography>
+          <Typography
+            variant="h3"
+            align="center"
+            sx={{
+              color: COLORS.surface,
+              fontWeight: 800,
+              fontSize: { xs: '2.1rem', md: '2.6rem' },
+              mb: 4,
+            }}
+          >
+            Signup
+          </Typography>
+
+          <Stack component="form" spacing={2.5} onSubmit={handleSubmit}>
+            {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
 
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, sm: 6 }}>
@@ -114,6 +166,8 @@ function SignUpPage() {
                   size="small"
                   placeholder="First Name"
                   variant="outlined"
+                  value={formValues.firstName}
+                  onChange={handleFieldChange('firstName')}
                   sx={signUpTextFieldStyles}
                 />
               </Grid>
@@ -123,6 +177,8 @@ function SignUpPage() {
                   size="small"
                   placeholder="Last Name"
                   variant="outlined"
+                  value={formValues.lastName}
+                  onChange={handleFieldChange('lastName')}
                   sx={signUpTextFieldStyles}
                 />
               </Grid>
@@ -151,6 +207,8 @@ function SignUpPage() {
                   placeholder="Email"
                   type="email"
                   variant="outlined"
+                  value={formValues.email}
+                  onChange={handleFieldChange('email')}
                   sx={signUpTextFieldStyles}
                 />
               </Grid>
@@ -161,6 +219,8 @@ function SignUpPage() {
                   placeholder="Password"
                   type={showPassword ? 'text' : 'password'}
                   variant="outlined"
+                  value={formValues.password}
+                  onChange={handleFieldChange('password')}
                   slotProps={{ input: { endAdornment: passwordAdornment } }}
                   sx={signUpTextFieldStyles}
                 />
@@ -172,6 +232,8 @@ function SignUpPage() {
                   placeholder="Confirm Password"
                   type={showConfirmPassword ? 'text' : 'password'}
                   variant="outlined"
+                  value={formValues.confirmPassword}
+                  onChange={handleFieldChange('confirmPassword')}
                   slotProps={{ input: { endAdornment: confirmPasswordAdornment } }}
                   sx={signUpTextFieldStyles}
                 />
@@ -180,8 +242,10 @@ function SignUpPage() {
 
             <Stack spacing={1.5} sx={{ mt: 2.5 }}>
               <Button
+                type="submit"
                 variant="contained"
                 fullWidth
+                disabled={isSubmitting}
                 sx={{
                   py: 1.1,
                   borderRadius: 1,
@@ -194,7 +258,7 @@ function SignUpPage() {
                   },
                 }}
               >
-                Signup
+                {isSubmitting ? 'Signing up...' : 'Signup'}
               </Button>
 
               <Button
@@ -298,6 +362,7 @@ function SignUpPage() {
                 Login
               </Link>
             </Typography>
+          </Stack>
         </Box>
       </Box>
     </LocalizationProvider>

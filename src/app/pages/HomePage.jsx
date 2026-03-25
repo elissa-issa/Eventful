@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import ArrowBackIosNewRoundedIcon from '@mui/icons-material/ArrowBackIosNewRounded'
 import ArrowForwardIosRoundedIcon from '@mui/icons-material/ArrowForwardIosRounded'
 import { Box, Button, IconButton, Stack, Typography } from '@mui/material'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../auth/useAuth'
 import { BUNDLE_CARDS } from '../constants/bundleCards'
 import { CATEGORY_CARDS } from '../constants/categoryCards'
 import { COLORS } from '../constants/colors'
@@ -14,8 +15,9 @@ import HomeHero from '../shared/components/HomeHero'
 import VendorCard from '../shared/components/VendorCard'
 
 function HomePage() {
-  const isLoggedIn = false
+  const location = useLocation()
   const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
   const [favoriteCards, setFavoriteCards] = useState({})
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
@@ -29,7 +31,7 @@ function HomePage() {
   const vendorsRowRef = useRef(null)
 
   const handleFavoriteToggle = (cardId) => {
-    if (!isLoggedIn) {
+    if (!isAuthenticated) {
       setIsSignInDialogOpen(true)
       return
     }
@@ -41,7 +43,7 @@ function HomePage() {
   }
 
   const handleAddToCartClick = () => {
-    if (!isLoggedIn) {
+    if (!isAuthenticated) {
       setIsSignInDialogOpen(true)
       return
     }
@@ -51,9 +53,13 @@ function HomePage() {
     setIsSignInDialogOpen(false)
   }
 
-  const handleSignUpRedirect = () => {
+  const handleLoginRedirect = () => {
     handleCloseSignInDialog()
-    navigate('/sign-up')
+    navigate('/login', {
+      state: {
+        from: `${location.pathname}${location.search}${location.hash}`,
+      },
+    })
   }
 
   const updateScrollState = () => {
@@ -461,7 +467,7 @@ function HomePage() {
         description="To be able to add items to your cart or favorites please sign in now"
         primaryButtonText="Sign in"
         primaryButtonColor={COLORS.accent}
-        onPrimaryButtonClick={handleSignUpRedirect}
+        onPrimaryButtonClick={handleLoginRedirect}
         secondaryActionText="Back to guest mode"
         secondaryActionColor={COLORS.primary}
         onSecondaryActionClick={handleCloseSignInDialog}

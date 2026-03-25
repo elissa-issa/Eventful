@@ -11,6 +11,8 @@ import VendorsPage from '../pages/VendorsPage'
 import LoginPage from '../pages/LoginPage'
 import SignUpPage from '../pages/SignUpPage'
 import HomePage from '../pages/HomePage'
+import GuestOnlyRoute from './GuestOnlyRoute'
+import RequireAuth from './RequireAuth'
 
 function AppRoutes() {
   return (
@@ -23,11 +25,46 @@ function AppRoutes() {
         <Route path="/customize" element={<CustomizePage />} />
         <Route path="/contact-us" element={<ContactUsPage />} />
         <Route path="/vendors" element={<VendorsPage />} />
-        <Route path="/favorites" element={<FavoritesPage />} />
-        <Route path="/cart" element={<CartPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/sign-up" element={<SignUpPage />} />
+        <Route
+          path="/favorites"
+          element={
+            <RequireAuth>
+              <FavoritesPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/cart"
+          element={
+            <RequireAuth>
+              <CartPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <RequireAuth>
+              <ProfilePage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            <GuestOnlyRoute>
+              <LoginPage />
+            </GuestOnlyRoute>
+          }
+        />
+        <Route
+          path="/sign-up"
+          element={
+            <GuestOnlyRoute>
+              <SignUpPage />
+            </GuestOnlyRoute>
+          }
+        />
       </Route>
       <Route path="*" element={<Navigate to="/home" replace />} />
     </Routes>

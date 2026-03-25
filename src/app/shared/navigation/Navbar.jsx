@@ -8,6 +8,7 @@ import {
   AppBar,
   Avatar,
   Box,
+  Button,
   Container,
   IconButton,
   InputAdornment,
@@ -17,6 +18,7 @@ import {
   Typography,
 } from '@mui/material'
 import { Link as RouterLink, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../auth/useAuth'
 import { COLORS } from '../../constants/colors'
 import { navItems } from './navItems'
 
@@ -30,10 +32,12 @@ const getLinkStyles = ({ isActive }) => ({
 })
 
 function Navbar() {
-  const isLoggedIn = true
   const location = useLocation()
   const isServicesPage = location.pathname === '/services'
   const navigate = useNavigate()
+  const { isAuthenticated, user } = useAuth()
+  const avatarLabel = `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`.trim() || 'U'
+
   const handleFilterToggle = () => {
     const params = new URLSearchParams(location.search)
     const nextHash = location.hash || '#venues'
@@ -145,7 +149,7 @@ function Navbar() {
               </IconButton>
             ) : null}
 
-            {isLoggedIn ? (
+            {isAuthenticated ? (
               <>
                 <IconButton
                   aria-label="Open favorites"
@@ -168,14 +172,42 @@ function Navbar() {
                   onClick={() => navigate('/profile')}
                   sx={{ p: 0.5, ml: 0.25 }}
                 >
-                  <Avatar
-                    src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=160&q=80"
-                    alt="Profile"
-                    sx={{ width: 28, height: 28 }}
-                  />
+                  <Avatar sx={{ width: 28, height: 28, bgcolor: COLORS.accent }}>
+                    {avatarLabel}
+                  </Avatar>
                 </IconButton>
               </>
-            ) : null}
+            ) : (
+              <Stack direction="row" spacing={1} sx={{ ml: 1 }}>
+                <Button
+                  variant="text"
+                  onClick={() => navigate('/login')}
+                  sx={{
+                    textTransform: 'none',
+                    fontWeight: 700,
+                    color: COLORS.primary,
+                  }}
+                >
+                  Login
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={() => navigate('/sign-up')}
+                  sx={{
+                    textTransform: 'none',
+                    fontWeight: 700,
+                    borderRadius: '999px',
+                    px: 2,
+                    backgroundColor: COLORS.accent,
+                    '&:hover': {
+                      backgroundColor: COLORS.accentHover,
+                    },
+                  }}
+                >
+                  Sign up
+                </Button>
+              </Stack>
+            )}
           </Stack>
         </Toolbar>
       </Container>

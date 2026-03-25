@@ -1,6 +1,5 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import FavoriteRoundedIcon from '@mui/icons-material/FavoriteRounded'
-import PersonOutlineRoundedIcon from '@mui/icons-material/PersonOutlineRounded'
 import ShoppingCartRoundedIcon from '@mui/icons-material/ShoppingCartRounded'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import {
@@ -13,10 +12,11 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../auth/useAuth'
 import { COLORS } from '../constants/colors'
 import AddLocationDialog from '../shared/components/AddLocationDialog'
 import {
-  profileFields,
   profileFieldStyles,
   profileLocations,
   profileOrders,
@@ -24,7 +24,41 @@ import {
 } from '../constants/profilePage'
 
 function ProfilePage() {
+  const navigate = useNavigate()
+  const { user, logout } = useAuth()
   const [isAddLocationDialogOpen, setIsAddLocationDialogOpen] = useState(false)
+  const displayName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'User'
+  const avatarLabel =
+    `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`.trim() || 'U'
+  const profileFields = useMemo(
+    () => [
+      { label: 'First Name', value: user?.firstName || '-', size: { xs: 12, md: 6 } },
+      { label: 'Last Name', value: user?.lastName || '-', size: { xs: 12, md: 6 } },
+      {
+        label: 'Username',
+        value: user?.email?.split('@')[0] || '-',
+        size: { xs: 12, md: 6 },
+      },
+      { label: 'Email', value: user?.email || '-', size: { xs: 12, md: 6 } },
+      { label: 'Password', value: '..............', size: { xs: 12, md: 6 } },
+      {
+        label: 'Birthday',
+        value: user?.birthday ? new Date(user.birthday).toLocaleDateString() : '-',
+        size: { xs: 12, md: 6 },
+      },
+    ],
+    [user],
+  )
+
+  const handleLogout = () => {
+    logout()
+    navigate('/home', { replace: true })
+  }
+
+  const handleSwitchAccount = () => {
+    logout()
+    navigate('/login', { replace: true })
+  }
 
   return (
     <Box
@@ -34,7 +68,7 @@ function ProfilePage() {
     >
       <Box
         sx={{
-         backgroundColor: COLORS.surface,
+          backgroundColor: COLORS.surface,
           px: { xs: 2, md: 4 },
           py: { xs: 3, md: 4 },
         }}
@@ -67,10 +101,12 @@ function ProfilePage() {
                     height: 116,
                     mt: 2.5,
                     mb: 2,
-                    backgroundColor: '#bdbdbd',
+                    backgroundColor: COLORS.accent,
+                    fontSize: '2.5rem',
+                    fontWeight: 800,
                   }}
                 >
-                  <PersonOutlineRoundedIcon sx={{ fontSize: 88, color: COLORS.surface }} />
+                  {avatarLabel}
                 </Avatar>
 
                 <Typography
@@ -80,17 +116,46 @@ function ProfilePage() {
                     fontSize: '2rem',
                   }}
                 >
-                  John Doe
+                  {displayName}
                 </Typography>
 
                 <Stack direction="row" spacing={2.5} sx={{ mt: 1.75, mb: 4 }}>
-                  <FavoriteRoundedIcon sx={{ color: '#ff1f1f', fontSize: 40 }} />
-                  <ShoppingCartRoundedIcon sx={{ color: COLORS.accent, fontSize: 40 }} />
+                  <Box
+                    component="button"
+                    type="button"
+                    onClick={() => navigate('/favorites')}
+                    sx={{
+                      display: 'grid',
+                      placeItems: 'center',
+                      p: 0,
+                      border: 0,
+                      backgroundColor: 'transparent',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <FavoriteRoundedIcon sx={{ color: '#ff1f1f', fontSize: 40 }} />
+                  </Box>
+                  <Box
+                    component="button"
+                    type="button"
+                    onClick={() => navigate('/cart')}
+                    sx={{
+                      display: 'grid',
+                      placeItems: 'center',
+                      p: 0,
+                      border: 0,
+                      backgroundColor: 'transparent',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <ShoppingCartRoundedIcon sx={{ color: COLORS.accent, fontSize: 40 }} />
+                  </Box>
                 </Stack>
 
                 <Stack spacing={1.3} sx={{ width: '100%', maxWidth: 250 }}>
                   <Button
                     variant="contained"
+                    disabled
                     sx={{
                       borderRadius: 1.5,
                       textTransform: 'none',
@@ -103,6 +168,7 @@ function ProfilePage() {
                   </Button>
                   <Button
                     variant="contained"
+                    onClick={handleSwitchAccount}
                     sx={{
                       borderRadius: 1.5,
                       textTransform: 'none',
@@ -114,10 +180,11 @@ function ProfilePage() {
                       },
                     }}
                   >
-                    Switch Account
+                    Switch account
                   </Button>
                   <Button
                     variant="contained"
+                    onClick={handleLogout}
                     sx={{
                       borderRadius: 1.5,
                       textTransform: 'none',
@@ -129,7 +196,7 @@ function ProfilePage() {
                       },
                     }}
                   >
-                    Delete
+                    Log out
                   </Button>
                 </Stack>
               </Stack>
@@ -156,6 +223,7 @@ function ProfilePage() {
                   <Typography sx={profileSectionTitleStyles}>Basic Info</Typography>
                   <Button
                     variant="contained"
+                    disabled
                     sx={{
                       borderRadius: '999px',
                       textTransform: 'none',

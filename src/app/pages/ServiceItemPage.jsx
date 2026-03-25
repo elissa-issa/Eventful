@@ -1,6 +1,7 @@
 import { Box } from '@mui/material'
 import { useMemo, useState } from 'react'
-import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useAuth } from '../auth/useAuth'
 import { BUNDLE_CARDS } from '../constants/bundleCards'
 import { DECORATION_ITEMS } from '../constants/decorationItems'
 import { ENTERTAINMENT_ITEMS } from '../constants/entertainmentItems'
@@ -21,8 +22,9 @@ const itemsBySection = {
 }
 
 function ServiceItemPage() {
-  const isLoggedIn = false
+  const location = useLocation()
   const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
   const { section, itemId } = useParams()
   const [favoriteItems, setFavoriteItems] = useState({})
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
@@ -30,7 +32,7 @@ function ServiceItemPage() {
   const [reviewText, setReviewText] = useState('')
   const [reviewRating, setReviewRating] = useState(0)
 
-  const activeItems = itemsBySection[section] || []
+  const activeItems = useMemo(() => itemsBySection[section] || [], [section])
   const selectedItem = activeItems.find((item) => item.id === itemId)
 
   const galleryImages = useMemo(() => {
@@ -84,7 +86,7 @@ function ServiceItemPage() {
   )
 
   const handleProtectedAction = () => {
-    if (!isLoggedIn) {
+    if (!isAuthenticated) {
       setIsSignInDialogOpen(true)
       return true
     }
@@ -108,6 +110,10 @@ function ServiceItemPage() {
   }
 
   const handleOpenAddReviewDrawer = () => {
+    if (handleProtectedAction()) {
+      return
+    }
+
     setIsAddReviewDrawerOpen(true)
   }
 
@@ -175,7 +181,13 @@ function ServiceItemPage() {
         description="To be able to add items to your cart or favorites please sign in now"
         primaryButtonText="Sign in"
         primaryButtonColor={COLORS.accent}
-        onPrimaryButtonClick={() => setIsSignInDialogOpen(false)}
+        onPrimaryButtonClick={() =>
+          navigate('/login', {
+            state: {
+              from: `${location.pathname}${location.search}${location.hash}`,
+            },
+          })
+        }
         secondaryActionText="Back to guest mode"
         secondaryActionColor={COLORS.primary}
         onSecondaryActionClick={() => setIsSignInDialogOpen(false)}
