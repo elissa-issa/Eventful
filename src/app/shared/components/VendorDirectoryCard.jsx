@@ -11,6 +11,8 @@ function VendorDirectoryCard({
   logoText,
   contactButtonLabel = 'Contact Vendor',
   itemsButtonLabel = 'View Items',
+  onContactButtonClick,
+  onItemsButtonClick,
 }) {
   return (
     <Card
@@ -105,6 +107,7 @@ function VendorDirectoryCard({
               fullWidth
               disableElevation
               variant="contained"
+              onClick={onContactButtonClick}
               sx={{
                 borderRadius: 1.25,
                 backgroundColor: COLORS.accent,
@@ -126,6 +129,7 @@ function VendorDirectoryCard({
               fullWidth
               disableElevation
               variant="contained"
+              onClick={onItemsButtonClick}
               sx={{
                 borderRadius: 1.25,
                 backgroundColor: COLORS.primary,

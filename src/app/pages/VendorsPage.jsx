@@ -1,6 +1,8 @@
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
+import WorkspacePremiumRoundedIcon from '@mui/icons-material/WorkspacePremiumRounded'
 import { Box, Button, InputAdornment, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import { useMemo, useState } from 'react'
+import AlertDialog from '../shared/components/AlertDialog'
 import { COLORS } from '../constants/colors'
 import { VENDOR_DIRECTORY } from '../constants/vendorDirectory'
 import VendorDirectoryCard from '../shared/components/VendorDirectoryCard'
@@ -12,6 +14,7 @@ function VendorsPage() {
   const [searchValue, setSearchValue] = useState('')
   const [selectedServiceType, setSelectedServiceType] = useState('All')
   const [selectedVendor, setSelectedVendor] = useState('All Vendors')
+  const [isPremiumDialogOpen, setIsPremiumDialogOpen] = useState(false)
 
   const vendorOptions = useMemo(() => {
     const filteredByService =
@@ -48,6 +51,14 @@ function VendorsPage() {
   const featuredVendor = filteredVendors[0] || null
   const secondaryVendor = filteredVendors[1] || null
   const additionalVendors = filteredVendors.slice(2)
+
+  const handleOpenPremiumDialog = () => {
+    setIsPremiumDialogOpen(true)
+  }
+
+  const handleClosePremiumDialog = () => {
+    setIsPremiumDialogOpen(false)
+  }
 
   return (
     <Stack spacing={4.5} sx={{ pt: 3.5, pb: 2 }}>
@@ -241,10 +252,28 @@ function VendorsPage() {
               location={vendor.location}
               serviceType={vendor.serviceType}
               logoText={vendor.logoText}
+              onContactButtonClick={handleOpenPremiumDialog}
             />
           ))}
         </Box>
       ) : null}
+
+      <AlertDialog
+        open={isPremiumDialogOpen}
+        onClose={handleClosePremiumDialog}
+        icon={<WorkspacePremiumRoundedIcon />}
+        iconBackgroundColor="rgba(234, 122, 36, 0.14)"
+        iconColor={COLORS.accent}
+        title="Upgrade to Premium"
+        titleColor={COLORS.primaryDark}
+        description="Contacting vendors directly is available on the premium plan. Upgrade to unlock direct vendor access."
+        primaryButtonText="Upgrade Now"
+        primaryButtonColor={COLORS.accent}
+        onPrimaryButtonClick={handleClosePremiumDialog}
+        secondaryActionText="Maybe later"
+        secondaryActionColor={COLORS.primary}
+        onSecondaryActionClick={handleClosePremiumDialog}
+      />
     </Stack>
   )
 }
