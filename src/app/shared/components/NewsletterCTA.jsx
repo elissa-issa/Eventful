@@ -14,7 +14,6 @@ function NewsletterCTA({
   return (
     <Box
       sx={{
-        width: '100%',
         px: fullBleed ? 0 : { xs: 2, md: 0 },
         position: 'relative',
         left: fullBleed ? '50%' : 'auto',
