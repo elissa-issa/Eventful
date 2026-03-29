@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
-import ArrowBackIosNewRoundedIcon from '@mui/icons-material/ArrowBackIosNewRounded'
-import ArrowForwardIosRoundedIcon from '@mui/icons-material/ArrowForwardIosRounded'
 import LocationOnRoundedIcon from '@mui/icons-material/LocationOnRounded'
 import RemoveRoundedIcon from '@mui/icons-material/RemoveRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
-import { Box, IconButton, InputBase, Popover, Stack, Typography } from '@mui/material'
+import { Box, IconButton, Popover, Stack, Typography } from '@mui/material'
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
 import { DatePicker } from '@mui/x-date-pickers/DatePicker'
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
@@ -13,6 +11,7 @@ import dayjs from 'dayjs'
 import { COLORS } from '../../constants/colors'
 import { HERO_SLIDES } from '../../constants/heroSlides'
 import { LEBANESE_CITIES } from '../../constants/lebaneseCities'
+import HeroCarousel from './HeroCarousel'
 
 function HomeHero() {
   const [activeSlideIndex, setActiveSlideIndex] = useState(0)
@@ -102,9 +101,7 @@ function HomeHero() {
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
-      setActiveSlideIndex((current) =>
-        current === HERO_SLIDES.length - 1 ? 0 : current + 1
-      )
+      setActiveSlideIndex((current) => (current === HERO_SLIDES.length - 1 ? 0 : current + 1))
     }, 6000)
 
     return () => {
@@ -114,105 +111,36 @@ function HomeHero() {
 
   const activeSlide = HERO_SLIDES[activeSlideIndex]
   const whereLabel = searchFields.where || 'Search destinations'
-  const formattedWhen = searchFields.when
-    ? dayjs(searchFields.when).format('MMM D')
-    : 'Add dates'
+  const formattedWhen = searchFields.when ? dayjs(searchFields.when).format('MMM D') : 'Add dates'
   const whenValue = searchFields.when ? dayjs(searchFields.when) : null
   const totalGuests =
-    guestCounts.adults +
-    guestCounts.teenagers +
-    guestCounts.children +
-    guestCounts.infants
+    guestCounts.adults + guestCounts.teenagers + guestCounts.children + guestCounts.infants
   const guestLabel = totalGuests > 0 ? `${totalGuests} guests` : 'Add guests'
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <Box
-        sx={{
-          position: 'relative',
-          minHeight: { xs: 380, md: 470 },
-          width: '100vw',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          mt: '-50px',
-          overflow: 'hidden',
-          borderRadius: 0,
-          boxShadow: `0 24px 60px ${COLORS.shadow}`,
-        }}
+      <HeroCarousel
+        slides={HERO_SLIDES}
+        activeSlideIndex={activeSlideIndex}
+        onSlideChange={handleSlideChange}
+        onSlideSelect={setActiveSlideIndex}
+        minHeight={{ xs: 380, md: 470 }}
+        fullBleed
+        marginTop="-50px"
       >
-        {HERO_SLIDES.map((slide, index) => (
-          <Box
-            key={slide.id}
-            sx={{
-              position: 'absolute',
-              inset: 0,
-              opacity: index === activeSlideIndex ? 1 : 0,
-              transform: index === activeSlideIndex ? 'scale(1)' : 'scale(1.04)',
-              transition: 'opacity 450ms ease, transform 450ms ease',
-              backgroundImage: `linear-gradient(120deg, rgba(15, 45, 75, 0.75), rgba(15, 45, 75, 0.2)), url(${slide.imageSrc})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-            }}
-          />
-        ))}
-
         <Stack
-          justifyContent="space-between"
           sx={{
-            position: 'relative',
-            zIndex: 1,
             minHeight: { xs: 380, md: 470 },
             px: { xs: 2, sm: 3, md: 5 },
-            py: { xs: 2.5, md: 3 },
+            py: { xs: 8, md: 9 },
+            justifyContent: 'center',
           }}
         >
-          <Stack
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            sx={{ width: '100%' }}
-          >
-            <IconButton
-              aria-label="Show previous hero image"
-              onClick={() => handleSlideChange('left')}
-              sx={{
-                width: 48,
-                height: 48,
-                color: COLORS.surface,
-                backgroundColor: 'rgba(255, 255, 255, 0.18)',
-                backdropFilter: 'blur(8px)',
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.28)',
-                },
-              }}
-            >
-              <ArrowBackIosNewRoundedIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-
-            <IconButton
-              aria-label="Show next hero image"
-              onClick={() => handleSlideChange('right')}
-              sx={{
-                width: 48,
-                height: 48,
-                color: COLORS.surface,
-                backgroundColor: 'rgba(255, 255, 255, 0.18)',
-                backdropFilter: 'blur(8px)',
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.28)',
-                },
-              }}
-            >
-              <ArrowForwardIosRoundedIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Stack>
-
           <Stack
             spacing={2.5}
             sx={{
               maxWidth: 860,
               width: '100%',
-              pt: { xs: 4, md: 5 },
               mx: 'auto',
               alignItems: 'center',
             }}
@@ -263,10 +191,7 @@ function HomeHero() {
                 mx: 'auto',
               }}
             >
-              <Stack
-                direction={{ xs: 'column', md: 'row' }}
-                alignItems={{ xs: 'stretch', md: 'center' }}
-              >
+              <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'stretch', md: 'center' }}>
                 <Stack sx={{ flex: 1, px: 2.25, py: { xs: 1.25, md: 0.75 } }}>
                   <Typography
                     variant="caption"
@@ -298,14 +223,7 @@ function HomeHero() {
                       cursor: 'pointer',
                     }}
                   >
-                    <Typography
-                      component="span"
-                      sx={{
-                        color: 'inherit',
-                        fontSize: 'inherit',
-                        fontWeight: 'inherit',
-                      }}
-                    >
+                    <Typography component="span" sx={{ color: 'inherit', fontSize: 'inherit', fontWeight: 'inherit' }}>
                       {whereLabel}
                     </Typography>
                   </Box>
@@ -342,14 +260,7 @@ function HomeHero() {
                       cursor: 'pointer',
                     }}
                   >
-                    <Typography
-                      component="span"
-                      sx={{
-                        color: 'inherit',
-                        fontSize: 'inherit',
-                        fontWeight: 'inherit',
-                      }}
-                    >
+                    <Typography component="span" sx={{ color: 'inherit', fontSize: 'inherit', fontWeight: 'inherit' }}>
                       {formattedWhen}
                     </Typography>
                   </Box>
@@ -386,14 +297,7 @@ function HomeHero() {
                       cursor: 'pointer',
                     }}
                   >
-                    <Typography
-                      component="span"
-                      sx={{
-                        color: 'inherit',
-                        fontSize: 'inherit',
-                        fontWeight: 'inherit',
-                      }}
-                    >
+                    <Typography component="span" sx={{ color: 'inherit', fontSize: 'inherit', fontWeight: 'inherit' }}>
                       {guestLabel}
                     </Typography>
                   </Box>
@@ -423,14 +327,8 @@ function HomeHero() {
               open={Boolean(whereAnchorEl)}
               anchorEl={whereAnchorEl}
               onClose={handleWherePickerClose}
-              anchorOrigin={{
-                vertical: 'bottom',
-                horizontal: 'left',
-              }}
-              transformOrigin={{
-                vertical: 'top',
-                horizontal: 'left',
-              }}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'left' }}
               PaperProps={{
                 sx: {
                   mt: 1.5,
@@ -482,21 +380,10 @@ function HomeHero() {
                         <LocationOnRoundedIcon />
                       </Box>
                       <Box>
-                        <Typography
-                          sx={{
-                            color: '#2d2d2d',
-                            fontWeight: 700,
-                            fontSize: '1rem',
-                          }}
-                        >
+                        <Typography sx={{ color: '#2d2d2d', fontWeight: 700, fontSize: '1rem' }}>
                           {city.name}
                         </Typography>
-                        <Typography
-                          sx={{
-                            color: COLORS.textLight,
-                            fontSize: '0.95rem',
-                          }}
-                        >
+                        <Typography sx={{ color: COLORS.textLight, fontSize: '0.95rem' }}>
                           {city.description}
                         </Typography>
                       </Box>
@@ -510,14 +397,8 @@ function HomeHero() {
               open={Boolean(whenAnchorEl)}
               anchorEl={whenAnchorEl}
               onClose={handleWhenPickerClose}
-              anchorOrigin={{
-                vertical: 'bottom',
-                horizontal: 'center',
-              }}
-              transformOrigin={{
-                vertical: 'top',
-                horizontal: 'center',
-              }}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'center' }}
               PaperProps={{
                 sx: {
                   mt: 1.5,
@@ -544,14 +425,8 @@ function HomeHero() {
               open={Boolean(whoAnchorEl)}
               anchorEl={whoAnchorEl}
               onClose={handleWhoPickerClose}
-              anchorOrigin={{
-                vertical: 'bottom',
-                horizontal: 'center',
-              }}
-              transformOrigin={{
-                vertical: 'top',
-                horizontal: 'center',
-              }}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'center' }}
               PaperProps={{
                 sx: {
                   mt: 1.5,
@@ -565,59 +440,25 @@ function HomeHero() {
             >
               <Stack spacing={2.5}>
                 {[
-                  {
-                    key: 'adults',
-                    title: 'Adults',
-                    subtitle: 'Ages 13 or above',
-                  },
-                  {
-                    key: 'teenagers',
-                    title: 'Teenagers',
-                    subtitle: 'Ages 13 - 17',
-                  },
-                  {
-                    key: 'children',
-                    title: 'Children',
-                    subtitle: 'Ages 2 - 12',
-                  },
-                  {
-                    key: 'infants',
-                    title: 'Infants',
-                    subtitle: 'Under 2',
-                  },
+                  { key: 'adults', title: 'Adults', subtitle: 'Ages 13 or above' },
+                  { key: 'teenagers', title: 'Teenagers', subtitle: 'Ages 13 - 17' },
+                  { key: 'children', title: 'Children', subtitle: 'Ages 2 - 12' },
+                  { key: 'infants', title: 'Infants', subtitle: 'Under 2' },
                 ].map((guestType, index, guestTypes) => (
                   <Box key={guestType.key}>
-                    <Stack
-                      direction="row"
-                      alignItems="center"
-                      justifyContent="space-between"
-                      spacing={2}
-                    >
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
                       <Box>
-                        <Typography
-                          sx={{
-                            color: '#2d2d2d',
-                            fontWeight: 700,
-                            fontSize: '1rem',
-                          }}
-                        >
+                        <Typography sx={{ color: '#2d2d2d', fontWeight: 700, fontSize: '1rem' }}>
                           {guestType.title}
                         </Typography>
-                        <Typography
-                          sx={{
-                            color: COLORS.textLight,
-                            fontSize: '0.95rem',
-                          }}
-                        >
+                        <Typography sx={{ color: COLORS.textLight, fontSize: '0.95rem' }}>
                           {guestType.subtitle}
                         </Typography>
                       </Box>
                       <Stack direction="row" spacing={1.5} alignItems="center">
                         <IconButton
                           aria-label={`Decrease ${guestType.title.toLowerCase()}`}
-                          onClick={() =>
-                            handleGuestCountChange(guestType.key, 'decrease')
-                          }
+                          onClick={() => handleGuestCountChange(guestType.key, 'decrease')}
                           disabled={guestCounts[guestType.key] === 0}
                           sx={{
                             width: 32,
@@ -628,21 +469,12 @@ function HomeHero() {
                         >
                           <RemoveRoundedIcon sx={{ fontSize: 18 }} />
                         </IconButton>
-                        <Typography
-                          sx={{
-                            minWidth: 18,
-                            textAlign: 'center',
-                            color: '#2d2d2d',
-                            fontSize: '1.1rem',
-                          }}
-                        >
+                        <Typography sx={{ minWidth: 18, textAlign: 'center', color: '#2d2d2d', fontSize: '1.1rem' }}>
                           {guestCounts[guestType.key]}
                         </Typography>
                         <IconButton
                           aria-label={`Increase ${guestType.title.toLowerCase()}`}
-                          onClick={() =>
-                            handleGuestCountChange(guestType.key, 'increase')
-                          }
+                          onClick={() => handleGuestCountChange(guestType.key, 'increase')}
                           sx={{
                             width: 32,
                             height: 32,
@@ -666,34 +498,9 @@ function HomeHero() {
                 ))}
               </Stack>
             </Popover>
-
-            <Stack direction="row" spacing={1} sx={{ pt: 1, justifyContent: 'center' }}>
-              {HERO_SLIDES.map((slide, index) => (
-                <Box
-                  key={slide.id}
-                  component="button"
-                  type="button"
-                  aria-label={`Show slide ${index + 1}`}
-                  onClick={() => setActiveSlideIndex(index)}
-                  sx={{
-                    border: 0,
-                    p: 0,
-                    width: index === activeSlideIndex ? 34 : 10,
-                    height: 10,
-                    borderRadius: '999px',
-                    backgroundColor:
-                      index === activeSlideIndex
-                        ? COLORS.surface
-                        : 'rgba(255, 255, 255, 0.45)',
-                    cursor: 'pointer',
-                    transition: 'all 250ms ease',
-                  }}
-                />
-              ))}
-            </Stack>
           </Stack>
         </Stack>
-      </Box>
+      </HeroCarousel>
     </LocalizationProvider>
   )
 }

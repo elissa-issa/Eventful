@@ -12,6 +12,7 @@ import AlertDialog from '../shared/components/AlertDialog'
 import BundleCard from '../shared/components/BundleCard'
 import CategoryCard from '../shared/components/CategoryCard'
 import HomeHero from '../shared/components/HomeHero'
+import NewsletterCTA from '../shared/components/NewsletterCTA'
 import VendorCard from '../shared/components/VendorCard'
 
 function HomePage() {
@@ -457,6 +458,8 @@ function HomePage() {
           </Box>
         ))}
       </Box>
+
+      <NewsletterCTA />
 
       <AlertDialog
         open={isSignInDialogOpen}

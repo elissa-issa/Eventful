@@ -25,7 +25,7 @@ function ServiceCard({
       elevation={0}
       sx={{
         width: '100%',
-        maxWidth: 400,
+        maxWidth: 360,
         height: '100%',
         borderRadius: 2,
         overflow: 'hidden',
@@ -34,7 +34,7 @@ function ServiceCard({
         flexDirection: 'column',
       }}
     >
-      <Box sx={{ position: 'relative', height: 312 }}>
+      <Box sx={{ position: 'relative', height: 280 }}>
         <Box
           component="img"
           src={imageSrc}
@@ -94,8 +94,14 @@ function ServiceCard({
           display: 'flex',
         }}
       >
-        <Stack spacing={1.3} sx={{ flexGrow: 1, width: '100%' }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
+        <Stack spacing={0.45} sx={{ flexGrow: 1, width: '100%' }}>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="flex-start"
+            spacing={2}
+            sx={{ minHeight: 40 }}
+          >
             <Typography
               variant="h6"
               sx={{
@@ -104,25 +110,36 @@ function ServiceCard({
                 fontSize: '1.05rem',
                 textTransform: 'uppercase',
                 lineHeight: 1.15,
+                minHeight: 32,
               }}
             >
               {title}
             </Typography>
 
-            {vendorLogoSrc ? (
-              <Box
-                component="img"
-                src={vendorLogoSrc}
-                alt={vendorLogoAlt}
-                sx={{
-                  width: 62,
-                  height: 28,
-                  objectFit: 'contain',
-                  flexShrink: 0,
-                  mt: 0.25,
-                }}
-              />
-            ) : null}
+            <Box
+              sx={{
+                width: 62,
+                height: 28,
+                flexShrink: 0,
+                mt: 0.25,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+              }}
+            >
+              {vendorLogoSrc ? (
+                <Box
+                  component="img"
+                  src={vendorLogoSrc}
+                  alt={vendorLogoAlt}
+                  sx={{
+                    width: 62,
+                    height: 28,
+                    objectFit: 'contain',
+                  }}
+                />
+              ) : null}
+            </Box>
           </Stack>
 
           <Typography
@@ -132,6 +149,7 @@ function ServiceCard({
               fontSize: '0.95rem',
               lineHeight: 1.25,
               height: '2.5rem',
+              mb: 0.05,
               display: '-webkit-box',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -142,18 +160,20 @@ function ServiceCard({
             {description || ''}
           </Typography>
 
-          {guestText ? (
-            <Typography
-              variant="body2"
-              sx={{
-                color: '#7b7b7b',
-                fontSize: '0.95rem',
-                lineHeight: 1,
-              }}
-            >
-              {guestText}
-            </Typography>
-          ) : null}
+          <Box sx={{ minHeight: 15, mb: 0 }}>
+            {guestText ? (
+              <Typography
+                variant="body2"
+                sx={{
+                  color: COLORS.textMuted,
+                  fontSize: '0.95rem',
+                  lineHeight: 1,
+                }}
+              >
+                {guestText}
+              </Typography>
+            ) : null}
+          </Box>
 
           <Typography
             variant="h6"
@@ -162,6 +182,7 @@ function ServiceCard({
               fontWeight: 800,
               fontSize: '1rem',
               lineHeight: 1.1,
+              minHeight: 18,
             }}
           >
             {priceText}

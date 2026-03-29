@@ -11,6 +11,7 @@ import VendorsPage from '../pages/VendorsPage'
 import LoginPage from '../pages/LoginPage'
 import SignUpPage from '../pages/SignUpPage'
 import HomePage from '../pages/HomePage'
+import InspirationPage from '../pages/InspirationPage'
 import SearchPage from '../pages/SearchPage'
 import GuestOnlyRoute from './GuestOnlyRoute'
 import RequireAuth from './RequireAuth'
@@ -21,6 +22,7 @@ function AppRoutes() {
       <Route element={<MainLayout />}>
         <Route index element={<Navigate to="/home" replace />} />
         <Route path="/home" element={<HomePage />} />
+        <Route path="/inspiration" element={<InspirationPage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/services" element={<ServicesPage />} />
         <Route path="/services/:section/:itemId" element={<ServiceItemPage />} />
