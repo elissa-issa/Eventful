@@ -1,3 +1,4 @@
+import DoneRoundedIcon from '@mui/icons-material/DoneRounded'
 import { Box, Button, Dialog, DialogContent, Stack, Typography } from '@mui/material'
 import { COLORS } from '../../constants/colors'
 
@@ -5,6 +6,7 @@ function AlertDialog({
   open,
   onClose,
   icon,
+  useCheckIcon = false,
   iconBackgroundColor = COLORS.primary,
   iconColor = COLORS.surface,
   title,
@@ -28,6 +30,8 @@ function AlertDialog({
     onClose?.()
   }
 
+  const resolvedIcon = useCheckIcon ? <DoneRoundedIcon /> : icon
+
   return (
     <Dialog
       open={open}
@@ -49,12 +53,12 @@ function AlertDialog({
           py: { xs: 3, sm: 4 },
         }}
       >
-        <Stack spacing={icon ? 2.25 : 1.5} alignItems="center" textAlign="center">
-          {icon ? (
+        <Stack spacing={resolvedIcon ? 2.25 : 1.5} alignItems="center" textAlign="center">
+          {resolvedIcon ? (
             <Box
               sx={{
-                width: { xs: 120, sm: 136 },
-                height: { xs: 120, sm: 136 },
+                width: { xs: 92, sm: 104 },
+                height: { xs: 92, sm: 104 },
                 borderRadius: '50%',
                 backgroundColor: iconBackgroundColor,
                 color: iconColor,
@@ -62,11 +66,11 @@ function AlertDialog({
                 alignItems: 'center',
                 justifyContent: 'center',
                 '& svg': {
-                  fontSize: { xs: 66, sm: 74 },
+                  fontSize: { xs: 58, sm: 64 },
                 },
               }}
             >
-              {icon}
+              {resolvedIcon}
             </Box>
           ) : null}
 
