@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { clearStoredAuth, getStoredAuth, persistAuth } from './storage'
-import AuthContext from './authContext'
+import AuthContext from './authContextValue'
 
 export function AuthProvider({ children }) {
   const [authState, setAuthState] = useState(() => {
