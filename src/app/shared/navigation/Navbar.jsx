@@ -18,7 +18,7 @@ import {
   Typography,
 } from '@mui/material'
 import { Link as RouterLink, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '../../auth/useAuth'
 import { COLORS } from '../../constants/colors'
 import { navItems } from './navItems'
@@ -39,6 +39,12 @@ function Navbar() {
   const { isAuthenticated, user } = useAuth()
   const avatarLabel = `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`.trim() || 'U'
   const [hoveredItem, setHoveredItem] = useState(null)
+  const [searchValue, setSearchValue] = useState('')
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    setSearchValue(params.get('q') || '')
+  }, [location.search])
 
   const handleFilterToggle = () => {
     const params = new URLSearchParams(location.search)
@@ -53,6 +59,20 @@ function Navbar() {
     navigate({
       pathname: location.pathname,
       hash: nextHash,
+      search: params.toString() ? `?${params.toString()}` : '',
+    })
+  }
+
+  const handleSearchSubmit = () => {
+    const trimmedSearchValue = searchValue.trim()
+    const params = new URLSearchParams()
+
+    if (trimmedSearchValue) {
+      params.set('q', trimmedSearchValue)
+    }
+
+    navigate({
+      pathname: '/search',
       search: params.toString() ? `?${params.toString()}` : '',
     })
   }
@@ -216,9 +236,24 @@ function Navbar() {
             <OutlinedInput
               size="small"
               placeholder="Search"
+              value={searchValue}
+              onChange={(event) => setSearchValue(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  handleSearchSubmit()
+                }
+              }}
               startAdornment={
                 <InputAdornment position="start">
-                  <SearchRoundedIcon sx={{ color: COLORS.textLight, fontSize: 18 }} />
+                  <IconButton
+                    aria-label="Search services"
+                    onClick={handleSearchSubmit}
+                    edge="start"
+                    sx={{ color: COLORS.textLight, p: 0.25 }}
+                  >
+                    <SearchRoundedIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
                 </InputAdornment>
               }
               endAdornment={

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Box } from '@mui/material'
+import { Box, Stack, Typography } from '@mui/material'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { BUNDLE_CARDS } from '../constants/bundleCards'
@@ -15,6 +15,7 @@ import MenuFilterPanel from '../shared/Filters/MenuFilterPanel'
 import VenueFilterPanel from '../shared/Filters/VenueFilterPanel'
 import AlertDialog from '../shared/components/AlertDialog'
 import BundleCard from '../shared/components/BundleCard'
+import SearchEmptyState from '../shared/components/SearchEmptyState'
 import ServiceCard from '../shared/components/ServiceCard'
 import ServicesSubnav from '../shared/navigation/ServicesSubnav'
 
@@ -60,6 +61,41 @@ const ITEMS_BY_SECTION = {
   entertainment: ENTERTAINMENT_ITEMS,
 }
 
+const SEARCHABLE_SECTIONS = ['bundles', 'venues', 'menus', 'decorations', 'entertainment']
+
+const getSearchableText = (item, section) => {
+  const baseFields = [
+    item.title,
+    item.description,
+    item.detailsDescription,
+    item.vendorName,
+    item.vendorLocation,
+    item.location,
+    item.category,
+    item.guestText,
+    item.priceText,
+    section,
+  ]
+
+  if (section === 'bundles') {
+    return [
+      ...baseFields,
+      item.leftText,
+      item.rightText,
+      ...(item.planItems || []).flatMap((planItem) => [
+        planItem.title,
+        planItem.metaText,
+        planItem.priceText,
+      ]),
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+  }
+
+  return baseFields.filter(Boolean).join(' ').toLowerCase()
+}
+
 function ServicesPage() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -75,6 +111,9 @@ function ServicesPage() {
   )
 
   const activeSection = location.hash.replace('#', '') || 'menus'
+  const searchQuery = searchParams.get('q')?.trim() || ''
+  const normalizedSearchQuery = searchQuery.toLowerCase()
+  const isSearchMode = normalizedSearchQuery.length > 0
 
   const handleCloseSignInDialog = () => {
     setIsSignInDialogOpen(false)
@@ -120,6 +159,20 @@ function ServicesPage() {
   const isEntertainmentFilterOpen = isEntertainmentSection && isFilterOpen
   const isVenueFilterOpen = isVenueSection && isFilterOpen
   const isMenuFilterOpen = isMenuSection && isFilterOpen
+  const searchResults = useMemo(
+    () =>
+      SEARCHABLE_SECTIONS.flatMap((section) =>
+        (ITEMS_BY_SECTION[section] || [])
+          .filter((item) => getSearchableText(item, section).includes(normalizedSearchQuery))
+          .map((item, index) => ({
+            ...item,
+            resultSection: section,
+            resultKey: `${section}-${item.id}-${index}`,
+            isBundle: section === 'bundles',
+          }))
+      ),
+    [normalizedSearchQuery]
+  )
   const locationOptions = useMemo(
     () => LEBANESE_CITIES.map((city) => city.name.split(',')[0]),
     []
@@ -250,6 +303,8 @@ function ServicesPage() {
         : isEntertainmentSection
           ? filteredEntertainmentItems
           : activeItems
+  const resultsToRender = isSearchMode ? searchResults : displayedItems
+  const shouldShowEmptyState = isSearchMode && resultsToRender.length === 0
   const handleCloseVenueFilter = () => {
     const nextParams = new URLSearchParams(searchParams)
     nextParams.delete('filters')
@@ -270,7 +325,7 @@ function ServicesPage() {
           pl: { lg: 2 },
         }}
       >
-        {isVenueFilterOpen ? (
+        {!isSearchMode && isVenueFilterOpen ? (
           <Box
             sx={{
               width: { xs: '100%', lg: 280 },
@@ -293,7 +348,7 @@ function ServicesPage() {
           </Box>
         ) : null}
 
-        {isMenuFilterOpen ? (
+        {!isSearchMode && isMenuFilterOpen ? (
           <Box
             sx={{
               width: { xs: '100%', lg: 280 },
@@ -317,7 +372,7 @@ function ServicesPage() {
           </Box>
         ) : null}
 
-        {isDecorationFilterOpen ? (
+        {!isSearchMode && isDecorationFilterOpen ? (
           <Box
             sx={{
               width: { xs: '100%', lg: 280 },
@@ -340,7 +395,7 @@ function ServicesPage() {
           </Box>
         ) : null}
 
-        {isEntertainmentFilterOpen ? (
+        {!isSearchMode && isEntertainmentFilterOpen ? (
           <Box
             sx={{
               width: { xs: '100%', lg: 280 },
@@ -367,61 +422,95 @@ function ServicesPage() {
         <Box
           sx={{
             flex: 1,
-            display: 'grid',
-            gridTemplateColumns: {
-              xs: '1fr',
-              sm: 'repeat(2, minmax(0, 1fr))',
-              lg: isVenueFilterOpen ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))',
-              xl: isVenueFilterOpen ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))',
-            },
+            display: 'flex',
+            flexDirection: 'column',
             gap: 2.25,
           }}
         >
-          {isBundleSection
-          ? displayedItems.map((item, index) => {
-              const itemKey = `${item.id}-${index}`
+          {isSearchMode ? (
+            <Stack spacing={0.5}>
+              <Typography sx={{ color: COLORS.primary, fontWeight: 800, fontSize: '1.35rem' }}>
+                Search Results
+              </Typography>
+              <Typography sx={{ color: COLORS.textMuted, fontSize: '0.98rem' }}>
+                {resultsToRender.length > 0
+                  ? `${resultsToRender.length} result${resultsToRender.length === 1 ? '' : 's'} for "${searchQuery}"`
+                  : `No matches for "${searchQuery}"`}
+              </Typography>
+            </Stack>
+          ) : null}
 
-              return (
-                <BundleCard
-                  key={itemKey}
-                  imageSrc={item.imageSrc}
-                  imageAlt={item.imageAlt}
-                  title={item.title}
-                  isFavorite={Boolean(favoriteItems[itemKey])}
-                  onFavoriteToggle={() => handleFavoriteToggle(itemKey)}
-                  leftText={item.leftText}
-                  rightText={item.rightText}
-                  primaryButtonLabel={item.primaryButtonLabel}
-                  onPrimaryButtonClick={() => navigate(`/services/bundles/${item.id}`)}
-                  secondaryButtonLabel={item.secondaryButtonLabel}
-                  onSecondaryButtonClick={handleProtectedAction}
-                  maxWidth={400}
-                  imageHeight={312}
-                  cardBorderRadius={2}
-                  contentPaddingX={0.5}
-                  contentPaddingTop={1.8}
-                  contentPaddingBottom={12.8}
-                />
-              )
-            })
-          : displayedItems.map((item) => (
-              <ServiceCard
-                key={item.id}
-                imageSrc={item.imageSrc}
-                imageAlt={item.imageAlt}
-                title={item.title}
-                description={item.description}
-                guestText={item.guestText}
-                priceText={item.priceText}
-                discountLabel={item.discountLabel}
-                vendorLogoSrc={item.vendorLogoSrc}
-                vendorLogoAlt={item.vendorLogoAlt}
-                isFavorite={Boolean(favoriteItems[item.id])}
-                onFavoriteToggle={() => handleFavoriteToggle(item.id)}
-                onViewButtonClick={() => navigate(`/services/${activeSection}/${item.id}`)}
-                onCartButtonClick={handleProtectedAction}
-              />
-            ))}
+          {shouldShowEmptyState ? (
+            <SearchEmptyState query={searchQuery} />
+          ) : (
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  sm: 'repeat(2, minmax(0, 1fr))',
+                  lg:
+                    !isSearchMode && isVenueFilterOpen
+                      ? 'repeat(2, minmax(0, 1fr))'
+                      : 'repeat(3, minmax(0, 1fr))',
+                  xl:
+                    !isSearchMode && isVenueFilterOpen
+                      ? 'repeat(2, minmax(0, 1fr))'
+                      : 'repeat(3, minmax(0, 1fr))',
+                },
+                gap: 2.25,
+              }}
+            >
+              {resultsToRender.map((item, index) => {
+                const itemSection = item.resultSection || activeSection
+                const favoriteKey = item.resultKey || item.id || `${itemSection}-${index}`
+
+                if (item.isBundle || (!isSearchMode && isBundleSection)) {
+                  return (
+                    <BundleCard
+                      key={favoriteKey}
+                      imageSrc={item.imageSrc}
+                      imageAlt={item.imageAlt}
+                      title={item.title}
+                      isFavorite={Boolean(favoriteItems[favoriteKey])}
+                      onFavoriteToggle={() => handleFavoriteToggle(favoriteKey)}
+                      leftText={item.leftText}
+                      rightText={item.rightText}
+                      primaryButtonLabel={item.primaryButtonLabel}
+                      onPrimaryButtonClick={() => navigate(`/services/bundles/${item.id}`)}
+                      secondaryButtonLabel={item.secondaryButtonLabel}
+                      onSecondaryButtonClick={handleProtectedAction}
+                      maxWidth={400}
+                      imageHeight={312}
+                      cardBorderRadius={2}
+                      contentPaddingX={0.5}
+                      contentPaddingTop={1.8}
+                      contentPaddingBottom={12.8}
+                    />
+                  )
+                }
+
+                return (
+                  <ServiceCard
+                    key={favoriteKey}
+                    imageSrc={item.imageSrc}
+                    imageAlt={item.imageAlt}
+                    title={item.title}
+                    description={item.description}
+                    guestText={item.guestText}
+                    priceText={item.priceText}
+                    discountLabel={item.discountLabel}
+                    vendorLogoSrc={item.vendorLogoSrc}
+                    vendorLogoAlt={item.vendorLogoAlt}
+                    isFavorite={Boolean(favoriteItems[favoriteKey])}
+                    onFavoriteToggle={() => handleFavoriteToggle(favoriteKey)}
+                    onViewButtonClick={() => navigate(`/services/${itemSection}/${item.id}`)}
+                    onCartButtonClick={handleProtectedAction}
+                  />
+                )
+              })}
+            </Box>
+          )}
         </Box>
       </Box>
 
