@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
+const savedLocationRoutes = require('./routes/savedLocationRoutes');
 const { errorHandler, notFoundHandler } = require('./helpers/errorHandlers');
 
 const app = express();
@@ -20,6 +21,7 @@ app.get('/api/health', (_request, response) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/locations', savedLocationRoutes);
 app.use(notFoundHandler);
 app.use(errorHandler);
 

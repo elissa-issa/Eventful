@@ -5,6 +5,8 @@ function notFoundHandler(request, response) {
 }
 
 function errorHandler(error, _request, response, _next) {
+  void _next;
+
   const statusCode = error.statusCode || 500;
 
   if (statusCode >= 500) {

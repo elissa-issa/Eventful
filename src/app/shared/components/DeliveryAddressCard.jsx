@@ -1,7 +1,8 @@
 import { Box, Button, Stack, TextField, Typography } from '@mui/material'
 import { COLORS } from '../../constants/colors'
+import { addLocationFields } from '../../constants/profilePage'
 
-function DeliveryAddressCard({ onSavedLocationsClick }) {
+function DeliveryAddressCard({ values, onFieldChange, onSavedLocationsClick }) {
   const fieldSx = {
     '& .MuiOutlinedInput-root': {
       height: 36,
@@ -95,50 +96,28 @@ function DeliveryAddressCard({ onSavedLocationsClick }) {
             gap: 1.2,
           }}
         >
-          <Box>
-            <Typography sx={labelSx}>Location Name</Typography>
-            <TextField
-              fullWidth
-              placeholder="e.g. Home, La Marina Venue"
-              size="small"
-              sx={fieldSx}
-            />
-          </Box>
-
-          <Box>
-            <Typography sx={labelSx}>City</Typography>
-            <TextField fullWidth placeholder="e.g. Jounieh" size="small" sx={fieldSx} />
-          </Box>
-
-          <Box>
-            <Typography sx={labelSx}>Street Adress</Typography>
-            <TextField
-              fullWidth
-              placeholder="e.g. 45 Marina Road, Jounieh"
-              size="small"
-              sx={fieldSx}
-            />
-          </Box>
-
-          <Box>
-            <Typography sx={labelSx}>Mobile Number</Typography>
-            <TextField
-              fullWidth
-              placeholder="e.g. +961 70 123 456"
-              size="small"
-              sx={fieldSx}
-            />
-          </Box>
-
-          <Box>
-            <Typography sx={labelSx}>Apartment / Floor (optional)</Typography>
-            <TextField fullWidth placeholder="e.g. Apt. 3B, 2nd Floor" size="small" sx={fieldSx} />
-          </Box>
-
-          <Box>
-            <Typography sx={labelSx}>ZIP / Postal Code</Typography>
-            <TextField fullWidth placeholder="e.g. 1200" size="small" sx={fieldSx} />
-          </Box>
+          {addLocationFields.map((field) => (
+            <Box key={field.id}>
+              <Typography sx={labelSx}>{field.label}</Typography>
+              <TextField
+                fullWidth
+                required={field.required !== false}
+                placeholder={field.placeholder}
+                size="small"
+                type={field.type || 'text'}
+                value={values[field.id] || ''}
+                onChange={(event) => onFieldChange(field.id, event.target.value)}
+                slotProps={{
+                  htmlInput: {
+                    inputMode: field.inputMode,
+                    maxLength: field.maxLength,
+                    pattern: field.pattern,
+                  },
+                }}
+                sx={fieldSx}
+              />
+            </Box>
+          ))}
         </Box>
       </Stack>
     </Box>

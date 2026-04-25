@@ -18,7 +18,7 @@ import {
   Typography,
 } from '@mui/material'
 import { Link as RouterLink, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useAuth } from '../../auth/useAuth'
 import { COLORS } from '../../constants/colors'
 import { navItems } from './navItems'
@@ -39,12 +39,11 @@ function Navbar() {
   const { isAuthenticated, user } = useAuth()
   const avatarLabel = `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`.trim() || 'U'
   const [hoveredItem, setHoveredItem] = useState(null)
-  const [searchValue, setSearchValue] = useState('')
-
-  useEffect(() => {
+  const [searchValue, setSearchValue] = useState(() => {
     const params = new URLSearchParams(location.search)
-    setSearchValue(params.get('q') || '')
-  }, [location.search])
+
+    return params.get('q') || ''
+  })
 
   const handleFilterToggle = () => {
     const params = new URLSearchParams(location.search)
@@ -307,7 +306,7 @@ function Navbar() {
 
                 <IconButton
                   aria-label="Open cart"
-                  onClick={() => navigate('/cart')}
+                  onClick={() => navigate('/collections')}
                   sx={{ color: COLORS.primary }}
                 >
                   <ShoppingCartOutlinedIcon />

@@ -1,17 +1,31 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Box, Checkbox, Container, Stack, Typography } from '@mui/material'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useAuth } from '../auth/useAuth'
 import { COLORS } from '../constants/colors'
+import { getCollectionById, MY_COLLECTIONS } from '../constants/myCollections'
 import { DECORATION_ITEMS } from '../constants/decorationItems'
 import { MENU_ITEMS } from '../constants/menuItems'
 import { VENUE_ITEMS } from '../constants/venueItems'
 import AlertDialog from '../shared/components/AlertDialog'
+import AddLocationDialog from '../shared/components/AddLocationDialog'
 import CartItemRow from '../shared/components/CartItemRow'
 import CheckoutProgressStepper from '../shared/components/CheckoutProgressStepper'
 import DeliveryAddressCard from '../shared/components/DeliveryAddressCard'
+import {
+  emptyLocationValues,
+  getLocationValidationError,
+  normalizeLocationValues,
+} from '../shared/utils/locationForm'
 import OrderSummaryCard from '../shared/components/OrderSummaryCard'
 import PaymentMethodOptionCard from '../shared/components/PaymentMethodOptionCard'
 import SavedLocationsDialog from '../shared/components/SavedLocationsDialog'
+import {
+  createSavedLocation,
+  deleteSavedLocation,
+  getSavedLocations,
+  updateSavedLocation,
+} from '../services/savedLocations'
 
 const INITIAL_CART_SELECTIONS = {
   venues: {
@@ -35,6 +49,8 @@ const CARD_PAYMENT_FIELDS = [
 
 function CartPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const { token } = useAuth()
   const featuredVenue = VENUE_ITEMS.find((item) => item.id === 'outdoor-jbeil-2') ?? VENUE_ITEMS[0]
   const birthdayCake = MENU_ITEMS.find((item) => item.id === 'birthday-cake-2') ?? MENU_ITEMS[0]
   const flowerBouquet =
@@ -49,7 +65,18 @@ function CartPage() {
   const [cartSelections, setCartSelections] = useState(INITIAL_CART_SELECTIONS)
   const [checkoutStep, setCheckoutStep] = useState(0)
   const [isSavedLocationsOpen, setIsSavedLocationsOpen] = useState(false)
+  const [isLocationDialogOpen, setIsLocationDialogOpen] = useState(false)
   const [isPaymentSuccessOpen, setIsPaymentSuccessOpen] = useState(false)
+  const [deliveryAddress, setDeliveryAddress] = useState(emptyLocationValues)
+  const [savedLocations, setSavedLocations] = useState([])
+  const [locationsLoading, setLocationsLoading] = useState(false)
+  const [locationsError, setLocationsError] = useState('')
+  const [locationFormValues, setLocationFormValues] = useState(emptyLocationValues)
+  const [editingLocation, setEditingLocation] = useState(null)
+  const [pendingDeleteLocation, setPendingDeleteLocation] = useState(null)
+  const [locationFormError, setLocationFormError] = useState('')
+  const [locationSaving, setLocationSaving] = useState(false)
+  const [locationDeleting, setLocationDeleting] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState('card')
   const [cardPaymentValues, setCardPaymentValues] = useState({
     cardHolderName: '',
@@ -57,6 +84,8 @@ function CartPage() {
     expiryDate: '',
     cvc: '',
   })
+  const selectedCollection =
+    getCollectionById(searchParams.get('collection')) ?? MY_COLLECTIONS[0]
 
   const sectionCheckboxSx = {
     p: 0,
@@ -105,6 +134,116 @@ function CartPage() {
       ...current,
       [fieldId]: value,
     }))
+  }
+
+  const loadSavedLocations = useCallback(async () => {
+    if (!token) {
+      return
+    }
+
+    setLocationsLoading(true)
+    setLocationsError('')
+
+    try {
+      const result = await getSavedLocations(token)
+      setSavedLocations(result.data || [])
+    } catch (error) {
+      setLocationsError(error.message || 'Could not load saved locations')
+    } finally {
+      setLocationsLoading(false)
+    }
+  }, [token])
+
+  useEffect(() => {
+    if (isSavedLocationsOpen) {
+      loadSavedLocations()
+    }
+  }, [isSavedLocationsOpen, loadSavedLocations])
+
+  const handleDeliveryAddressChange = (fieldId, value) => {
+    setDeliveryAddress((current) => ({
+      ...current,
+      [fieldId]: value,
+    }))
+  }
+
+  const openAddLocationDialog = () => {
+    setEditingLocation(null)
+    setLocationFormValues(emptyLocationValues)
+    setLocationFormError('')
+    setIsLocationDialogOpen(true)
+  }
+
+  const openEditLocationDialog = (location) => {
+    setEditingLocation(location)
+    setLocationFormValues(normalizeLocationValues(location))
+    setLocationFormError('')
+    setIsLocationDialogOpen(true)
+  }
+
+  const closeLocationDialog = () => {
+    setIsLocationDialogOpen(false)
+    setEditingLocation(null)
+    setLocationFormValues(emptyLocationValues)
+    setLocationFormError('')
+  }
+
+  const handleLocationFormChange = (fieldId, value) => {
+    setLocationFormValues((current) => ({
+      ...current,
+      [fieldId]: value,
+    }))
+  }
+
+  const handleLocationSubmit = async (event) => {
+    event.preventDefault()
+
+    const validationError = getLocationValidationError(locationFormValues)
+
+    if (validationError) {
+      setLocationFormError(validationError)
+      return
+    }
+
+    setLocationSaving(true)
+    setLocationFormError('')
+
+    try {
+      if (editingLocation) {
+        await updateSavedLocation(editingLocation.id, locationFormValues, token)
+      } else {
+        await createSavedLocation(locationFormValues, token)
+      }
+
+      closeLocationDialog()
+      await loadSavedLocations()
+    } catch (error) {
+      setLocationFormError(error.message || 'Could not save location')
+    } finally {
+      setLocationSaving(false)
+    }
+  }
+
+  const handleDeleteLocation = async () => {
+    if (!pendingDeleteLocation) {
+      return
+    }
+
+    setLocationDeleting(true)
+    try {
+      await deleteSavedLocation(pendingDeleteLocation.id, token)
+      setPendingDeleteLocation(null)
+      await loadSavedLocations()
+    } catch (error) {
+      setLocationsError(error.message || 'Could not delete location')
+    } finally {
+      setLocationDeleting(false)
+    }
+  }
+
+  const handleSelectLocation = (location) => {
+    setDeliveryAddress(normalizeLocationValues(location))
+    setIsSavedLocationsOpen(false)
   }
 
   return (
@@ -218,16 +357,20 @@ function CartPage() {
               ) : null}
 
               {isDeliveryStep ? (
-                <DeliveryAddressCard onSavedLocationsClick={() => setIsSavedLocationsOpen(true)} />
+                <DeliveryAddressCard
+                  values={deliveryAddress}
+                  onFieldChange={handleDeliveryAddressChange}
+                  onSavedLocationsClick={() => setIsSavedLocationsOpen(true)}
+                />
               ) : null}
 
               <OrderSummaryCard
-                title="Mom's Birthday"
-                retailPrice="$2550"
-                promotions="$50"
-                totalPrice="$2000"
-                savedText="saved 50$"
-                rewardedText="Rewarded 32 points"
+                title={selectedCollection.title}
+                retailPrice={selectedCollection.summary.retailPrice}
+                promotions={selectedCollection.summary.promotions}
+                totalPrice={selectedCollection.summary.totalPrice}
+                savedText={selectedCollection.summary.savedText}
+                rewardedText={selectedCollection.summary.rewardedText}
                 checkoutLabel={isDeliveryStep ? 'Continue' : 'Checkout Now!'}
                 onCheckout={() => setCheckoutStep((current) => (current < 2 ? current + 1 : current))}
                 secondaryActionLabel={isDeliveryStep ? 'Back to cart' : undefined}
@@ -298,12 +441,12 @@ function CartPage() {
               </Box>
 
               <OrderSummaryCard
-                title="Mom's Birthday"
-                retailPrice="$2550"
-                promotions="$50"
-                totalPrice="$2000"
-                savedText="saved 50$"
-                rewardedText="Rewarded 32 points"
+                title={selectedCollection.title}
+                retailPrice={selectedCollection.summary.retailPrice}
+                promotions={selectedCollection.summary.promotions}
+                totalPrice={selectedCollection.summary.totalPrice}
+                savedText={selectedCollection.summary.savedText}
+                rewardedText={selectedCollection.summary.rewardedText}
                 checkoutLabel="Pay Now"
                 onCheckout={() => setIsPaymentSuccessOpen(true)}
                 secondaryActionLabel="Back to Delivery Address"
@@ -317,6 +460,48 @@ function CartPage() {
       <SavedLocationsDialog
         open={isSavedLocationsOpen}
         onClose={() => setIsSavedLocationsOpen(false)}
+        locations={savedLocations}
+        loading={locationsLoading}
+        error={locationsError}
+        onAdd={openAddLocationDialog}
+        onEdit={openEditLocationDialog}
+        onDelete={setPendingDeleteLocation}
+        onSelect={handleSelectLocation}
+      />
+
+      <AddLocationDialog
+        open={isLocationDialogOpen}
+        onClose={closeLocationDialog}
+        title={editingLocation ? 'Edit Location' : 'Add New Location'}
+        values={locationFormValues}
+        onChange={handleLocationFormChange}
+        onSubmit={handleLocationSubmit}
+        submitLabel={editingLocation ? 'Update Location' : 'Add Location'}
+        loading={locationSaving}
+        error={locationFormError}
+      />
+
+      <AlertDialog
+        open={Boolean(pendingDeleteLocation)}
+        onClose={() => {
+          if (!locationDeleting) {
+            setPendingDeleteLocation(null)
+          }
+        }}
+        title="Delete location?"
+        titleColor="#d93a2e"
+        description={
+          pendingDeleteLocation
+            ? `Do you want to delete ${pendingDeleteLocation.locationName}?`
+            : ''
+        }
+        primaryButtonText={locationDeleting ? 'Deleting...' : 'Delete'}
+        primaryButtonColor="#f44336"
+        onPrimaryButtonClick={handleDeleteLocation}
+        secondaryActionText="Cancel"
+        secondaryActionColor={COLORS.primary}
+        onSecondaryActionClick={() => setPendingDeleteLocation(null)}
+        disableBackdropClick={locationDeleting}
       />
 
       <AlertDialog
