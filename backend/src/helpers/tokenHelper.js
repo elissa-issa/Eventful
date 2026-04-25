@@ -12,7 +12,10 @@ function fromBase64Url(value) {
   const normalizedValue = value.replace(/-/g, '+').replace(/_/g, '/');
   const paddingLength = (4 - (normalizedValue.length % 4)) % 4;
 
-  return Buffer.from(`${normalizedValue}${'='.repeat(paddingLength)}`, 'base64').toString('utf8');
+  return Buffer.from(
+    `${normalizedValue}${'='.repeat(paddingLength)}`,
+    'base64'
+  ).toString('utf8');
 }
 
 function getTokenSecret() {
@@ -27,6 +30,7 @@ function generateAuthToken(payload) {
   const header = { alg: 'HS256', typ: 'JWT' };
   const expiresInSeconds = getTokenExpirySeconds();
   const nowInSeconds = Math.floor(Date.now() / 1000);
+
   const body = {
     ...payload,
     iat: nowInSeconds,
@@ -36,6 +40,7 @@ function generateAuthToken(payload) {
   const encodedHeader = toBase64Url(JSON.stringify(header));
   const encodedBody = toBase64Url(JSON.stringify(body));
   const unsignedToken = `${encodedHeader}.${encodedBody}`;
+
   const signature = crypto
     .createHmac('sha256', getTokenSecret())
     .update(unsignedToken)
@@ -47,14 +52,6 @@ function generateAuthToken(payload) {
   return `${unsignedToken}.${signature}`;
 }
 
-function fromBase64Url(value) {
-  const normalizedValue = value.replace(/-/g, '+').replace(/_/g, '/');
-  const padding = '='.repeat((4 - (normalizedValue.length % 4)) % 4);
-
-  return Buffer.from(`${normalizedValue}${padding}`, 'base64').toString('utf8');
-}
-
-function verifyAuthToken(token) {
 function verifyAuthToken(token) {
   if (!token || typeof token !== 'string') {
     return null;
@@ -67,6 +64,7 @@ function verifyAuthToken(token) {
   }
 
   const unsignedToken = `${encodedHeader}.${encodedBody}`;
+
   const expectedSignature = crypto
     .createHmac('sha256', getTokenSecret())
     .update(unsignedToken)
@@ -85,24 +83,6 @@ function verifyAuthToken(token) {
     return null;
   }
 
-  let payload;
-
-  try {
-    payload = JSON.parse(fromBase64Url(encodedBody));
-  } catch {
-    return null;
-  }
-  const nowInSeconds = Math.floor(Date.now() / 1000);
-
-  if (payload.exp && payload.exp < nowInSeconds) {
-    return null;
-  }
-
-  return payload;
-  if (signature !== expectedSignature) {
-    return null;
-  }
-
   try {
     const payload = JSON.parse(fromBase64Url(encodedBody));
     const nowInSeconds = Math.floor(Date.now() / 1000);
@@ -117,4 +97,7 @@ function verifyAuthToken(token) {
   }
 }
 
-module.exports = { generateAuthToken, verifyAuthToken };
+module.exports = {
+  generateAuthToken,
+  verifyAuthToken,
+};
