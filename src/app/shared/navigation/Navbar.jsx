@@ -39,9 +39,11 @@ function Navbar() {
   const { isAuthenticated, user } = useAuth()
   const avatarLabel = `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`.trim() || 'U'
   const [hoveredItem, setHoveredItem] = useState(null)
-  const [searchValue, setSearchValue] = useState(
-    () => new URLSearchParams(location.search).get('q') || ''
-  )
+  const [searchValue, setSearchValue] = useState(() => {
+    const params = new URLSearchParams(location.search)
+
+    return params.get('q') || ''
+  })
 
   const handleFilterToggle = () => {
     const params = new URLSearchParams(location.search)
@@ -304,7 +306,7 @@ function Navbar() {
 
                 <IconButton
                   aria-label="Open cart"
-                  onClick={() => navigate('/cart')}
+                  onClick={() => navigate('/collections')}
                   sx={{ color: COLORS.primary }}
                 >
                   <ShoppingCartOutlinedIcon />

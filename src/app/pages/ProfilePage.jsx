@@ -1,13 +1,17 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import FavoriteRoundedIcon from '@mui/icons-material/FavoriteRounded'
 import ShoppingCartRoundedIcon from '@mui/icons-material/ShoppingCartRounded'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import {
   Avatar,
   Box,
   Button,
+  CircularProgress,
   Divider,
   Grid,
+  IconButton,
   Stack,
   TextField,
   Typography,
@@ -16,17 +20,41 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { COLORS } from '../constants/colors'
 import AddLocationDialog from '../shared/components/AddLocationDialog'
+import AlertDialog from '../shared/components/AlertDialog'
+import {
+  emptyLocationValues,
+  getLocationValidationError,
+  normalizeLocationValues,
+} from '../shared/utils/locationForm'
+import {
+  createSavedLocation,
+  deleteSavedLocation,
+  getSavedLocations,
+  updateSavedLocation,
+} from '../services/savedLocations'
 import {
   profileFieldStyles,
-  profileLocations,
   profileOrders,
   profileSectionTitleStyles,
 } from '../constants/profilePage'
 
+function formatLocationSubtitle(location) {
+  return [location.streetAddress, location.city, location.zipPostalCode].filter(Boolean).join(', ')
+}
+
 function ProfilePage() {
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { token, user, logout } = useAuth()
   const [isAddLocationDialogOpen, setIsAddLocationDialogOpen] = useState(false)
+  const [savedLocations, setSavedLocations] = useState([])
+  const [locationsLoading, setLocationsLoading] = useState(false)
+  const [locationsError, setLocationsError] = useState('')
+  const [locationFormValues, setLocationFormValues] = useState(emptyLocationValues)
+  const [editingLocation, setEditingLocation] = useState(null)
+  const [pendingDeleteLocation, setPendingDeleteLocation] = useState(null)
+  const [locationFormError, setLocationFormError] = useState('')
+  const [locationSaving, setLocationSaving] = useState(false)
+  const [locationDeleting, setLocationDeleting] = useState(false)
   const displayName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'User'
   const avatarLabel =
     `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`.trim() || 'U'
@@ -50,6 +78,28 @@ function ProfilePage() {
     [user],
   )
 
+  const loadSavedLocations = useCallback(async () => {
+    if (!token) {
+      return
+    }
+
+    setLocationsLoading(true)
+    setLocationsError('')
+
+    try {
+      const result = await getSavedLocations(token)
+      setSavedLocations(result.data || [])
+    } catch (error) {
+      setLocationsError(error.message || 'Could not load saved locations')
+    } finally {
+      setLocationsLoading(false)
+    }
+  }, [token])
+
+  useEffect(() => {
+    loadSavedLocations()
+  }, [loadSavedLocations])
+
   const handleLogout = () => {
     logout()
     navigate('/home', { replace: true })
@@ -58,6 +108,80 @@ function ProfilePage() {
   const handleSwitchAccount = () => {
     logout()
     navigate('/login', { replace: true })
+  }
+
+  const openAddLocationDialog = () => {
+    setEditingLocation(null)
+    setLocationFormValues(emptyLocationValues)
+    setLocationFormError('')
+    setIsAddLocationDialogOpen(true)
+  }
+
+  const openEditLocationDialog = (location) => {
+    setEditingLocation(location)
+    setLocationFormValues(normalizeLocationValues(location))
+    setLocationFormError('')
+    setIsAddLocationDialogOpen(true)
+  }
+
+  const closeLocationDialog = () => {
+    setIsAddLocationDialogOpen(false)
+    setEditingLocation(null)
+    setLocationFormValues(emptyLocationValues)
+    setLocationFormError('')
+  }
+
+  const handleLocationFormChange = (fieldId, value) => {
+    setLocationFormValues((current) => ({
+      ...current,
+      [fieldId]: value,
+    }))
+  }
+
+  const handleLocationSubmit = async (event) => {
+    event.preventDefault()
+
+    const validationError = getLocationValidationError(locationFormValues)
+
+    if (validationError) {
+      setLocationFormError(validationError)
+      return
+    }
+
+    setLocationSaving(true)
+    setLocationFormError('')
+
+    try {
+      if (editingLocation) {
+        await updateSavedLocation(editingLocation.id, locationFormValues, token)
+      } else {
+        await createSavedLocation(locationFormValues, token)
+      }
+
+      closeLocationDialog()
+      await loadSavedLocations()
+    } catch (error) {
+      setLocationFormError(error.message || 'Could not save location')
+    } finally {
+      setLocationSaving(false)
+    }
+  }
+
+  const handleDeleteLocation = async () => {
+    if (!pendingDeleteLocation) {
+      return
+    }
+
+    setLocationDeleting(true)
+    try {
+      await deleteSavedLocation(pendingDeleteLocation.id, token)
+      setPendingDeleteLocation(null)
+      await loadSavedLocations()
+    } catch (error) {
+      setLocationsError(error.message || 'Could not delete location')
+    } finally {
+      setLocationDeleting(false)
+    }
   }
 
   return (
@@ -138,7 +262,7 @@ function ProfilePage() {
                   <Box
                     component="button"
                     type="button"
-                    onClick={() => navigate('/cart')}
+                    onClick={() => navigate('/collections')}
                     sx={{
                       display: 'grid',
                       placeItems: 'center',
@@ -413,7 +537,23 @@ function ProfilePage() {
                 <Divider sx={{ mb: 2.8, borderColor: '#cfcfcf' }} />
 
                 <Grid container spacing={2.5}>
-                  {profileLocations.map((location) => (
+                  {locationsLoading ? (
+                    <Grid size={{ xs: 12 }}>
+                      <Box sx={{ py: 4, display: 'grid', placeItems: 'center' }}>
+                        <CircularProgress size={32} sx={{ color: COLORS.primary }} />
+                      </Box>
+                    </Grid>
+                  ) : null}
+
+                  {!locationsLoading && locationsError ? (
+                    <Grid size={{ xs: 12 }}>
+                      <Typography sx={{ color: '#d93a2e', fontWeight: 700 }}>
+                        {locationsError}
+                      </Typography>
+                    </Grid>
+                  ) : null}
+
+                  {!locationsLoading && !locationsError && savedLocations.map((location) => (
                     <Grid key={location.id} size={{ xs: 12, sm: 6, lg: 4 }}>
                       <Stack spacing={1.2} alignItems="center">
                         <Box
@@ -435,6 +575,42 @@ function ProfilePage() {
                             backgroundSize: 'cover',
                           }}
                         >
+                          <Stack
+                            direction="row"
+                            spacing={0.5}
+                            sx={{
+                              position: 'absolute',
+                              top: 8,
+                              right: 8,
+                              zIndex: 1,
+                            }}
+                          >
+                            <IconButton
+                              aria-label={`Edit ${location.locationName} location`}
+                              onClick={() => openEditLocationDialog(location)}
+                              sx={{
+                                width: 28,
+                                height: 28,
+                                backgroundColor: 'rgba(255,255,255,0.92)',
+                                '&:hover': { backgroundColor: COLORS.surface },
+                              }}
+                            >
+                              <EditOutlinedIcon sx={{ fontSize: 17, color: '#1f1f1f' }} />
+                            </IconButton>
+                            <IconButton
+                              aria-label={`Delete ${location.locationName} location`}
+                              onClick={() => setPendingDeleteLocation(location)}
+                              sx={{
+                                width: 28,
+                                height: 28,
+                                backgroundColor: 'rgba(255,255,255,0.92)',
+                                '&:hover': { backgroundColor: COLORS.surface },
+                              }}
+                            >
+                              <DeleteOutlineRoundedIcon sx={{ fontSize: 17, color: '#1f1f1f' }} />
+                            </IconButton>
+                          </Stack>
+
                           <Box
                             sx={{
                               position: 'absolute',
@@ -464,11 +640,23 @@ function ProfilePage() {
                         <Typography
                           sx={{
                             color: COLORS.primary,
-                            fontWeight: 500,
+                            fontWeight: 800,
                             fontSize: '1rem',
+                            textAlign: 'center',
                           }}
                         >
-                          {location.label}
+                          {location.locationName}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            color: COLORS.textLight,
+                            fontWeight: 600,
+                            fontSize: '0.82rem',
+                            textAlign: 'center',
+                            maxWidth: 230,
+                          }}
+                        >
+                          {formatLocationSubtitle(location)}
                         </Typography>
                       </Stack>
                     </Grid>
@@ -479,7 +667,7 @@ function ProfilePage() {
                       <Box
                         component="button"
                         type="button"
-                        onClick={() => setIsAddLocationDialogOpen(true)}
+                        onClick={openAddLocationDialog}
                         sx={{
                           width: '100%',
                           maxWidth: 210,
@@ -528,7 +716,37 @@ function ProfilePage() {
 
       <AddLocationDialog
         open={isAddLocationDialogOpen}
-        onClose={() => setIsAddLocationDialogOpen(false)}
+        onClose={closeLocationDialog}
+        title={editingLocation ? 'Edit Location' : 'Add New Location'}
+        values={locationFormValues}
+        onChange={handleLocationFormChange}
+        onSubmit={handleLocationSubmit}
+        submitLabel={editingLocation ? 'Update Location' : 'Add Location'}
+        loading={locationSaving}
+        error={locationFormError}
+      />
+
+      <AlertDialog
+        open={Boolean(pendingDeleteLocation)}
+        onClose={() => {
+          if (!locationDeleting) {
+            setPendingDeleteLocation(null)
+          }
+        }}
+        title="Delete location?"
+        titleColor="#d93a2e"
+        description={
+          pendingDeleteLocation
+            ? `Do you want to delete ${pendingDeleteLocation.locationName}?`
+            : ''
+        }
+        primaryButtonText={locationDeleting ? 'Deleting...' : 'Delete'}
+        primaryButtonColor="#f44336"
+        onPrimaryButtonClick={handleDeleteLocation}
+        secondaryActionText="Cancel"
+        secondaryActionColor={COLORS.primary}
+        onSecondaryActionClick={() => setPendingDeleteLocation(null)}
+        disableBackdropClick={locationDeleting}
       />
     </Box>
   )

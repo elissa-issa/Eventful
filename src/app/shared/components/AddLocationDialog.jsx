@@ -1,23 +1,13 @@
-import { useState } from 'react'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import {
-  Box,
-  Button,
   Dialog,
   DialogContent,
-  Grid,
   IconButton,
   Stack,
-  TextField,
   Typography,
 } from '@mui/material'
 import { COLORS } from '../../constants/colors'
-import { addLocationFields } from '../../constants/profilePage'
-
-const initialFormValues = addLocationFields.reduce((values, field) => {
-  values[field.id] = ''
-  return values
-}, {})
+import LocationForm from './LocationForm'
 
 const dialogFieldStyles = {
   '& .MuiOutlinedInput-root': {
@@ -26,22 +16,19 @@ const dialogFieldStyles = {
   },
 }
 
-function AddLocationDialog({ open, onClose }) {
-  const [formValues, setFormValues] = useState(initialFormValues)
-
-  const handleChange = (fieldId) => (event) => {
-    setFormValues((current) => ({
-      ...current,
-      [fieldId]: event.target.value,
-    }))
-  }
-
+function AddLocationDialog({
+  open,
+  onClose,
+  title = 'Add New Location',
+  values,
+  onChange,
+  onSubmit,
+  submitLabel = 'Add Location',
+  loading = false,
+  error = '',
+}) {
   const handleClose = () => {
     onClose?.()
-  }
-
-  const handleSubmit = () => {
-    handleClose()
   }
 
   return (
@@ -71,9 +58,9 @@ function AddLocationDialog({ open, onClose }) {
                 color: COLORS.primary,
                 fontWeight: 800,
                 fontSize: { xs: '2rem', md: '2.2rem' },
-              }}
-            >
-              Add New Location
+            }}
+          >
+              {title}
             </Typography>
 
             <IconButton
@@ -85,52 +72,15 @@ function AddLocationDialog({ open, onClose }) {
             </IconButton>
           </Stack>
 
-          <Grid container spacing={{ xs: 2, md: 2.5 }}>
-            {addLocationFields.map((field) => (
-              <Grid key={field.id} size={{ xs: 12, md: 6 }}>
-                <Box>
-                  <Typography
-                    sx={{
-                      mb: 0.8,
-                      color: COLORS.primary,
-                      fontWeight: 700,
-                      fontSize: '1rem',
-                    }}
-                  >
-                    {field.label}
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    placeholder={field.placeholder}
-                    value={formValues[field.id]}
-                    onChange={handleChange(field.id)}
-                    sx={dialogFieldStyles}
-                  />
-                </Box>
-              </Grid>
-            ))}
-          </Grid>
-
-          <Button
-            variant="contained"
-            onClick={handleSubmit}
-            sx={{
-              alignSelf: 'center',
-              minWidth: { xs: '100%', sm: 280 },
-              borderRadius: 1,
-              textTransform: 'none',
-              fontWeight: 800,
-              fontSize: '1rem',
-              py: 1,
-              backgroundColor: COLORS.accent,
-              '&:hover': {
-                backgroundColor: COLORS.accentHover,
-              },
-            }}
-          >
-            Add Location
-          </Button>
+          <LocationForm
+            values={values}
+            onChange={onChange}
+            onSubmit={onSubmit}
+            submitLabel={submitLabel}
+            loading={loading}
+            error={error}
+            fieldStyles={dialogFieldStyles}
+          />
         </Stack>
       </DialogContent>
     </Dialog>

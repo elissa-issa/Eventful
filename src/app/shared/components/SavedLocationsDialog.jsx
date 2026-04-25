@@ -3,6 +3,8 @@ import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import {
   Box,
+  Button,
+  CircularProgress,
   Dialog,
   DialogContent,
   IconButton,
@@ -11,40 +13,28 @@ import {
 } from '@mui/material'
 import { COLORS } from '../../constants/colors'
 
-const SAVED_LOCATIONS = [
-  {
-    id: 'home',
-    name: 'Home',
-    address: '45 Marina Road, Jbeil, Lebanon 1200',
-  },
-  {
-    id: 'venue',
-    name: 'Venue',
-    address: 'La Marina Hall, Jounieh Highway, 1101',
-  },
-  {
-    id: 'office',
-    name: 'Office',
-    address: 'Fouad Chehab Avenue, Hazmieh, Beirut 2034',
-  },
-  {
-    id: 'garden',
-    name: 'Garden',
-    address: 'Pine Residence, Faqra Main Road, Keserwan 1188',
-  },
-  {
-    id: 'beach-house',
-    name: 'Beach House',
-    address: 'Seaside Road, Amchit Waterfront, Jbeil 1402',
-  },
-  {
-    id: 'rooftop',
-    name: 'Rooftop',
-    address: 'Downtown Block C, Beirut Central District 2011',
-  },
-]
+function formatLocationAddress(location) {
+  return [
+    location.streetAddress,
+    location.apartmentFloor,
+    location.city,
+    location.zipPostalCode,
+  ]
+    .filter(Boolean)
+    .join(', ')
+}
 
-function SavedLocationsDialog({ open, onClose }) {
+function SavedLocationsDialog({
+  open,
+  onClose,
+  locations = [],
+  loading = false,
+  error = '',
+  onAdd,
+  onEdit,
+  onDelete,
+  onSelect,
+}) {
   return (
     <Dialog
       open={open}
@@ -95,18 +85,23 @@ function SavedLocationsDialog({ open, onClose }) {
                 fontWeight: 500,
               }}
             >
-              All Locations({SAVED_LOCATIONS.length})
+              All Locations({locations.length})
             </Typography>
 
-            <Typography
+            <Button
+              type="button"
+              onClick={onAdd}
               sx={{
+                minWidth: 0,
+                p: 0,
                 color: COLORS.accent,
                 fontSize: '0.84rem',
                 fontWeight: 500,
+                textTransform: 'none',
               }}
             >
               + Add location
-            </Typography>
+            </Button>
           </Stack>
 
           <Box
@@ -131,16 +126,46 @@ function SavedLocationsDialog({ open, onClose }) {
               },
             }}
           >
-            <Stack spacing={1.2}>
-              {SAVED_LOCATIONS.map((location) => (
+            {loading ? (
+              <Box sx={{ height: 150, display: 'grid', placeItems: 'center' }}>
+                <CircularProgress size={28} sx={{ color: COLORS.primary }} />
+              </Box>
+            ) : null}
+
+            {!loading && error ? (
+              <Typography sx={{ color: '#d93a2e', fontWeight: 700, fontSize: '0.9rem' }}>
+                {error}
+              </Typography>
+            ) : null}
+
+            {!loading && !error && locations.length === 0 ? (
+              <Typography sx={{ color: COLORS.textLight, fontWeight: 600, fontSize: '0.9rem' }}>
+                No saved locations yet.
+              </Typography>
+            ) : null}
+
+            {!loading && !error ? (
+              <Stack spacing={1.2}>
+                {locations.map((location) => (
                 <Box
                   key={location.id}
+                  component="button"
+                  type="button"
+                  onClick={() => onSelect?.(location)}
                   sx={{
+                    width: '100%',
+                    textAlign: 'left',
                     borderRadius: 1,
                     border: '1px solid #e5e5e5',
                     backgroundColor: COLORS.surface,
                     px: 1.5,
                     py: 1.2,
+                    cursor: 'pointer',
+                    transition: 'border-color 160ms ease, box-shadow 160ms ease',
+                    '&:hover': {
+                      borderColor: COLORS.primary,
+                      boxShadow: '0 2px 8px rgba(15, 45, 75, 0.08)',
+                    },
                   }}
                 >
                   <Stack direction="row" alignItems="flex-start" justifyContent="space-between">
@@ -153,7 +178,7 @@ function SavedLocationsDialog({ open, onClose }) {
                           mb: 0.4,
                         }}
                       >
-                        {location.name}
+                        {location.locationName}
                       </Typography>
 
                       <Typography
@@ -163,22 +188,48 @@ function SavedLocationsDialog({ open, onClose }) {
                           fontWeight: 400,
                         }}
                       >
-                        {location.address}
+                        {formatLocationAddress(location)}
+                      </Typography>
+
+                      <Typography
+                        sx={{
+                          color: COLORS.textLight,
+                          fontSize: '0.78rem',
+                          fontWeight: 500,
+                          mt: 0.35,
+                        }}
+                      >
+                        {location.mobileNumber}
                       </Typography>
                     </Box>
 
                     <Stack direction="row" spacing={0.3} sx={{ mt: 1.4, ml: 1 }}>
-                      <IconButton aria-label={`Edit ${location.name} location`} sx={{ p: 0.25 }}>
+                      <IconButton
+                        aria-label={`Edit ${location.locationName} location`}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          onEdit?.(location)
+                        }}
+                        sx={{ p: 0.25 }}
+                      >
                         <EditOutlinedIcon sx={{ fontSize: 17, color: '#1f1f1f' }} />
                       </IconButton>
-                      <IconButton aria-label={`Delete ${location.name} location`} sx={{ p: 0.25 }}>
+                      <IconButton
+                        aria-label={`Delete ${location.locationName} location`}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          onDelete?.(location)
+                        }}
+                        sx={{ p: 0.25 }}
+                      >
                         <DeleteOutlineRoundedIcon sx={{ fontSize: 17, color: '#1f1f1f' }} />
                       </IconButton>
                     </Stack>
                   </Stack>
                 </Box>
-              ))}
-            </Stack>
+                ))}
+              </Stack>
+            ) : null}
           </Box>
         </Stack>
       </DialogContent>
