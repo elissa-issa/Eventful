@@ -1,10 +1,12 @@
-import { useState } from 'react'
-import { Box, Checkbox, Container, Stack, Typography } from '@mui/material'
+import { useEffect, useMemo, useState } from 'react'
+import { Box, Container, Stack, Typography } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { COLORS } from '../constants/colors'
-import { DECORATION_ITEMS } from '../constants/decorationItems'
-import { MENU_ITEMS } from '../constants/menuItems'
-import { VENUE_ITEMS } from '../constants/venueItems'
+import { addFavorite } from '../services/favorites'
+import { checkoutOrder } from '../services/orders'
+import { getCart, removeCartItem, updateCartItem } from '../services/cart'
+import { useToast } from '../toast/useToast'
+import { formatCartItemDetails } from '../utils/servicePayload'
 import AlertDialog from '../shared/components/AlertDialog'
 import CartItemRow from '../shared/components/CartItemRow'
 import CheckoutProgressStepper from '../shared/components/CheckoutProgressStepper'
@@ -13,19 +15,6 @@ import OrderSummaryCard from '../shared/components/OrderSummaryCard'
 import PaymentMethodOptionCard from '../shared/components/PaymentMethodOptionCard'
 import SavedLocationsDialog from '../shared/components/SavedLocationsDialog'
 
-const INITIAL_CART_SELECTIONS = {
-  venues: {
-    outdoorVenue: true,
-  },
-  menues: {
-    birthdayCake: true,
-  },
-  decorations: {
-    flowerBouquet: true,
-    vanillaCandles: true,
-  },
-}
-
 const CARD_PAYMENT_FIELDS = [
   { id: 'cardHolderName', label: 'Card Holder Name', placeholder: 'e.g. Taline Mrehb' },
   { id: 'cardNumber', label: 'Card Number', placeholder: 'e.g. 4567 8901 2345 6789' },
@@ -33,24 +22,21 @@ const CARD_PAYMENT_FIELDS = [
   { id: 'cvc', label: 'CVC', placeholder: 'e.g. 123' },
 ]
 
+function formatPrice(value) {
+  return `$${Number(value || 0).toFixed(2)}`
+}
+
 function CartPage() {
   const navigate = useNavigate()
-  const featuredVenue = VENUE_ITEMS.find((item) => item.id === 'outdoor-jbeil-2') ?? VENUE_ITEMS[0]
-  const birthdayCake = MENU_ITEMS.find((item) => item.id === 'birthday-cake-2') ?? MENU_ITEMS[0]
-  const flowerBouquet =
-    DECORATION_ITEMS.find((item) => item.id === 'flowers-bouquet-2') ?? DECORATION_ITEMS[0]
-  const vanillaCandles = {
-    imageSrc:
-      'https://commons.wikimedia.org/wiki/Special:FilePath/Candles.jpg',
-    imageAlt: 'Vanilla candles decoration',
-    title: 'Vanilla Candles',
-  }
-
-  const [cartSelections, setCartSelections] = useState(INITIAL_CART_SELECTIONS)
+  const { showToast } = useToast()
+  const [cart, setCart] = useState(null)
+  const [selectedItems, setSelectedItems] = useState({})
   const [checkoutStep, setCheckoutStep] = useState(0)
   const [isSavedLocationsOpen, setIsSavedLocationsOpen] = useState(false)
   const [isPaymentSuccessOpen, setIsPaymentSuccessOpen] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState('card')
+  const [isLoadingCart, setIsLoadingCart] = useState(true)
+  const [errorMessage, setErrorMessage] = useState('')
   const [cardPaymentValues, setCardPaymentValues] = useState({
     cardHolderName: '',
     cardNumber: '',
@@ -58,53 +44,120 @@ function CartPage() {
     cvc: '',
   })
 
-  const sectionCheckboxSx = {
-    p: 0,
-    color: COLORS.primary,
-    '&.Mui-checked': {
-      color: COLORS.primary,
-    },
-  }
-
-  const sectionTitleSx = {
-    color: COLORS.primary,
-    fontSize: { xs: '1rem', sm: '1.08rem' },
-    fontWeight: 700,
-  }
-
-  const getSectionValues = (sectionKey) => Object.values(cartSelections[sectionKey])
-  const isSectionChecked = (sectionKey) => getSectionValues(sectionKey).every(Boolean)
-
-  const handleItemCheckChange = (sectionKey, itemKey) => (_, isChecked) => {
-    setCartSelections((current) => ({
-      ...current,
-      [sectionKey]: {
-        ...current[sectionKey],
-        [itemKey]: isChecked,
-      },
-    }))
-  }
-
-  const handleSectionCheckChange = (sectionKey) => (_, isChecked) => {
-    setCartSelections((current) => ({
-      ...current,
-      [sectionKey]: Object.keys(current[sectionKey]).reduce(
-        (nextSection, itemKey) => ({
-          ...nextSection,
-          [itemKey]: isChecked,
-        }),
-        {}
-      ),
-    }))
-  }
-  const isCartStep = checkoutStep === 0
+  const cartItems = cart?.items || []
   const isDeliveryStep = checkoutStep === 1
   const isPaymentStep = checkoutStep === 2
+  const selectedCartItems = cartItems.filter(
+    (item) => selectedItems[`${item.serviceType}:${item.serviceId}`] !== false
+  )
+  const totalPrice = useMemo(
+    () =>
+      selectedCartItems.reduce(
+        (total, item) => total + (item.service?.priceValue || 0) * item.quantity,
+        0
+      ),
+    [selectedCartItems]
+  )
+
+  const loadCart = async () => {
+    setIsLoadingCart(true)
+    setErrorMessage('')
+
+    try {
+      const result = await getCart()
+      const nextCart = result.data
+      setCart(nextCart)
+      setSelectedItems((current) => {
+        const nextSelectedItems = { ...current }
+
+        ;(nextCart.items || []).forEach((item) => {
+          const key = `${item.serviceType}:${item.serviceId}`
+
+          if (nextSelectedItems[key] === undefined) {
+            nextSelectedItems[key] = true
+          }
+        })
+
+        return nextSelectedItems
+      })
+    } catch (error) {
+      setErrorMessage(error.message)
+    } finally {
+      setIsLoadingCart(false)
+    }
+  }
+
+  useEffect(() => {
+    loadCart()
+  }, [])
+
   const handleCardPaymentChange = (fieldId, value) => {
     setCardPaymentValues((current) => ({
       ...current,
       [fieldId]: value,
     }))
+  }
+
+  const handleItemCheckChange = (item) => (_, isChecked) => {
+    setSelectedItems((current) => ({
+      ...current,
+      [`${item.serviceType}:${item.serviceId}`]: isChecked,
+    }))
+  }
+
+  const handleRemoveItem = async (item) => {
+    try {
+      await removeCartItem({
+        serviceId: item.serviceId,
+        serviceType: item.serviceType,
+      })
+      await loadCart()
+      showToast('Removed from cart')
+    } catch (error) {
+      showToast(error.message, 'error')
+    }
+  }
+
+  const handleFavoriteItem = async (item) => {
+    try {
+      await addFavorite({
+        serviceId: item.serviceId,
+        serviceType: item.serviceType,
+      })
+      showToast('Added to favorites')
+    } catch (error) {
+      showToast(error.message, 'error')
+    }
+  }
+
+  const handleIncreaseQuantity = async (item) => {
+    try {
+      await updateCartItem({
+        serviceId: item.serviceId,
+        serviceType: item.serviceType,
+        quantity: item.quantity + 1,
+        selectedDate: item.selectedDate,
+        customOptions: item.customOptions,
+      })
+      await loadCart()
+      showToast('Cart updated')
+    } catch (error) {
+      showToast(error.message, 'error')
+    }
+  }
+
+  const handleCheckout = async () => {
+    try {
+      await checkoutOrder({
+        paymentMethod,
+        status: paymentMethod === 'card' ? 'paid' : 'pending',
+      })
+      await loadCart()
+      setIsPaymentSuccessOpen(true)
+      showToast('Order created successfully')
+    } catch (error) {
+      showToast(error.message, 'error')
+    }
   }
 
   return (
@@ -119,6 +172,10 @@ function CartPage() {
         <Stack spacing={{ xs: 3, md: 3.5 }}>
           <CheckoutProgressStepper activeStep={isPaymentSuccessOpen ? 3 : checkoutStep} />
 
+          {errorMessage ? (
+            <Typography sx={{ color: '#d32f2f', fontWeight: 700 }}>{errorMessage}</Typography>
+          ) : null}
+
           {!isPaymentStep ? (
             <Box
               sx={{
@@ -128,7 +185,7 @@ function CartPage() {
                 alignItems: 'start',
               }}
             >
-              {isCartStep ? (
+              {checkoutStep === 0 ? (
                 <Box
                   sx={{
                     borderRadius: 1.5,
@@ -138,82 +195,44 @@ function CartPage() {
                     py: { xs: 1.8, sm: 2.1 },
                   }}
                 >
-                  <Stack spacing={2.5}>
-                    <Stack spacing={2.1}>
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Checkbox
-                          checked={isSectionChecked('venues')}
-                          onChange={handleSectionCheckChange('venues')}
-                          sx={sectionCheckboxSx}
-                        />
-                        <Typography sx={sectionTitleSx}>Venues</Typography>
-                      </Stack>
-
-                      <CartItemRow
-                        checked={cartSelections.venues.outdoorVenue}
-                        imageSrc={featuredVenue.imageSrc}
-                        imageAlt={featuredVenue.imageAlt}
-                        title="Outdoor venue in jbeil"
-                        details={['Date: 20 Jun, 2026', 'Time: 5pm to 10pm', 'Guests: 350']}
-                        price="$2500"
-                        onCheckedChange={handleItemCheckChange('venues', 'outdoorVenue')}
-                      />
+                  {isLoadingCart ? (
+                    <Typography sx={{ color: COLORS.primary, fontWeight: 700 }}>
+                      Loading cart...
+                    </Typography>
+                  ) : cartItems.length === 0 ? (
+                    <Stack spacing={1.5}>
+                      <Typography sx={{ color: COLORS.primary, fontWeight: 800, fontSize: '1.3rem' }}>
+                        Your cart is empty
+                      </Typography>
+                      <Typography sx={{ color: COLORS.textLight }}>
+                        Add services from the services page and they will appear here.
+                      </Typography>
                     </Stack>
+                  ) : (
+                    <Stack spacing={2.5}>
+                      {cartItems.map((item) => {
+                        const key = `${item.serviceType}:${item.serviceId}`
+                        const itemTotal = (item.service?.priceValue || 0) * item.quantity
 
-                    <Stack spacing={2.1}>
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Checkbox
-                          checked={isSectionChecked('menues')}
-                          onChange={handleSectionCheckChange('menues')}
-                          sx={sectionCheckboxSx}
-                        />
-                        <Typography sx={sectionTitleSx}>Menues</Typography>
-                      </Stack>
-
-                      <CartItemRow
-                        checked={cartSelections.menues.birthdayCake}
-                        imageSrc={birthdayCake.imageSrc}
-                        imageAlt={birthdayCake.imageAlt}
-                        title="Birthday Cake"
-                        details={['Date: 20 Jun, 2026', 'Time: 7pm', 'Guests: 50 persons']}
-                        price="$200"
-                        onCheckedChange={handleItemCheckChange('menues', 'birthdayCake')}
-                      />
+                        return (
+                          <CartItemRow
+                            key={key}
+                            checked={selectedItems[key] !== false}
+                            imageSrc={item.service?.imageSrc}
+                            imageAlt={item.service?.imageAlt}
+                            title={item.service?.title || 'Service'}
+                            details={formatCartItemDetails(item)}
+                            price={formatPrice(itemTotal)}
+                            modifyLabel="+ Qty"
+                            onCheckedChange={handleItemCheckChange(item)}
+                            onModify={() => handleIncreaseQuantity(item)}
+                            onFavorite={() => handleFavoriteItem(item)}
+                            onDelete={() => handleRemoveItem(item)}
+                          />
+                        )
+                      })}
                     </Stack>
-
-                    <Stack spacing={2.1}>
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Checkbox
-                          checked={isSectionChecked('decorations')}
-                          onChange={handleSectionCheckChange('decorations')}
-                          sx={sectionCheckboxSx}
-                        />
-                        <Typography sx={sectionTitleSx}>Decorations</Typography>
-                      </Stack>
-
-                      <Stack spacing={2}>
-                        <CartItemRow
-                          checked={cartSelections.decorations.flowerBouquet}
-                          imageSrc={flowerBouquet.imageSrc}
-                          imageAlt={flowerBouquet.imageAlt}
-                          title="Flowers Bouquet"
-                          details={['Date: 20 Jun, 2026', 'Time: 5pm', 'Quantity: 10 pcs']}
-                          price="$320"
-                          onCheckedChange={handleItemCheckChange('decorations', 'flowerBouquet')}
-                        />
-
-                        <CartItemRow
-                          checked={cartSelections.decorations.vanillaCandles}
-                          imageSrc={vanillaCandles.imageSrc}
-                          imageAlt={vanillaCandles.imageAlt}
-                          title={vanillaCandles.title}
-                          details={['Date: 19 Jun, 2026', 'Time: 4pm', 'Quantity: 20 pcs']}
-                          price="$100"
-                          onCheckedChange={handleItemCheckChange('decorations', 'vanillaCandles')}
-                        />
-                      </Stack>
-                    </Stack>
-                  </Stack>
+                  )}
                 </Box>
               ) : null}
 
@@ -222,12 +241,12 @@ function CartPage() {
               ) : null}
 
               <OrderSummaryCard
-                title="Mom's Birthday"
-                retailPrice="$2550"
-                promotions="$50"
-                totalPrice="$2000"
-                savedText="saved 50$"
-                rewardedText="Rewarded 32 points"
+                title="Current Cart"
+                retailPrice={formatPrice(totalPrice)}
+                promotions="$0.00"
+                totalPrice={formatPrice(totalPrice)}
+                savedText="saved $0"
+                rewardedText={`Rewarded ${Math.round(totalPrice / 10)} points`}
                 checkoutLabel={isDeliveryStep ? 'Continue' : 'Checkout Now!'}
                 onCheckout={() => setCheckoutStep((current) => (current < 2 ? current + 1 : current))}
                 secondaryActionLabel={isDeliveryStep ? 'Back to cart' : undefined}
@@ -298,14 +317,14 @@ function CartPage() {
               </Box>
 
               <OrderSummaryCard
-                title="Mom's Birthday"
-                retailPrice="$2550"
-                promotions="$50"
-                totalPrice="$2000"
-                savedText="saved 50$"
-                rewardedText="Rewarded 32 points"
+                title="Current Cart"
+                retailPrice={formatPrice(totalPrice)}
+                promotions="$0.00"
+                totalPrice={formatPrice(totalPrice)}
+                savedText="saved $0"
+                rewardedText={`Rewarded ${Math.round(totalPrice / 10)} points`}
                 checkoutLabel="Pay Now"
-                onCheckout={() => setIsPaymentSuccessOpen(true)}
+                onCheckout={handleCheckout}
                 secondaryActionLabel="Back to Delivery Address"
                 onSecondaryAction={() => setCheckoutStep(1)}
               />
@@ -326,7 +345,7 @@ function CartPage() {
         iconBackgroundColor="#3dbb74"
         title="Payment Successful"
         titleColor="#3dbb74"
-        description="The order confirmation has been sent to name@example.com"
+        description="The order confirmation has been created."
         descriptionColor="#666666"
         primaryButtonText="Go Back To Home"
         primaryButtonColor={COLORS.accent}

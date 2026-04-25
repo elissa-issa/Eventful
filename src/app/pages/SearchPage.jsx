@@ -2,24 +2,16 @@ import { useMemo, useState } from 'react'
 import { Box, Stack, Typography } from '@mui/material'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
-import { BUNDLE_CARDS } from '../constants/bundleCards'
-import { DECORATION_ITEMS } from '../constants/decorationItems'
-import { ENTERTAINMENT_ITEMS } from '../constants/entertainmentItems'
-import { MENU_ITEMS } from '../constants/menuItems'
-import { VENUE_ITEMS } from '../constants/venueItems'
 import { COLORS } from '../constants/colors'
+import { useFavoriteActions, getFavoriteKey } from '../hooks/useFavoriteActions'
+import { useServicesData } from '../hooks/useServicesData'
+import { addCartItem } from '../services/cart'
+import { useToast } from '../toast/useToast'
+import { getServicePayload } from '../utils/servicePayload'
 import AlertDialog from '../shared/components/AlertDialog'
 import BundleCard from '../shared/components/BundleCard'
 import SearchEmptyState from '../shared/components/SearchEmptyState'
 import ServiceCard from '../shared/components/ServiceCard'
-
-const ITEMS_BY_SECTION = {
-  bundles: BUNDLE_CARDS,
-  menus: MENU_ITEMS,
-  venues: VENUE_ITEMS,
-  decorations: DECORATION_ITEMS,
-  entertainment: ENTERTAINMENT_ITEMS,
-}
 
 const SEARCHABLE_SECTIONS = ['bundles', 'venues', 'menus', 'decorations', 'entertainment']
 
@@ -60,7 +52,9 @@ function SearchPage() {
   const location = useLocation()
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
-  const [favoriteItems, setFavoriteItems] = useState({})
+  const { showToast } = useToast()
+  const { itemsBySection } = useServicesData()
+  const { favoriteItems, toggleFavoriteItem } = useFavoriteActions()
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const [searchParams] = useSearchParams()
   const searchQuery = searchParams.get('q')?.trim() || ''
@@ -79,30 +73,53 @@ function SearchPage() {
     })
   }
 
-  const handleProtectedAction = () => {
+  const handleProtectedAction = async (action) => {
     if (!isAuthenticated) {
       setIsSignInDialogOpen(true)
       return true
     }
 
+    if (action) {
+      try {
+        await action()
+      } catch (error) {
+        showToast(error.message, 'error')
+      }
+    }
+
     return false
   }
 
-  const handleFavoriteToggle = (itemId) => {
-    if (handleProtectedAction()) {
+  const handleFavoriteToggle = (item, serviceType) => {
+    const payload = getServicePayload(item, serviceType)
+
+    if (!payload.serviceId) {
       return
     }
 
-    setFavoriteItems((current) => ({
-      ...current,
-      [itemId]: !current[itemId],
-    }))
+    handleProtectedAction(async () => {
+      const isFavorite = await toggleFavoriteItem(payload)
+      showToast(isFavorite ? 'Added to favorites' : 'Removed from favorites')
+    })
+  }
+
+  const handleAddToCart = (item, serviceType) => {
+    const payload = getServicePayload(item, serviceType)
+
+    if (!payload.serviceId) {
+      return
+    }
+
+    handleProtectedAction(async () => {
+      await addCartItem({ ...payload, quantity: 1 })
+      showToast('Added to cart')
+    })
   }
 
   const searchResults = useMemo(
     () =>
       SEARCHABLE_SECTIONS.flatMap((section) =>
-        (ITEMS_BY_SECTION[section] || [])
+        (itemsBySection[section] || [])
           .filter((item) => getSearchableText(item, section).includes(normalizedSearchQuery))
           .map((item, index) => ({
             ...item,
@@ -111,7 +128,7 @@ function SearchPage() {
             isBundle: section === 'bundles',
           }))
       ),
-    [normalizedSearchQuery]
+    [itemsBySection, normalizedSearchQuery]
   )
 
   return (
@@ -151,6 +168,11 @@ function SearchPage() {
             }}
           >
             {searchResults.map((item) => {
+              const serviceId = getServicePayload(item, item.resultSection).serviceId
+              const favoriteKey = serviceId
+                ? getFavoriteKey(item.resultSection, serviceId)
+                : item.resultKey
+
               if (item.isBundle) {
                 return (
                   <BundleCard
@@ -158,14 +180,14 @@ function SearchPage() {
                     imageSrc={item.imageSrc}
                     imageAlt={item.imageAlt}
                     title={item.title}
-                    isFavorite={Boolean(favoriteItems[item.resultKey])}
-                    onFavoriteToggle={() => handleFavoriteToggle(item.resultKey)}
+                    isFavorite={Boolean(favoriteItems[favoriteKey])}
+                    onFavoriteToggle={() => handleFavoriteToggle(item, item.resultSection)}
                     leftText={item.leftText}
                     rightText={item.rightText}
                     primaryButtonLabel={item.primaryButtonLabel}
                     onPrimaryButtonClick={() => navigate(`/services/bundles/${item.id}`)}
                     secondaryButtonLabel={item.secondaryButtonLabel}
-                    onSecondaryButtonClick={handleProtectedAction}
+                    onSecondaryButtonClick={() => handleAddToCart(item, item.resultSection)}
                     maxWidth={400}
                     imageHeight={312}
                     cardBorderRadius={2}
@@ -188,10 +210,10 @@ function SearchPage() {
                   discountLabel={item.discountLabel}
                   vendorLogoSrc={item.vendorLogoSrc}
                   vendorLogoAlt={item.vendorLogoAlt}
-                  isFavorite={Boolean(favoriteItems[item.resultKey])}
-                  onFavoriteToggle={() => handleFavoriteToggle(item.resultKey)}
+                  isFavorite={Boolean(favoriteItems[favoriteKey])}
+                  onFavoriteToggle={() => handleFavoriteToggle(item, item.resultSection)}
                   onViewButtonClick={() => navigate(`/services/${item.resultSection}/${item.id}`)}
-                  onCartButtonClick={handleProtectedAction}
+                  onCartButtonClick={() => handleAddToCart(item, item.resultSection)}
                 />
               )
             })}

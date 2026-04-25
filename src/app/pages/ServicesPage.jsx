@@ -2,13 +2,13 @@ import { useMemo, useState } from 'react'
 import { Box, Stack, Typography } from '@mui/material'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
-import { BUNDLE_CARDS } from '../constants/bundleCards'
-import { DECORATION_ITEMS } from '../constants/decorationItems'
-import { ENTERTAINMENT_ITEMS } from '../constants/entertainmentItems'
 import { LEBANESE_CITIES } from '../constants/lebaneseCities'
-import { MENU_ITEMS } from '../constants/menuItems'
-import { VENUE_ITEMS } from '../constants/venueItems'
 import { COLORS } from '../constants/colors'
+import { useFavoriteActions, getFavoriteKey } from '../hooks/useFavoriteActions'
+import { useServicesData } from '../hooks/useServicesData'
+import { addCartItem } from '../services/cart'
+import { useToast } from '../toast/useToast'
+import { getServicePayload } from '../utils/servicePayload'
 import DecorationFilterPanel from '../shared/Filters/DecorationFilterPanel'
 import EntertainmentFilterPanel from '../shared/Filters/EntertainmentFilterPanel'
 import MenuFilterPanel from '../shared/Filters/MenuFilterPanel'
@@ -53,14 +53,6 @@ const DEFAULT_ENTERTAINMENT_FILTERS = {
   categories: [],
 }
 
-const ITEMS_BY_SECTION = {
-  bundles: BUNDLE_CARDS,
-  menus: MENU_ITEMS,
-  venues: VENUE_ITEMS,
-  decorations: DECORATION_ITEMS,
-  entertainment: ENTERTAINMENT_ITEMS,
-}
-
 const SEARCHABLE_SECTIONS = ['bundles', 'venues', 'menus', 'decorations', 'entertainment']
 
 const getSearchableText = (item, section) => {
@@ -100,7 +92,9 @@ function ServicesPage() {
   const location = useLocation()
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
-  const [favoriteItems, setFavoriteItems] = useState({})
+  const { showToast } = useToast()
+  const { itemsBySection } = useServicesData()
+  const { favoriteItems, toggleFavoriteItem } = useFavoriteActions()
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const [venueFilters, setVenueFilters] = useState(DEFAULT_VENUE_FILTERS)
@@ -128,27 +122,53 @@ function ServicesPage() {
     })
   }
 
-  const handleProtectedAction = () => {
+  const handleProtectedAction = async (action) => {
     if (!isAuthenticated) {
       setIsSignInDialogOpen(true)
       return true
     }
 
+    if (action) {
+      try {
+        await action()
+      } catch (error) {
+        showToast(error.message, 'error')
+      }
+    }
+
     return false
   }
 
-  const handleFavoriteToggle = (itemId) => {
-    if (handleProtectedAction()) {
+  const handleFavoriteToggle = (item, serviceType) => {
+    const payload = getServicePayload(item, serviceType)
+
+    if (!payload.serviceId) {
       return
     }
 
-    setFavoriteItems((current) => ({
-      ...current,
-      [itemId]: !current[itemId],
-    }))
+    handleProtectedAction(async () => {
+      const isFavorite = await toggleFavoriteItem(payload)
+      showToast(isFavorite ? 'Added to favorites' : 'Removed from favorites')
+    })
   }
 
-  const activeItems = useMemo(() => ITEMS_BY_SECTION[activeSection] || [], [activeSection])
+  const handleAddToCart = (item, serviceType) => {
+    const payload = getServicePayload(item, serviceType)
+
+    if (!payload.serviceId) {
+      return
+    }
+
+    handleProtectedAction(async () => {
+      await addCartItem({ ...payload, quantity: 1 })
+      showToast('Added to cart')
+    })
+  }
+
+  const activeItems = useMemo(
+    () => itemsBySection[activeSection] || [],
+    [activeSection, itemsBySection]
+  )
   const isBundleSection = activeSection === 'bundles'
   const isDecorationSection = activeSection === 'decorations'
   const isEntertainmentSection = activeSection === 'entertainment'
@@ -162,7 +182,7 @@ function ServicesPage() {
   const searchResults = useMemo(
     () =>
       SEARCHABLE_SECTIONS.flatMap((section) =>
-        (ITEMS_BY_SECTION[section] || [])
+        (itemsBySection[section] || [])
           .filter((item) => getSearchableText(item, section).includes(normalizedSearchQuery))
           .map((item, index) => ({
             ...item,
@@ -171,7 +191,7 @@ function ServicesPage() {
             isBundle: section === 'bundles',
           }))
       ),
-    [normalizedSearchQuery]
+    [itemsBySection, normalizedSearchQuery]
   )
   const locationOptions = useMemo(
     () => LEBANESE_CITIES.map((city) => city.name.split(',')[0]),
@@ -464,6 +484,10 @@ function ServicesPage() {
               {resultsToRender.map((item, index) => {
                 const itemSection = item.resultSection || activeSection
                 const favoriteKey = item.resultKey || item.id || `${itemSection}-${index}`
+                const serviceId = getServicePayload(item, itemSection).serviceId
+                const backendFavoriteKey = serviceId
+                  ? getFavoriteKey(itemSection, serviceId)
+                  : favoriteKey
 
                 if (item.isBundle || (!isSearchMode && isBundleSection)) {
                   return (
@@ -472,14 +496,14 @@ function ServicesPage() {
                       imageSrc={item.imageSrc}
                       imageAlt={item.imageAlt}
                       title={item.title}
-                      isFavorite={Boolean(favoriteItems[favoriteKey])}
-                      onFavoriteToggle={() => handleFavoriteToggle(favoriteKey)}
+                      isFavorite={Boolean(favoriteItems[backendFavoriteKey])}
+                      onFavoriteToggle={() => handleFavoriteToggle(item, itemSection)}
                       leftText={item.leftText}
                       rightText={item.rightText}
                       primaryButtonLabel={item.primaryButtonLabel}
                       onPrimaryButtonClick={() => navigate(`/services/bundles/${item.id}`)}
                       secondaryButtonLabel={item.secondaryButtonLabel}
-                      onSecondaryButtonClick={handleProtectedAction}
+                      onSecondaryButtonClick={() => handleAddToCart(item, itemSection)}
                       maxWidth={400}
                       imageHeight={312}
                       cardBorderRadius={2}
@@ -502,10 +526,10 @@ function ServicesPage() {
                     discountLabel={item.discountLabel}
                     vendorLogoSrc={item.vendorLogoSrc}
                     vendorLogoAlt={item.vendorLogoAlt}
-                    isFavorite={Boolean(favoriteItems[favoriteKey])}
-                    onFavoriteToggle={() => handleFavoriteToggle(favoriteKey)}
+                    isFavorite={Boolean(favoriteItems[backendFavoriteKey])}
+                    onFavoriteToggle={() => handleFavoriteToggle(item, itemSection)}
                     onViewButtonClick={() => navigate(`/services/${itemSection}/${item.id}`)}
-                    onCartButtonClick={handleProtectedAction}
+                    onCartButtonClick={() => handleAddToCart(item, itemSection)}
                   />
                 )
               })}

@@ -1,6 +1,10 @@
 const express = require('express');
 const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
+const cartRoutes = require('./routes/cartRoutes');
+const favoriteRoutes = require('./routes/favoriteRoutes');
+const orderRoutes = require('./routes/orderRoutes');
+const serviceRoutes = require('./routes/serviceRoutes');
 const { errorHandler, notFoundHandler } = require('./helpers/errorHandlers');
 
 const app = express();
@@ -20,6 +24,10 @@ app.get('/api/health', (_request, response) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/services', serviceRoutes);
+app.use('/api/cart', cartRoutes);
+app.use('/api/favorites', favoriteRoutes);
+app.use('/api/orders', orderRoutes);
 app.use(notFoundHandler);
 app.use(errorHandler);
 

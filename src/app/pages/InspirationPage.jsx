@@ -19,76 +19,11 @@ import InspirationThemeCard from '../shared/components/InspirationThemeCard'
 import NewsletterCTA from '../shared/components/NewsletterCTA'
 import ServiceCard from '../shared/components/ServiceCard'
 import { INSPIRATION_HERO_SLIDES } from '../constants/inspirationHeroSlides'
-
-const TOP_PICK_ITEMS = [
-  {
-    id: VENUE_ITEMS[1].id,
-    section: 'venues',
-    title: VENUE_ITEMS[1].title,
-    description: VENUE_ITEMS[1].description,
-    guestText: VENUE_ITEMS[1].guestText,
-    priceText: VENUE_ITEMS[1].priceText,
-    discountLabel: VENUE_ITEMS[1].discountLabel,
-    imageSrc: VENUE_ITEMS[1].imageSrc,
-    imageAlt: VENUE_ITEMS[1].imageAlt,
-    vendorLogoSrc: VENUE_ITEMS[1].vendorLogoSrc,
-    vendorLogoAlt: VENUE_ITEMS[1].vendorLogoAlt,
-    targetPath: `/services/venues/${VENUE_ITEMS[1].id}`,
-  },
-  {
-    id: MENU_ITEMS[0].id,
-    section: 'menus',
-    title: MENU_ITEMS[0].title,
-    description: MENU_ITEMS[0].description,
-    guestText: MENU_ITEMS[0].guestText,
-    priceText: MENU_ITEMS[0].priceText,
-    discountLabel: MENU_ITEMS[0].discountLabel,
-    imageSrc: MENU_ITEMS[0].imageSrc,
-    imageAlt: MENU_ITEMS[0].imageAlt,
-    vendorLogoSrc: MENU_ITEMS[0].vendorLogoSrc,
-    vendorLogoAlt: MENU_ITEMS[0].vendorLogoAlt,
-    targetPath: `/services/menus/${MENU_ITEMS[0].id}`,
-  },
-  {
-    id: DECORATION_ITEMS[1].id,
-    section: 'decorations',
-    title: DECORATION_ITEMS[1].title,
-    description: DECORATION_ITEMS[1].description,
-    guestText: DECORATION_ITEMS[1].guestText,
-    priceText: DECORATION_ITEMS[1].priceText,
-    discountLabel: DECORATION_ITEMS[1].discountLabel,
-    imageSrc: DECORATION_ITEMS[1].imageSrc,
-    imageAlt: DECORATION_ITEMS[1].imageAlt,
-    vendorLogoSrc: DECORATION_ITEMS[1].vendorLogoSrc,
-    vendorLogoAlt: DECORATION_ITEMS[1].vendorLogoAlt,
-    targetPath: `/services/decorations/${DECORATION_ITEMS[1].id}`,
-  },
-  {
-    id: ENTERTAINMENT_ITEMS[1].id,
-    section: 'entertainment',
-    title: ENTERTAINMENT_ITEMS[1].title,
-    description: ENTERTAINMENT_ITEMS[1].description,
-    guestText: ENTERTAINMENT_ITEMS[1].guestText,
-    priceText: ENTERTAINMENT_ITEMS[1].priceText,
-    discountLabel: ENTERTAINMENT_ITEMS[1].discountLabel,
-    imageSrc: ENTERTAINMENT_ITEMS[1].imageSrc,
-    imageAlt: ENTERTAINMENT_ITEMS[1].imageAlt,
-    vendorLogoSrc: ENTERTAINMENT_ITEMS[1].vendorLogoSrc,
-    vendorLogoAlt: ENTERTAINMENT_ITEMS[1].vendorLogoAlt,
-    targetPath: `/services/entertainment/${ENTERTAINMENT_ITEMS[1].id}`,
-  },
-  {
-    id: BUNDLE_CARDS[1].id,
-    section: 'bundles',
-    title: BUNDLE_CARDS[1].title,
-    description: BUNDLE_CARDS[1].description,
-    guestText: BUNDLE_CARDS[1].leftText,
-    priceText: BUNDLE_CARDS[1].priceText,
-    imageSrc: BUNDLE_CARDS[1].imageSrc,
-    imageAlt: BUNDLE_CARDS[1].imageAlt,
-    targetPath: `/services/bundles/${BUNDLE_CARDS[1].id}`,
-  },
-]
+import { useFavoriteActions, getFavoriteKey } from '../hooks/useFavoriteActions'
+import { useServicesData } from '../hooks/useServicesData'
+import { addCartItem } from '../services/cart'
+import { useToast } from '../toast/useToast'
+import { getServicePayload } from '../utils/servicePayload'
 
 const PREMIUM_PLAN = {
   id: 'upgrade-premium',
@@ -178,6 +113,9 @@ function InspirationPage() {
   const location = useLocation()
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
+  const { showToast } = useToast()
+  const { itemsBySection } = useServicesData()
+  const { favoriteItems, toggleFavoriteItem } = useFavoriteActions()
   const isLargeUp = useMediaQuery(theme.breakpoints.up('lg'))
   const isSmallUp = useMediaQuery(theme.breakpoints.up('sm'))
   const featureTheme = INSPIRATION_THEMES.find((theme) => theme.layout === 'feature')
@@ -186,12 +124,34 @@ function InspirationPage() {
   const [activeHeroSlideIndex, setActiveHeroSlideIndex] = useState(0)
   const [topPicksIndex, setTopPicksIndex] = useState(0)
   const [rightArrowClickCount, setRightArrowClickCount] = useState(0)
-  const [favoriteItems, setFavoriteItems] = useState({})
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const visibleTopPicks = isLargeUp ? 3 : isSmallUp ? 2 : 1
+  const topPickBaseItems = useMemo(() => {
+    const venues = itemsBySection.venues || VENUE_ITEMS
+    const menus = itemsBySection.menus || MENU_ITEMS
+    const decorations = itemsBySection.decorations || DECORATION_ITEMS
+    const entertainment = itemsBySection.entertainment || ENTERTAINMENT_ITEMS
+    const bundles = itemsBySection.bundles || BUNDLE_CARDS
+
+    return [
+      { ...venues[1], section: 'venues', targetPath: `/services/venues/${venues[1]?.id}` },
+      { ...menus[0], section: 'menus', targetPath: `/services/menus/${menus[0]?.id}` },
+      {
+        ...decorations[1],
+        section: 'decorations',
+        targetPath: `/services/decorations/${decorations[1]?.id}`,
+      },
+      {
+        ...entertainment[1],
+        section: 'entertainment',
+        targetPath: `/services/entertainment/${entertainment[1]?.id}`,
+      },
+      { ...bundles[1], section: 'bundles', targetPath: `/services/bundles/${bundles[1]?.id}` },
+    ].filter((item) => item.id)
+  }, [itemsBySection])
   const topPickItems = useMemo(
-    () => (rightArrowClickCount > 2 ? [...TOP_PICK_ITEMS, PREMIUM_PLAN] : TOP_PICK_ITEMS),
-    [rightArrowClickCount]
+    () => (rightArrowClickCount > 2 ? [...topPickBaseItems, PREMIUM_PLAN] : topPickBaseItems),
+    [rightArrowClickCount, topPickBaseItems]
   )
   const maxTopPicksIndex = Math.max(topPickItems.length - visibleTopPicks, 0)
   const topPicksToRender = topPickItems.slice(topPicksIndex, topPicksIndex + visibleTopPicks)
@@ -223,29 +183,52 @@ function InspirationPage() {
     })
   }
 
-  const handleProtectedAction = () => {
+  const handleProtectedAction = async (action) => {
     if (!isAuthenticated) {
       setIsSignInDialogOpen(true)
       return true
     }
 
+    if (action) {
+      try {
+        await action()
+      } catch (error) {
+        showToast(error.message, 'error')
+      }
+    }
+
     return false
   }
 
-  const handleFavoriteToggle = (itemId) => {
-    if (handleProtectedAction()) {
+  const handleFavoriteToggle = (item) => {
+    const payload = getServicePayload(item, item.section)
+
+    if (!payload.serviceId) {
       return
     }
 
-    setFavoriteItems((current) => ({
-      ...current,
-      [itemId]: !current[itemId],
-    }))
+    handleProtectedAction(async () => {
+      const isFavorite = await toggleFavoriteItem(payload)
+      showToast(isFavorite ? 'Added to favorites' : 'Removed from favorites')
+    })
+  }
+
+  const handleAddToCart = (item) => {
+    const payload = getServicePayload(item, item.section)
+
+    if (!payload.serviceId) {
+      return
+    }
+
+    handleProtectedAction(async () => {
+      await addCartItem({ ...payload, quantity: 1 })
+      showToast('Added to cart')
+    })
   }
 
   const handleTopPicksNext = () => {
     const nextClickCount = rightArrowClickCount + 1
-    const nextItems = nextClickCount > 2 ? [...TOP_PICK_ITEMS, PREMIUM_PLAN] : TOP_PICK_ITEMS
+    const nextItems = nextClickCount > 2 ? [...topPickBaseItems, PREMIUM_PLAN] : topPickBaseItems
     const nextMaxIndex = Math.max(nextItems.length - visibleTopPicks, 0)
 
     setRightArrowClickCount(nextClickCount)
@@ -457,6 +440,11 @@ function InspirationPage() {
             item.isUpgrade ? (
               <PremiumUpgradeCard key={item.id} />
             ) : (
+              (() => {
+                const serviceId = getServicePayload(item, item.section).serviceId
+                const favoriteKey = serviceId ? getFavoriteKey(item.section, serviceId) : item.id
+
+                return (
               <ServiceCard
                 key={item.id}
                 imageSrc={item.imageSrc}
@@ -468,11 +456,13 @@ function InspirationPage() {
                 discountLabel={item.discountLabel}
                 vendorLogoSrc={item.vendorLogoSrc}
                 vendorLogoAlt={item.vendorLogoAlt}
-                isFavorite={Boolean(favoriteItems[item.id])}
-                onFavoriteToggle={() => handleFavoriteToggle(item.id)}
+                isFavorite={Boolean(favoriteItems[favoriteKey])}
+                onFavoriteToggle={() => handleFavoriteToggle(item)}
                 onViewButtonClick={() => navigate(item.targetPath)}
-                onCartButtonClick={handleProtectedAction}
+                onCartButtonClick={() => handleAddToCart(item)}
               />
+                )
+              })()
             )
           ))}
         </Box>

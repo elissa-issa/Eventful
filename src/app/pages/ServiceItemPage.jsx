@@ -2,12 +2,12 @@ import { Box } from '@mui/material'
 import { useMemo, useState } from 'react'
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
-import { BUNDLE_CARDS } from '../constants/bundleCards'
-import { DECORATION_ITEMS } from '../constants/decorationItems'
-import { ENTERTAINMENT_ITEMS } from '../constants/entertainmentItems'
-import { MENU_ITEMS } from '../constants/menuItems'
-import { VENUE_ITEMS } from '../constants/venueItems'
 import { COLORS } from '../constants/colors'
+import { useFavoriteActions, getFavoriteKey } from '../hooks/useFavoriteActions'
+import { useServicesData } from '../hooks/useServicesData'
+import { addCartItem } from '../services/cart'
+import { useToast } from '../toast/useToast'
+import { getServicePayload } from '../utils/servicePayload'
 import AddReviewDrawer from '../shared/components/AddReviewDrawer'
 import AlertDialog from '../shared/components/AlertDialog'
 import BundlePlanItems from '../shared/components/BundlePlanItems'
@@ -15,20 +15,14 @@ import ReviewsSection from '../shared/components/ReviewsSection'
 import ReviewsDrawer from '../shared/components/ReviewsDrawer'
 import ServiceItemGalleryDialog from '../shared/components/ServiceItemGalleryDialog'
 
-const itemsBySection = {
-  bundles: BUNDLE_CARDS,
-  menus: MENU_ITEMS,
-  venues: VENUE_ITEMS,
-  decorations: DECORATION_ITEMS,
-  entertainment: ENTERTAINMENT_ITEMS,
-}
-
 function ServiceItemPage() {
   const location = useLocation()
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
+  const { showToast } = useToast()
+  const { itemsBySection } = useServicesData()
+  const { favoriteItems, toggleFavoriteItem } = useFavoriteActions()
   const { section, itemId } = useParams()
-  const [favoriteItems, setFavoriteItems] = useState({})
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const [isAddReviewDrawerOpen, setIsAddReviewDrawerOpen] = useState(false)
   const [isReviewsDrawerOpen, setIsReviewsDrawerOpen] = useState(false)
@@ -36,7 +30,10 @@ function ServiceItemPage() {
   const [reviewRating, setReviewRating] = useState(0)
   const [selectedBundleImageSrc, setSelectedBundleImageSrc] = useState(null)
 
-  const activeItems = useMemo(() => itemsBySection[section] || [], [section])
+  const activeItems = useMemo(
+    () => itemsBySection[section] || [],
+    [itemsBySection, section]
+  )
   const isBundleSection = section === 'bundles'
   const selectedItem = activeItems.find((item) => item.id === itemId)
 
@@ -168,10 +165,18 @@ function ServiceItemPage() {
     [],
   )
 
-  const handleProtectedAction = () => {
+  const handleProtectedAction = async (action) => {
     if (!isAuthenticated) {
       setIsSignInDialogOpen(true)
       return true
+    }
+
+    if (action) {
+      try {
+        await action()
+      } catch (error) {
+        showToast(error.message, 'error')
+      }
     }
 
     return false
@@ -182,14 +187,38 @@ function ServiceItemPage() {
       return
     }
 
-    if (handleProtectedAction()) {
+    const payload = getServicePayload(selectedItem, section)
+
+    if (!payload.serviceId) {
       return
     }
 
-    setFavoriteItems((current) => ({
-      ...current,
-      [selectedItem.id]: !current[selectedItem.id],
-    }))
+    handleProtectedAction(async () => {
+      const isFavorite = await toggleFavoriteItem(payload)
+      showToast(isFavorite ? 'Added to favorites' : 'Removed from favorites')
+    })
+  }
+
+  const handleAddToCart = ({ quantity = 1, selectedDate, customOptions } = {}) => {
+    if (!selectedItem) {
+      return
+    }
+
+    const payload = getServicePayload(selectedItem, section)
+
+    if (!payload.serviceId) {
+      return
+    }
+
+    handleProtectedAction(async () => {
+      await addCartItem({
+        ...payload,
+        quantity,
+        selectedDate,
+        customOptions,
+      })
+      showToast('Added to cart')
+    })
   }
 
   const handleOpenAddReviewDrawer = () => {
@@ -230,7 +259,11 @@ function ServiceItemPage() {
           title={selectedItem.title}
           images={galleryImages}
           discountLabel={selectedItem.discountLabel}
-          isFavorite={Boolean(favoriteItems[selectedItem.id])}
+          isFavorite={Boolean(
+            favoriteItems[
+              getFavoriteKey(section, getServicePayload(selectedItem, section).serviceId)
+            ]
+          )}
           vendorName={selectedItem.vendorName}
           vendorLocation={selectedItem.vendorLocation}
           vendorLogoSrc={selectedItem.vendorLogoSrc}
@@ -249,7 +282,7 @@ function ServiceItemPage() {
           pricing={pricingConfig}
           selectedImageSrc={activeBundleImageSrc}
           onSelectedImageChange={isBundleSection ? setSelectedBundleImageSrc : undefined}
-          onAddToCart={handleProtectedAction}
+          onAddToCart={handleAddToCart}
           onFavoriteToggle={handleFavoriteToggle}
           onBack={() => navigate(`/services#${section}`)}
           belowGalleryContent={

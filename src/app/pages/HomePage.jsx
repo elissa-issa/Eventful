@@ -8,6 +8,11 @@ import { BUNDLE_CARDS } from '../constants/bundleCards'
 import { CATEGORY_CARDS } from '../constants/categoryCards'
 import { COLORS } from '../constants/colors'
 import { VENDOR_CARDS } from '../constants/vendorCards'
+import { useFavoriteActions, getFavoriteKey } from '../hooks/useFavoriteActions'
+import { useServicesData } from '../hooks/useServicesData'
+import { addCartItem } from '../services/cart'
+import { useToast } from '../toast/useToast'
+import { getServicePayload } from '../utils/servicePayload'
 import AlertDialog from '../shared/components/AlertDialog'
 import BundleCard from '../shared/components/BundleCard'
 import CategoryCard from '../shared/components/CategoryCard'
@@ -19,7 +24,9 @@ function HomePage() {
   const location = useLocation()
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
-  const [favoriteCards, setFavoriteCards] = useState({})
+  const { showToast } = useToast()
+  const { itemsBySection } = useServicesData()
+  const { favoriteItems, toggleFavoriteItem } = useFavoriteActions()
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
@@ -31,22 +38,37 @@ function HomePage() {
   const categoriesRowRef = useRef(null)
   const vendorsRowRef = useRef(null)
 
-  const handleFavoriteToggle = (cardId) => {
+  const bundleCards = itemsBySection.bundles || BUNDLE_CARDS
+
+  const handleFavoriteToggle = (card) => {
     if (!isAuthenticated) {
       setIsSignInDialogOpen(true)
       return
     }
 
-    setFavoriteCards((current) => ({
-      ...current,
-      [cardId]: !current[cardId],
-    }))
+    const payload = getServicePayload(card, 'bundles')
+
+    if (payload.serviceId) {
+      toggleFavoriteItem(payload)
+        .then((isFavorite) => {
+          showToast(isFavorite ? 'Added to favorites' : 'Removed from favorites')
+        })
+        .catch((error) => showToast(error.message, 'error'))
+    }
   }
 
-  const handleAddToCartClick = () => {
+  const handleAddToCartClick = (card) => {
     if (!isAuthenticated) {
       setIsSignInDialogOpen(true)
       return
+    }
+
+    const payload = getServicePayload(card, 'bundles')
+
+    if (payload.serviceId) {
+      addCartItem({ ...payload, quantity: 1 })
+        .then(() => showToast('Added to cart'))
+        .catch((error) => showToast(error.message, 'error'))
     }
   }
 
@@ -229,7 +251,11 @@ function HomePage() {
           scrollbarWidth: 'none',
         }}
       >
-        {BUNDLE_CARDS.map((card) => (
+        {bundleCards.map((card) => {
+          const serviceId = getServicePayload(card, 'bundles').serviceId
+          const favoriteKey = serviceId ? getFavoriteKey('bundles', serviceId) : card.id
+
+          return (
           <Box
             key={card.id}
             sx={{
@@ -242,17 +268,18 @@ function HomePage() {
               imageSrc={card.imageSrc}
               imageAlt={card.imageAlt}
               title={card.title}
-              isFavorite={Boolean(favoriteCards[card.id])}
-              onFavoriteToggle={() => handleFavoriteToggle(card.id)}
+              isFavorite={Boolean(favoriteItems[favoriteKey])}
+              onFavoriteToggle={() => handleFavoriteToggle(card)}
               leftText={card.leftText}
               rightText={card.rightText}
               primaryButtonLabel={card.primaryButtonLabel}
               onPrimaryButtonClick={() => navigate(`/services/bundles/${card.id}`)}
               secondaryButtonLabel={card.secondaryButtonLabel}
-              onSecondaryButtonClick={handleAddToCartClick}
+              onSecondaryButtonClick={() => handleAddToCartClick(card)}
             />
           </Box>
-        ))}
+          )
+        })}
       </Box>
 
       <Stack direction="row" alignItems="center" justifyContent="space-between">

@@ -18,7 +18,7 @@ import {
   Typography,
 } from '@mui/material'
 import { Link as RouterLink, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useAuth } from '../../auth/useAuth'
 import { COLORS } from '../../constants/colors'
 import { navItems } from './navItems'
@@ -39,12 +39,9 @@ function Navbar() {
   const { isAuthenticated, user } = useAuth()
   const avatarLabel = `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`.trim() || 'U'
   const [hoveredItem, setHoveredItem] = useState(null)
-  const [searchValue, setSearchValue] = useState('')
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search)
-    setSearchValue(params.get('q') || '')
-  }, [location.search])
+  const [searchValue, setSearchValue] = useState(
+    () => new URLSearchParams(location.search).get('q') || ''
+  )
 
   const handleFilterToggle = () => {
     const params = new URLSearchParams(location.search)

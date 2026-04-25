@@ -8,7 +8,6 @@ function VendorDirectoryCard({
   description,
   location,
   serviceType,
-  logoText,
   contactButtonLabel = 'Contact Vendor',
   itemsButtonLabel = 'View Items',
   onContactButtonClick,
