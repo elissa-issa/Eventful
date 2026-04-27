@@ -28,6 +28,7 @@ function CartItemRow({
   details = [],
   price,
   modifyLabel = 'Modify',
+  showCheckbox = true,
   onCheckedChange,
   onModify,
   onFavorite,
@@ -44,18 +45,20 @@ function CartItemRow({
         width: '100%',
       }}
     >
-      <Checkbox
-        checked={checked}
-        onChange={onCheckedChange}
-        sx={{
-          p: 0,
-          mt: { xs: 0.25, sm: 0 },
-          color: COLORS.primary,
-          '&.Mui-checked': {
+      {showCheckbox ? (
+        <Checkbox
+          checked={checked}
+          onChange={onCheckedChange}
+          sx={{
+            p: 0,
+            mt: { xs: 0.25, sm: 0 },
             color: COLORS.primary,
-          },
-        }}
-      />
+            '&.Mui-checked': {
+              color: COLORS.primary,
+            },
+          }}
+        />
+      ) : null}
 
       <Box
         component="img"

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import ArrowBackIosNewRoundedIcon from '@mui/icons-material/ArrowBackIosNewRounded'
 import ArrowForwardIosRoundedIcon from '@mui/icons-material/ArrowForwardIosRounded'
 import ArrowOutwardRoundedIcon from '@mui/icons-material/ArrowOutwardRounded'
@@ -7,12 +7,7 @@ import { Box, Button, IconButton, Stack, Typography, useMediaQuery, useTheme } f
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { COLORS } from '../constants/colors'
-import { BUNDLE_CARDS } from '../constants/bundleCards'
 import { INSPIRATION_THEMES } from '../constants/inspirationThemes'
-import { MENU_ITEMS } from '../constants/menuItems'
-import { VENUE_ITEMS } from '../constants/venueItems'
-import { DECORATION_ITEMS } from '../constants/decorationItems'
-import { ENTERTAINMENT_ITEMS } from '../constants/entertainmentItems'
 import AlertDialog from '../shared/components/AlertDialog'
 import HeroCarousel from '../shared/components/HeroCarousel'
 import InspirationThemeCard from '../shared/components/InspirationThemeCard'
@@ -20,15 +15,10 @@ import NewsletterCTA from '../shared/components/NewsletterCTA'
 import ServiceCard from '../shared/components/ServiceCard'
 import { INSPIRATION_HERO_SLIDES } from '../constants/inspirationHeroSlides'
 import { useFavoriteActions, getFavoriteKey } from '../hooks/useFavoriteActions'
-import { useServicesData } from '../hooks/useServicesData'
+import { useTopPicks } from '../hooks/useTopPicks'
 import { addCartItem } from '../services/cart'
 import { useToast } from '../toast/useToast'
 import { getServicePayload } from '../utils/servicePayload'
-
-const PREMIUM_PLAN = {
-  id: 'upgrade-premium',
-  isUpgrade: true,
-}
 
 function PremiumUpgradeCard() {
   return (
@@ -114,7 +104,6 @@ function InspirationPage() {
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
   const { showToast } = useToast()
-  const { itemsBySection } = useServicesData()
   const { favoriteItems, toggleFavoriteItem } = useFavoriteActions()
   const isLargeUp = useMediaQuery(theme.breakpoints.up('lg'))
   const isSmallUp = useMediaQuery(theme.breakpoints.up('sm'))
@@ -122,43 +111,16 @@ function InspirationPage() {
   const sideTheme = INSPIRATION_THEMES.find((theme) => theme.layout === 'side')
   const standardThemes = INSPIRATION_THEMES.filter((theme) => theme.layout === 'standard')
   const [activeHeroSlideIndex, setActiveHeroSlideIndex] = useState(0)
-  const [topPicksIndex, setTopPicksIndex] = useState(0)
-  const [rightArrowClickCount, setRightArrowClickCount] = useState(0)
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const visibleTopPicks = isLargeUp ? 3 : isSmallUp ? 2 : 1
-  const topPickBaseItems = useMemo(() => {
-    const venues = itemsBySection.venues || VENUE_ITEMS
-    const menus = itemsBySection.menus || MENU_ITEMS
-    const decorations = itemsBySection.decorations || DECORATION_ITEMS
-    const entertainment = itemsBySection.entertainment || ENTERTAINMENT_ITEMS
-    const bundles = itemsBySection.bundles || BUNDLE_CARDS
-
-    return [
-      { ...venues[1], section: 'venues', targetPath: `/services/venues/${venues[1]?.id}` },
-      { ...menus[0], section: 'menus', targetPath: `/services/menus/${menus[0]?.id}` },
-      {
-        ...decorations[1],
-        section: 'decorations',
-        targetPath: `/services/decorations/${decorations[1]?.id}`,
-      },
-      {
-        ...entertainment[1],
-        section: 'entertainment',
-        targetPath: `/services/entertainment/${entertainment[1]?.id}`,
-      },
-      { ...bundles[1], section: 'bundles', targetPath: `/services/bundles/${bundles[1]?.id}` },
-    ].filter((item) => item.id)
-  }, [itemsBySection])
-  const topPickItems = useMemo(
-    () => (rightArrowClickCount > 2 ? [...topPickBaseItems, PREMIUM_PLAN] : topPickBaseItems),
-    [rightArrowClickCount, topPickBaseItems]
-  )
-  const maxTopPicksIndex = Math.max(topPickItems.length - visibleTopPicks, 0)
-  const topPicksToRender = topPickItems.slice(topPicksIndex, topPicksIndex + visibleTopPicks)
-
-  const handleTopPicksPrevious = () => {
-    setTopPicksIndex((current) => Math.max(current - 1, 0))
-  }
+  const {
+    maxTopPicksIndex,
+    rightArrowClickCount,
+    topPicksIndex,
+    topPicksToRender,
+    handleTopPicksNext,
+    handleTopPicksPrevious,
+  } = useTopPicks(visibleTopPicks)
 
   const handleHeroSlideChange = (direction) => {
     setActiveHeroSlideIndex((current) => {
@@ -224,15 +186,6 @@ function InspirationPage() {
       await addCartItem({ ...payload, quantity: 1 })
       showToast('Added to cart')
     })
-  }
-
-  const handleTopPicksNext = () => {
-    const nextClickCount = rightArrowClickCount + 1
-    const nextItems = nextClickCount > 2 ? [...topPickBaseItems, PREMIUM_PLAN] : topPickBaseItems
-    const nextMaxIndex = Math.max(nextItems.length - visibleTopPicks, 0)
-
-    setRightArrowClickCount(nextClickCount)
-    setTopPicksIndex((current) => Math.min(current + 1, nextMaxIndex))
   }
 
   const activeHeroSlide = INSPIRATION_HERO_SLIDES[activeHeroSlideIndex]

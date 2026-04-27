@@ -2,7 +2,11 @@ import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import { Box, Typography } from '@mui/material'
 import { COLORS } from '../../constants/colors'
 
-function CreateCollectionCard({ onClick }) {
+function CreateCollectionCard({
+  label = 'Create New Collection',
+  minHeight = { xs: 300, sm: 0 },
+  onClick,
+}) {
   return (
     <Box
       component="button"
@@ -11,7 +15,7 @@ function CreateCollectionCard({ onClick }) {
       sx={{
         width: '100%',
         height: '100%',
-        minHeight: { xs: 300, sm: 0 },
+        minHeight,
         border: 0,
         borderRadius: 2,
         backgroundColor: '#e7e7e7',
@@ -51,7 +55,7 @@ function CreateCollectionCard({ onClick }) {
           textAlign: 'center',
         }}
       >
-        Create New Collection
+        {label}
       </Typography>
     </Box>
   )

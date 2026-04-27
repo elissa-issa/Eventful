@@ -45,7 +45,15 @@ function CollectionPreviewTile({ item, extraCount = 0 }) {
   )
 }
 
-function CollectionCard({ collection, onView, onDelete }) {
+function CollectionCard({
+  collection,
+  onView,
+  onDelete,
+  titleSuffix,
+  viewLabel = 'View collection',
+  selected = false,
+  spacing = 1.65,
+}) {
   const extraCount = Math.max(collection.totalItems - collection.previewItems.length, 0)
   const previewItems = useMemo(
     () =>
@@ -57,7 +65,13 @@ function CollectionCard({ collection, onView, onDelete }) {
   )
 
   return (
-    <Stack spacing={1.65}>
+    <Stack
+      spacing={spacing}
+      sx={{
+        outline: selected ? '3px solid #1496ff' : '3px solid transparent',
+        outlineOffset: 5,
+      }}
+    >
       <Box
         sx={{
           display: 'grid',
@@ -78,7 +92,7 @@ function CollectionCard({ collection, onView, onDelete }) {
           textTransform: 'uppercase',
         }}
       >
-        {collection.title}
+        {titleSuffix ? collection.title.replace(/Collection$/i, titleSuffix) : collection.title}
       </Typography>
 
       <Stack direction="row" spacing={2}>
@@ -98,7 +112,7 @@ function CollectionCard({ collection, onView, onDelete }) {
             },
           }}
         >
-          View collection
+          {viewLabel}
         </Button>
 
         <Button
@@ -124,7 +138,16 @@ function CollectionCard({ collection, onView, onDelete }) {
   )
 }
 
-function CollectionsList({ collections, onViewCollection, onDeleteCollection, sx }) {
+function CollectionsList({
+  collections,
+  onViewCollection,
+  onDeleteCollection,
+  getCollectionSelected,
+  cardSpacing,
+  titleSuffix,
+  viewLabel,
+  sx,
+}) {
   return (
     <Box
       sx={[
@@ -139,10 +162,14 @@ function CollectionsList({ collections, onViewCollection, onDeleteCollection, sx
         ...(Array.isArray(sx) ? sx : [sx]),
       ]}
     >
-      {collections.map((collection) => (
+      {collections.map((collection, index) => (
         <CollectionCard
           key={collection.id}
           collection={collection}
+          selected={getCollectionSelected?.(collection, index) || false}
+          spacing={cardSpacing}
+          titleSuffix={titleSuffix}
+          viewLabel={viewLabel}
           onView={() => onViewCollection(collection.id)}
           onDelete={() => onDeleteCollection(collection.id)}
         />
