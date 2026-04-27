@@ -23,6 +23,7 @@ function CartItemRow({
   checked = true,
   imageSrc,
   imageAlt,
+  imageSx,
   fallbackImageSrc = FALLBACK_CART_IMAGE,
   title,
   details = [],
@@ -77,6 +78,7 @@ function CartItemRow({
           objectFit: 'cover',
           display: 'block',
           flexShrink: 0,
+          ...(imageSx || {}),
         }}
       />
 

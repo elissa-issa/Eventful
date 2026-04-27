@@ -24,17 +24,18 @@ export function useTopPicks(visibleTopPicks) {
     const bundles = itemsBySection.bundles || BUNDLE_CARDS
 
     return [
-      { ...venues[1], section: 'venues', targetPath: `/services/venues/${venues[1]?.id}` },
+      { ...menus[1], section: 'menus', targetPath: `/services/menus/${menus[1]?.id}` },
+      { ...venues[0], section: 'venues', targetPath: `/services/venues/${venues[0]?.id}` },
       { ...menus[0], section: 'menus', targetPath: `/services/menus/${menus[0]?.id}` },
-      {
-        ...decorations[1],
-        section: 'decorations',
-        targetPath: `/services/decorations/${decorations[1]?.id}`,
-      },
       {
         ...entertainment[1],
         section: 'entertainment',
         targetPath: `/services/entertainment/${entertainment[1]?.id}`,
+      },
+      {
+        ...decorations[1],
+        section: 'decorations',
+        targetPath: `/services/decorations/${decorations[1]?.id}`,
       },
       { ...bundles[1], section: 'bundles', targetPath: `/services/bundles/${bundles[1]?.id}` },
     ].filter((item) => item.id)
