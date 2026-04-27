@@ -4,6 +4,7 @@ import CssBaseline from '@mui/material/CssBaseline'
 import { AuthProvider } from './app/auth/AuthContext'
 import AppRoutes from './app/routes/AppRoutes'
 import theme from './app/theme/theme'
+import { ToastProvider } from './app/toast/ToastContext'
 import './App.css'
 
 function App() {
@@ -11,9 +12,11 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AuthProvider>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
+        <ToastProvider>
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </ToastProvider>
       </AuthProvider>
     </ThemeProvider>
   )

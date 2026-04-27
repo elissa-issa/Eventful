@@ -13,6 +13,9 @@ function FavoriteItemCard({
   description,
   detailText,
   priceText,
+  onDelete,
+  onView,
+  onAddToCart,
 }) {
   return (
     <Box
@@ -109,7 +112,11 @@ function FavoriteItemCard({
             <IconButton aria-label="Favorite item" sx={{ color: '#ff1f1f', p: 0.5 }}>
               <FavoriteRoundedIcon />
             </IconButton>
-            <IconButton aria-label="Delete favorite item" sx={{ color: '#303030', p: 0.5 }}>
+            <IconButton
+              aria-label="Delete favorite item"
+              onClick={onDelete}
+              sx={{ color: '#303030', p: 0.5 }}
+            >
               <DeleteOutlineRoundedIcon />
             </IconButton>
           </Stack>
@@ -118,6 +125,7 @@ function FavoriteItemCard({
             fullWidth
             disableElevation
             variant="contained"
+            onClick={onView}
             sx={{
               backgroundColor: COLORS.accent,
               borderRadius: 1,
@@ -137,6 +145,7 @@ function FavoriteItemCard({
             fullWidth
             disableElevation
             variant="contained"
+            onClick={onAddToCart}
             sx={{
               backgroundColor: COLORS.primary,
               borderRadius: 1,

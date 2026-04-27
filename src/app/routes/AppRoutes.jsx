@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import MainLayout from '../shared/layout/MainLayout'
 import CartPage from '../pages/CartPage'
+import MyCollectionsPage from '../pages/MyCollectionsPage'
 import ServiceItemPage from '../pages/ServiceItemPage'
 import ServicesPage from '../pages/ServicesPage'
 import CustomizePage from '../pages/CustomizePage'
@@ -34,6 +35,14 @@ function AppRoutes() {
           element={
             <RequireAuth>
               <FavoritesPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/collections"
+          element={
+            <RequireAuth>
+              <MyCollectionsPage />
             </RequireAuth>
           }
         />

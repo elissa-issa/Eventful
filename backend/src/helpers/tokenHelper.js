@@ -8,6 +8,16 @@ function toBase64Url(value) {
     .replace(/=+$/g, '');
 }
 
+function fromBase64Url(value) {
+  const normalizedValue = value.replace(/-/g, '+').replace(/_/g, '/');
+  const paddingLength = (4 - (normalizedValue.length % 4)) % 4;
+
+  return Buffer.from(
+    `${normalizedValue}${'='.repeat(paddingLength)}`,
+    'base64'
+  ).toString('utf8');
+}
+
 function getTokenSecret() {
   return process.env.AUTH_TOKEN_SECRET || 'eventful-dev-secret';
 }
@@ -20,6 +30,7 @@ function generateAuthToken(payload) {
   const header = { alg: 'HS256', typ: 'JWT' };
   const expiresInSeconds = getTokenExpirySeconds();
   const nowInSeconds = Math.floor(Date.now() / 1000);
+
   const body = {
     ...payload,
     iat: nowInSeconds,
@@ -29,6 +40,7 @@ function generateAuthToken(payload) {
   const encodedHeader = toBase64Url(JSON.stringify(header));
   const encodedBody = toBase64Url(JSON.stringify(body));
   const unsignedToken = `${encodedHeader}.${encodedBody}`;
+
   const signature = crypto
     .createHmac('sha256', getTokenSecret())
     .update(unsignedToken)
@@ -40,4 +52,52 @@ function generateAuthToken(payload) {
   return `${unsignedToken}.${signature}`;
 }
 
-module.exports = { generateAuthToken };
+function verifyAuthToken(token) {
+  if (!token || typeof token !== 'string') {
+    return null;
+  }
+
+  const [encodedHeader, encodedBody, signature] = token.split('.');
+
+  if (!encodedHeader || !encodedBody || !signature) {
+    return null;
+  }
+
+  const unsignedToken = `${encodedHeader}.${encodedBody}`;
+
+  const expectedSignature = crypto
+    .createHmac('sha256', getTokenSecret())
+    .update(unsignedToken)
+    .digest('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+
+  const providedSignature = Buffer.from(signature);
+  const validSignature = Buffer.from(expectedSignature);
+
+  if (
+    providedSignature.length !== validSignature.length ||
+    !crypto.timingSafeEqual(providedSignature, validSignature)
+  ) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(fromBase64Url(encodedBody));
+    const nowInSeconds = Math.floor(Date.now() / 1000);
+
+    if (payload.exp && payload.exp < nowInSeconds) {
+      return null;
+    }
+
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+module.exports = {
+  generateAuthToken,
+  verifyAuthToken,
+};

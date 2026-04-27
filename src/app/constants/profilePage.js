@@ -50,17 +50,24 @@ export const addLocationFields = [
   {
     id: 'mobileNumber',
     label: 'Mobile Number',
-    placeholder: 'e.g. +961 70 123 456',
+    placeholder: 'e.g. 70123456',
+    type: 'tel',
+    inputMode: 'numeric',
+    maxLength: 8,
+    pattern: '[0-9]{8}',
   },
   {
     id: 'apartmentFloor',
     label: 'Apartment / Floor (optional)',
     placeholder: 'e.g. Apt. 3B, 2nd Floor',
+    required: false,
   },
   {
-    id: 'zipCode',
+    id: 'zipPostalCode',
     label: 'ZIP / Postal Code',
     placeholder: 'e.g. 1200',
+    inputMode: 'numeric',
+    pattern: '[0-9]*',
   },
 ]
 
