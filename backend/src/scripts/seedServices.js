@@ -3,7 +3,7 @@ const path = require('path');
 const vm = require('vm');
 const mongoose = require('mongoose');
 const { connectToDatabase } = require('../config/database');
-const Venue = require('../models/Venue');
+const Entertainment = require('../models/Entertainment');
 
 function loadEnvFile() {
   const envFilePath = path.join(__dirname, '..', '..', '.env');
@@ -83,11 +83,11 @@ async function seedServices() {
 
   const seedTargets = [
     {
-      name: 'venues',
-      Model: Venue,
+      name: 'entertainment',
+      Model: Entertainment,
       items: loadFrontendConstant(
-        'src/app/constants/venueItems.js',
-        'VENUE_ITEMS',
+        'src/app/constants/entertainmentItems.js',
+        'ENTERTAINMENT_ITEMS',
       ),
     },
   ];
