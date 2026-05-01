@@ -157,7 +157,7 @@ function ServicesPage() {
     })
   }
 
-  const handleAddToCart = (item, serviceType) => {
+  const handleAddToCart = (event, item, serviceType) => {
     const payload = getServicePayload(item, serviceType)
 
     if (!payload.serviceId) {
@@ -175,6 +175,7 @@ function ServicesPage() {
         quantity: 1,
       })
       showToast('Added to cart')
+      openCollectionPicker(event, item, serviceType)
     })
   }
 

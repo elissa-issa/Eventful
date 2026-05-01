@@ -186,7 +186,7 @@ function InspirationPage() {
     })
   }
 
-  const handleAddToCart = (item) => {
+  const handleAddToCart = (event, item) => {
     const payload = getServicePayload(item, item.section)
 
     if (!payload.serviceId) {
@@ -194,7 +194,7 @@ function InspirationPage() {
     }
 
     handleProtectedAction(async () => {
-      openCollectionPicker(item, item.section)
+      openCollectionPicker(event, item, item.section)
     })
   }
 
@@ -425,7 +425,7 @@ function InspirationPage() {
                 isFavorite={Boolean(favoriteItems[favoriteKey])}
                 onFavoriteToggle={() => handleFavoriteToggle(item)}
                 onViewButtonClick={() => navigate(item.targetPath)}
-                onCartButtonClick={() => handleAddToCart(item)}
+                onCartButtonClick={(event) => handleAddToCart(event, item)}
               />
                 )
               })()

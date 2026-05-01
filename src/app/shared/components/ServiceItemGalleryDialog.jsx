@@ -717,8 +717,9 @@ function ServiceItemGalleryDialog({
               fullWidth
               disableElevation
               variant="contained"
-              onClick={() =>
+              onClick={(event) =>
                 onAddToCart?.({
+                  event,
                   quantity: Math.max(quantityForPricing || 1, 1),
                   selectedDate: deliveryDate ? dayjs(deliveryDate).toISOString() : undefined,
                   customOptions: deliveryTime

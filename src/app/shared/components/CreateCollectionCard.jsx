@@ -4,7 +4,7 @@ import { COLORS } from '../../constants/colors'
 
 function CreateCollectionCard({
   label = 'Create New Collection',
-  minHeight = { xs: 300, sm: 0 },
+  height = 260,
   onClick,
 }) {
   return (
@@ -14,11 +14,12 @@ function CreateCollectionCard({
       onClick={onClick}
       sx={{
         width: '100%',
-        height: '100%',
-        minHeight,
+        height,
+        minHeight: height,
+        flexShrink: 0,
         border: 0,
         borderRadius: 2,
-        backgroundColor: '#e7e7e7',
+        backgroundColor: '#e5e5e5',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',

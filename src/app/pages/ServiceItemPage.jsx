@@ -243,8 +243,7 @@ function ServiceItemPage() {
     showToast(section === 'bundles' ? 'Template added to plan' : 'Item added to plan')
     navigate(`/customize?planId=${planId}`)
   }
-
-  const handleAddToCart = ({ quantity = 1, selectedDate, customOptions } = {}) => {
+  const handleAddToCart = ({ event, quantity = 1, selectedDate, customOptions } = {}) => {
     if (!selectedItem) {
       return
     }
@@ -268,6 +267,7 @@ function ServiceItemPage() {
         customOptions,
       })
       showToast('Added to cart')
+      openCollectionPicker(event, selectedItem, section, { quantity, selectedDate, customOptions })
     })
   }
 
