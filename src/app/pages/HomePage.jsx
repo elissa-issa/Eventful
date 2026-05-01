@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import ArrowBackIosNewRoundedIcon from '@mui/icons-material/ArrowBackIosNewRounded'
 import ArrowForwardIosRoundedIcon from '@mui/icons-material/ArrowForwardIosRounded'
 import { Box, Button, IconButton, Stack, Typography } from '@mui/material'
@@ -7,7 +7,6 @@ import { useAuth } from '../auth/useAuth'
 import { BUNDLE_CARDS } from '../constants/bundleCards'
 import { CATEGORY_CARDS } from '../constants/categoryCards'
 import { COLORS } from '../constants/colors'
-import { VENDOR_CARDS } from '../constants/vendorCards'
 import { useFavoriteActions, getFavoriteKey } from '../hooks/useFavoriteActions'
 import { useCollectionCartAction } from '../hooks/useCollectionCartAction'
 import { useServicesData } from '../hooks/useServicesData'
@@ -40,6 +39,37 @@ function HomePage() {
   const vendorsRowRef = useRef(null)
 
   const bundleCards = itemsBySection.bundles || BUNDLE_CARDS
+  const uniquePartners = useMemo(() => {
+    const allServices = [
+      ...(itemsBySection.venues || []),
+      ...(itemsBySection.menus || []),
+      ...(itemsBySection.decorations || []),
+      ...(itemsBySection.entertainment || []),
+    ]
+    const partnersByKey = new Map()
+    const seenVendorNames = new Set()
+
+    allServices
+      .filter((item) => item.vendorLogoSrc)
+      .forEach((item) => {
+        const vendorNameKey = item.vendorName?.trim().toLowerCase()
+
+        if (vendorNameKey && seenVendorNames.has(vendorNameKey)) {
+          return
+        }
+
+        partnersByKey.set(item.vendorLogoSrc, {
+          name: item.vendorName,
+          logoSrc: item.vendorLogoSrc,
+        })
+
+        if (vendorNameKey) {
+          seenVendorNames.add(vendorNameKey)
+        }
+      })
+
+    return Array.from(partnersByKey.values())
+  }, [itemsBySection])
 
   const handleFavoriteToggle = (card) => {
     if (!isAuthenticated) {
@@ -198,7 +228,7 @@ function HomePage() {
       vendorContainer.removeEventListener('scroll', updateVendorScrollState)
       window.removeEventListener('resize', handleResize)
     }
-  }, [])
+  }, [uniquePartners.length])
 
   return (
     <Stack spacing={3} sx={{ backgroundColor: COLORS.surface }}>
@@ -472,16 +502,16 @@ function HomePage() {
           scrollbarWidth: 'none',
         }}
       >
-        {VENDOR_CARDS.map((vendor) => (
+        {uniquePartners.map((vendor) => (
           <Box
-            key={vendor.id}
+            key={vendor.logoSrc}
             sx={{
               flex: '0 0 auto',
               width: { xs: 250, sm: 280 },
               scrollSnapAlign: 'start',
             }}
           >
-            <VendorCard imageSrc={vendor.imageSrc} imageAlt={vendor.imageAlt} />
+            <VendorCard imageSrc={vendor.logoSrc} imageAlt={`${vendor.name} logo`} />
           </Box>
         ))}
       </Box>
