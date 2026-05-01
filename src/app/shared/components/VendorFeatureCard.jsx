@@ -1,7 +1,7 @@
 import { Box, Chip, Stack, Typography } from '@mui/material'
 import { COLORS } from '../../constants/colors'
 
-function VendorFeatureCard({ vendor, large = false }) {
+function VendorFeatureCard({ vendor, large = false, onViewItemsClick }) {
   return (
     <Box
       sx={{
@@ -66,7 +66,16 @@ function VendorFeatureCard({ vendor, large = false }) {
         >
           {vendor.description}
         </Typography>
-        <Typography sx={{ color: COLORS.surface, fontWeight: 700, fontSize: '0.95rem' }}>
+        <Typography
+          onClick={onViewItemsClick}
+          sx={{
+            color: COLORS.surface,
+            fontWeight: 700,
+            fontSize: '0.95rem',
+            cursor: onViewItemsClick ? 'pointer' : 'default',
+            width: 'fit-content',
+          }}
+        >
           {vendor.ctaLabel} →
         </Typography>
       </Stack>

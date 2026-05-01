@@ -27,7 +27,7 @@ function BundleCard({
   imageHeight = 230,
   cardBorderRadius = 1.5,
   contentPaddingX = 0,
-  contentPaddingTop = 0,
+  contentPaddingTop = 2,
   contentPaddingBottom = 16,
 }) {
   return (

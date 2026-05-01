@@ -8,6 +8,8 @@ function VendorDirectoryCard({
   description,
   location,
   serviceType,
+  vendorLogoSrc,
+  vendorLogoAlt = 'Vendor logo',
   contactButtonLabel = 'Contact Vendor',
   itemsButtonLabel = 'View Items',
   onContactButtonClick,
@@ -69,17 +71,54 @@ function VendorDirectoryCard({
         }}
       >
         <Stack spacing={0.55} sx={{ width: '100%', flexGrow: 1 }}>
-          <Typography
-            sx={{
-              color: COLORS.primaryDark,
-              fontWeight: 800,
-              fontSize: '1.25rem',
-              lineHeight: 1.1,
-              minHeight: 28,
-            }}
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="flex-start"
+            spacing={2}
+            sx={{ minHeight: 28 }}
           >
-            {title}
-          </Typography>
+            <Typography
+              sx={{
+                color: COLORS.primaryDark,
+                fontWeight: 800,
+                fontSize: '1.25rem',
+                lineHeight: 1.1,
+                minHeight: 28,
+              }}
+            >
+              {title}
+            </Typography>
+
+            <Box
+              sx={{
+                width: 56,
+                height: 24,
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 1,
+                backgroundColor: COLORS.surface,
+                border: `1px solid ${COLORS.border}`,
+                p: 0.35,
+              }}
+            >
+              {vendorLogoSrc ? (
+                <Box
+                  component="img"
+                  src={vendorLogoSrc}
+                  alt={vendorLogoAlt}
+                  sx={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                    display: 'block',
+                  }}
+                />
+              ) : null}
+            </Box>
+          </Stack>
 
           <Typography
             sx={{

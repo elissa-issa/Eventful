@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { Box, Button, Stack, TextField, Typography } from '@mui/material'
 import { COLORS } from '../../constants/colors'
+import { subscribeToNewsletter } from '../../services/subscribers'
 
 function NewsletterCTA({
   title = 'Stay ahead of the trends.',
@@ -10,6 +12,27 @@ function NewsletterCTA({
   backgroundImage,
 }) {
   const hasBackgroundImage = Boolean(backgroundImage)
+  const [email, setEmail] = useState('')
+  const [statusMessage, setStatusMessage] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    setStatusMessage('')
+    setErrorMessage('')
+    setIsSubmitting(true)
+
+    try {
+      await subscribeToNewsletter(email)
+      setEmail('')
+      setStatusMessage('You are subscribed.')
+    } catch (error) {
+      setErrorMessage(error.message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <Box
@@ -64,6 +87,8 @@ function NewsletterCTA({
           </Typography>
 
           <Stack
+            component="form"
+            onSubmit={handleSubmit}
             direction={{ xs: 'column', sm: 'row' }}
             spacing={1.5}
             sx={{
@@ -74,9 +99,15 @@ function NewsletterCTA({
           >
             <TextField
               fullWidth
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
               placeholder={placeholder}
+              type="email"
               variant="outlined"
               size="small"
+              error={Boolean(errorMessage)}
+              helperText={errorMessage}
+              disabled={isSubmitting}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   height: 50,
@@ -94,8 +125,10 @@ function NewsletterCTA({
               }}
             />
             <Button
+              type="submit"
               variant="contained"
               disableElevation
+              disabled={isSubmitting}
               sx={{
                 minWidth: 150,
                 height: 50,
@@ -111,9 +144,20 @@ function NewsletterCTA({
                 },
               }}
             >
-              {buttonLabel}
+              {isSubmitting ? 'Subscribing...' : buttonLabel}
             </Button>
           </Stack>
+          {statusMessage ? (
+            <Typography
+              sx={{
+                color: 'rgba(255, 255, 255, 0.9)',
+                fontSize: '0.9rem',
+                fontWeight: 700,
+              }}
+            >
+              {statusMessage}
+            </Typography>
+          ) : null}
         </Stack>
       </Box>
     </Box>

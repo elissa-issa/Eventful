@@ -19,7 +19,7 @@ const requireAuth = asyncHandler(async (request, _response, next) => {
 
   const user = await User.findById(payload.userId);
 
-  if (!user) {
+  if (!user || user.isdeleted) {
     throw new ApiError(401, 'Authenticated user no longer exists');
   }
 

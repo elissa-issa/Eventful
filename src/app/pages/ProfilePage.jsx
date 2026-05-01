@@ -23,7 +23,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { COLORS } from '../constants/colors'
 import { getOrders } from '../services/orders'
-import { updateProfile } from '../services/auth'
+import { deleteAccount, updateProfile } from '../services/auth'
 import AddLocationDialog from '../shared/components/AddLocationDialog'
 import AlertDialog from '../shared/components/AlertDialog'
 import {
@@ -315,9 +315,12 @@ function ProfilePage() {
   const [locationFormValues, setLocationFormValues] = useState(emptyLocationValues)
   const [editingLocation, setEditingLocation] = useState(null)
   const [pendingDeleteLocation, setPendingDeleteLocation] = useState(null)
+  const [isDeleteAccountDialogOpen, setIsDeleteAccountDialogOpen] = useState(false)
   const [locationFormError, setLocationFormError] = useState('')
   const [locationSaving, setLocationSaving] = useState(false)
   const [locationDeleting, setLocationDeleting] = useState(false)
+  const [accountDeleting, setAccountDeleting] = useState(false)
+  const [accountDeleteError, setAccountDeleteError] = useState('')
   const isPremiumUser = Boolean(user?.isPremium)
   const displayName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'User'
   const avatarLabel =
@@ -406,9 +409,23 @@ function ProfilePage() {
     navigate('/home', { replace: true })
   }
 
-  const handleSwitchAccount = () => {
-    logout()
-    navigate('/login', { replace: true })
+  const handleDeleteAccount = async () => {
+    if (accountDeleting) {
+      return
+    }
+
+    setAccountDeleting(true)
+    setAccountDeleteError('')
+
+    try {
+      await deleteAccount()
+      logout()
+      navigate('/home', { replace: true })
+    } catch (error) {
+      setAccountDeleteError(error.message || 'Could not delete account')
+    } finally {
+      setAccountDeleting(false)
+    }
   }
 
   const handleProfileFieldChange = (fieldId, value) => {
@@ -661,7 +678,7 @@ function ProfilePage() {
                       cursor: 'pointer',
                     }}
                   >
-                    <FavoriteRoundedIcon sx={{ color: '#ff1f1f', fontSize: 40 }} />
+                    <FavoriteRoundedIcon sx={{ color: '#c62828', fontSize: 40 }} />
                   </Box>
                   <Box
                     component="button"
@@ -708,7 +725,7 @@ function ProfilePage() {
                   </Button>
                   <Button
                     variant="contained"
-                    onClick={handleSwitchAccount}
+                    onClick={handleLogout}
                     sx={{
                       borderRadius: 1.5,
                       textTransform: 'none',
@@ -720,23 +737,23 @@ function ProfilePage() {
                       },
                     }}
                   >
-                    Switch account
+                    Log out
                   </Button>
                   <Button
                     variant="contained"
-                    onClick={handleLogout}
+                    onClick={() => setIsDeleteAccountDialogOpen(true)}
                     sx={{
                       borderRadius: 1.5,
                       textTransform: 'none',
                       fontWeight: 800,
                       fontSize: '1rem',
-                      backgroundColor: '#f44336',
+                      backgroundColor: '#c62828',
                       '&:hover': {
-                        backgroundColor: '#d93a2e',
+                        backgroundColor: '#a81f1f',
                       },
                     }}
                   >
-                    Log out
+                    Delete account
                   </Button>
                 </Stack>
               </Stack>
@@ -1208,6 +1225,32 @@ function ProfilePage() {
         secondaryActionColor={COLORS.primary}
         onSecondaryActionClick={() => setPendingDeleteLocation(null)}
         disableBackdropClick={locationDeleting}
+      />
+
+      <AlertDialog
+        open={isDeleteAccountDialogOpen}
+        onClose={() => {
+          if (!accountDeleting) {
+            setIsDeleteAccountDialogOpen(false)
+            setAccountDeleteError('')
+          }
+        }}
+        title="Delete account?"
+        titleColor="#c62828"
+        description={
+          accountDeleteError ||
+          'Your account will be disabled and you will no longer be able to sign in.'
+        }
+        primaryButtonText={accountDeleting ? 'Deleting...' : 'Delete account'}
+        primaryButtonColor="#c62828"
+        onPrimaryButtonClick={handleDeleteAccount}
+        secondaryActionText="Cancel"
+        secondaryActionColor={COLORS.primary}
+        onSecondaryActionClick={() => {
+          setIsDeleteAccountDialogOpen(false)
+          setAccountDeleteError('')
+        }}
+        disableBackdropClick={accountDeleting}
       />
     </Box>
   )

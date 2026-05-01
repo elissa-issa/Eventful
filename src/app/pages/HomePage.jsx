@@ -19,6 +19,18 @@ import HomeHero from '../shared/components/HomeHero'
 import NewsletterCTA from '../shared/components/NewsletterCTA'
 import VendorCard from '../shared/components/VendorCard'
 
+const FEATURED_PARTNER_LOGO_STYLES = {
+  'the led store': {
+    transform: 'scale(1.9)',
+  },
+  'the balloon event company': {
+    transform: 'scale(1.55)',
+  },
+  'willow & hive': {
+    transform: 'scale(1.85)',
+  },
+}
+
 function HomePage() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -34,6 +46,7 @@ function HomePage() {
   const [canScrollCategoriesRight, setCanScrollCategoriesRight] = useState(false)
   const [canScrollVendorsLeft, setCanScrollVendorsLeft] = useState(false)
   const [canScrollVendorsRight, setCanScrollVendorsRight] = useState(false)
+  const [signInRedirectPath, setSignInRedirectPath] = useState('')
   const cardsRowRef = useRef(null)
   const categoriesRowRef = useRef(null)
   const vendorsRowRef = useRef(null)
@@ -73,6 +86,7 @@ function HomePage() {
 
   const handleFavoriteToggle = (card) => {
     if (!isAuthenticated) {
+      setSignInRedirectPath('')
       setIsSignInDialogOpen(true)
       return
     }
@@ -90,6 +104,7 @@ function HomePage() {
 
   const handleAddToCartClick = (event, card) => {
     if (!isAuthenticated) {
+      setSignInRedirectPath('')
       setIsSignInDialogOpen(true)
       return
     }
@@ -103,16 +118,34 @@ function HomePage() {
 
   const handleCloseSignInDialog = () => {
     setIsSignInDialogOpen(false)
+    setSignInRedirectPath('')
   }
 
   const handleLoginRedirect = () => {
+    const from = signInRedirectPath || `${location.pathname}${location.search}${location.hash}`
+
     handleCloseSignInDialog()
     navigate('/login', {
       state: {
-        from: `${location.pathname}${location.search}${location.hash}`,
+        from,
       },
     })
   }
+
+  const handleCustomizeClick = () => {
+    if (!isAuthenticated) {
+      setSignInRedirectPath('/customize')
+      setIsSignInDialogOpen(true)
+      return
+    }
+
+    navigate('/customize')
+  }
+
+  const signInDialogDescription =
+    signInRedirectPath === '/customize'
+      ? 'To be able to customize your own event please sign in now'
+      : 'To be able to add items to your cart or favorites please sign in now'
 
   const updateScrollState = () => {
     const container = cardsRowRef.current
@@ -234,148 +267,152 @@ function HomePage() {
     <Stack spacing={3} sx={{ backgroundColor: COLORS.surface }}>
       <HomeHero />
 
-      <Stack direction="row" alignItems="center" justifyContent="space-between">
-        <Typography variant="h5" sx={{ color: COLORS.primary, fontWeight: 800 }}>
-          Most Popular Plans
-        </Typography>
-        <Stack direction="row" spacing={1}>
-          <IconButton
-            aria-label="Scroll bundle cards left"
-            disabled={!canScrollLeft}
-            onClick={() => handleArrowClick('left')}
-            sx={{
-              color: canScrollLeft ? COLORS.primary : COLORS.textLight,
-              backgroundColor: COLORS.surface,
-            }}
-          >
-            <ArrowBackIosNewRoundedIcon sx={{ fontSize: 18 }} />
-          </IconButton>
-          <IconButton
-            aria-label="Scroll bundle cards right"
-            disabled={!canScrollRight}
-            onClick={() => handleArrowClick('right')}
-            sx={{
-              color: canScrollRight ? COLORS.primary : COLORS.textLight,
-              backgroundColor: COLORS.surface,
-            }}
-          >
-            <ArrowForwardIosRoundedIcon sx={{ fontSize: 18 }} />
-          </IconButton>
+      <Box sx={{ mt: { xs: 4, md: 6 }, mb: { xs: 4, md: 6 } }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+          <Typography variant="h5" sx={{ color: COLORS.primary, fontWeight: 800 }}>
+            Most Popular Plans
+          </Typography>
+          <Stack direction="row" spacing={1}>
+            <IconButton
+              aria-label="Scroll bundle cards left"
+              disabled={!canScrollLeft}
+              onClick={() => handleArrowClick('left')}
+              sx={{
+                color: canScrollLeft ? COLORS.primary : COLORS.textLight,
+                backgroundColor: COLORS.surface,
+              }}
+            >
+              <ArrowBackIosNewRoundedIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+            <IconButton
+              aria-label="Scroll bundle cards right"
+              disabled={!canScrollRight}
+              onClick={() => handleArrowClick('right')}
+              sx={{
+                color: canScrollRight ? COLORS.primary : COLORS.textLight,
+                backgroundColor: COLORS.surface,
+              }}
+            >
+              <ArrowForwardIosRoundedIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Stack>
         </Stack>
-      </Stack>
 
-      <Box
-        ref={cardsRowRef}
-        sx={{
-          bgcolor: COLORS.surface,
-          display: 'flex',
-          gap: 3,
-          overflowX: 'auto',
-          scrollBehavior: 'smooth',
-          scrollSnapType: 'x mandatory',
-          pb: 1,
-          '&::-webkit-scrollbar': {
-            display: 'none',
-          },
-          scrollbarWidth: 'none',
-        }}
-      >
-        {bundleCards.map((card) => {
-          const serviceId = getServicePayload(card, 'bundles').serviceId
-          const favoriteKey = serviceId ? getFavoriteKey('bundles', serviceId) : card.id
+        <Box
+          ref={cardsRowRef}
+          sx={{
+            bgcolor: COLORS.surface,
+            display: 'flex',
+            gap: 3,
+            overflowX: 'auto',
+            scrollBehavior: 'smooth',
+            scrollSnapType: 'x mandatory',
+            pb: 1,
+            '&::-webkit-scrollbar': {
+              display: 'none',
+            },
+            scrollbarWidth: 'none',
+          }}
+        >
+          {bundleCards.map((card) => {
+            const serviceId = getServicePayload(card, 'bundles').serviceId
+            const favoriteKey = serviceId ? getFavoriteKey('bundles', serviceId) : card.id
 
-          return (
-          <Box
-            key={card.id}
-            sx={{
-              flex: '0 0 auto',
-              width: { xs: '100%', sm: 320 },
-              scrollSnapAlign: 'start',
-            }}
-          >
-            <BundleCard
-              imageSrc={card.imageSrc}
-              imageAlt={card.imageAlt}
-              title={card.title}
-              isFavorite={Boolean(favoriteItems[favoriteKey])}
-              onFavoriteToggle={() => handleFavoriteToggle(card)}
-              leftText={card.leftText}
-              rightText={card.rightText}
-              primaryButtonLabel={card.primaryButtonLabel}
-              onPrimaryButtonClick={() => navigate(`/services/bundles/${card.id}`)}
-              secondaryButtonLabel={card.secondaryButtonLabel}
-              onSecondaryButtonClick={(event) => handleAddToCartClick(event, card)}
-            />
-          </Box>
-          )
-        })}
+            return (
+            <Box
+              key={card.id}
+              sx={{
+                flex: '0 0 auto',
+                width: { xs: '100%', sm: 320 },
+                scrollSnapAlign: 'start',
+              }}
+            >
+              <BundleCard
+                imageSrc={card.imageSrc}
+                imageAlt={card.imageAlt}
+                title={card.title}
+                isFavorite={Boolean(favoriteItems[favoriteKey])}
+                onFavoriteToggle={() => handleFavoriteToggle(card)}
+                leftText={card.leftText}
+                rightText={card.rightText}
+                primaryButtonLabel={card.primaryButtonLabel}
+                onPrimaryButtonClick={() => navigate(`/services/bundles/${card.id}`)}
+                secondaryButtonLabel={card.secondaryButtonLabel}
+                onSecondaryButtonClick={(event) => handleAddToCartClick(event, card)}
+              />
+            </Box>
+            )
+          })}
+        </Box>
       </Box>
 
-      <Stack direction="row" alignItems="center" justifyContent="space-between">
-        <Typography variant="h5" sx={{ color: COLORS.primary, fontWeight: 800 }}>
-          Categories
-        </Typography>
-        <Stack direction="row" spacing={1}>
-          <IconButton
-            aria-label="Scroll categories left"
-            disabled={!canScrollCategoriesLeft}
-            onClick={() => handleCategoryArrowClick('left')}
-            sx={{
-              color: canScrollCategoriesLeft ? COLORS.primary : COLORS.textLight,
-              backgroundColor: COLORS.surface,
-            }}
-          >
-            <ArrowBackIosNewRoundedIcon sx={{ fontSize: 18 }} />
-          </IconButton>
-          <IconButton
-            aria-label="Scroll categories right"
-            disabled={!canScrollCategoriesRight}
-            onClick={() => handleCategoryArrowClick('right')}
-            sx={{
-              color: canScrollCategoriesRight ? COLORS.primary : COLORS.textLight,
-              backgroundColor: COLORS.surface,
-            }}
-          >
-            <ArrowForwardIosRoundedIcon sx={{ fontSize: 18 }} />
-          </IconButton>
+      <Box sx={{ mt: { xs: 4, md: 6 }, mb: { xs: 4, md: 6 } }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+          <Typography variant="h5" sx={{ color: COLORS.primary, fontWeight: 800 }}>
+            Categories
+          </Typography>
+          <Stack direction="row" spacing={1}>
+            <IconButton
+              aria-label="Scroll categories left"
+              disabled={!canScrollCategoriesLeft}
+              onClick={() => handleCategoryArrowClick('left')}
+              sx={{
+                color: canScrollCategoriesLeft ? COLORS.primary : COLORS.textLight,
+                backgroundColor: COLORS.surface,
+              }}
+            >
+              <ArrowBackIosNewRoundedIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+            <IconButton
+              aria-label="Scroll categories right"
+              disabled={!canScrollCategoriesRight}
+              onClick={() => handleCategoryArrowClick('right')}
+              sx={{
+                color: canScrollCategoriesRight ? COLORS.primary : COLORS.textLight,
+                backgroundColor: COLORS.surface,
+              }}
+            >
+              <ArrowForwardIosRoundedIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Stack>
         </Stack>
-      </Stack>
 
-      <Box
-        ref={categoriesRowRef}
-        sx={{
-          bgcolor: COLORS.surface,
-          display: 'flex',
-          gap: 3,
-          overflowX: 'auto',
-          scrollBehavior: 'smooth',
-          scrollSnapType: 'x mandatory',
-          pb: 1,
-          '&::-webkit-scrollbar': {
-            display: 'none',
-          },
-          scrollbarWidth: 'none',
-        }}
-      >
-        {CATEGORY_CARDS.map((card) => (
-          <Box
-            key={card.id}
-            sx={{
-              flex: '0 0 auto',
-              width: { xs: 300, sm: 440 },
-              scrollSnapAlign: 'start',
-            }}
-          >
-            <CategoryCard
-              title={card.title}
-              description={card.description}
-              buttonLabel={card.buttonLabel}
-              onButtonClick={() => navigate(`/services${card.targetHash}`)}
-              imageSrc={card.imageSrc}
-              imageAlt={card.imageAlt}
-            />
-          </Box>
-        ))}
+        <Box
+          ref={categoriesRowRef}
+          sx={{
+            bgcolor: COLORS.surface,
+            display: 'flex',
+            gap: 3,
+            overflowX: 'auto',
+            scrollBehavior: 'smooth',
+            scrollSnapType: 'x mandatory',
+            pb: 1,
+            '&::-webkit-scrollbar': {
+              display: 'none',
+            },
+            scrollbarWidth: 'none',
+          }}
+        >
+          {CATEGORY_CARDS.map((card) => (
+            <Box
+              key={card.id}
+              sx={{
+                flex: '0 0 auto',
+                width: { xs: 300, sm: 440 },
+                scrollSnapAlign: 'start',
+              }}
+            >
+              <CategoryCard
+                title={card.title}
+                description={card.description}
+                buttonLabel={card.buttonLabel}
+                onButtonClick={() => navigate(`/services${card.targetHash}`)}
+                imageSrc={card.imageSrc}
+                imageAlt={card.imageAlt}
+              />
+            </Box>
+          ))}
+        </Box>
       </Box>
 
       <Box
@@ -435,7 +472,7 @@ function HomePage() {
           <Button
             disableElevation
             variant="contained"
-            onClick={() => navigate('/customize')}
+            onClick={handleCustomizeClick}
             sx={{
               minWidth: 160,
               borderRadius: '999px',
@@ -456,67 +493,73 @@ function HomePage() {
         </Box>
       </Box>
 
-      <Stack direction="row" alignItems="center" justifyContent="space-between">
-        <Typography variant="h5" sx={{ color: COLORS.primary, fontWeight: 800 }}>
-          Partners
-        </Typography>
-        <Stack direction="row" spacing={1}>
-          <IconButton
-            aria-label="Scroll vendor cards left"
-            disabled={!canScrollVendorsLeft}
-            onClick={() => handleVendorArrowClick('left')}
-            sx={{
-              color: canScrollVendorsLeft ? COLORS.primary : COLORS.textLight,
-              backgroundColor: COLORS.surface,
-            }}
-          >
-            <ArrowBackIosNewRoundedIcon sx={{ fontSize: 18 }} />
-          </IconButton>
-          <IconButton
-            aria-label="Scroll vendor cards right"
-            disabled={!canScrollVendorsRight}
-            onClick={() => handleVendorArrowClick('right')}
-            sx={{
-              color: canScrollVendorsRight ? COLORS.primary : COLORS.textLight,
-              backgroundColor: COLORS.surface,
-            }}
-          >
-            <ArrowForwardIosRoundedIcon sx={{ fontSize: 18 }} />
-          </IconButton>
+      <Box sx={{ py: { xs: 4, md: 5.5 } }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
+          <Typography variant="h5" sx={{ color: COLORS.primary, fontWeight: 800 }}>
+            Partners
+          </Typography>
+          <Stack direction="row" spacing={1}>
+            <IconButton
+              aria-label="Scroll vendor cards left"
+              disabled={!canScrollVendorsLeft}
+              onClick={() => handleVendorArrowClick('left')}
+              sx={{
+                color: canScrollVendorsLeft ? COLORS.primary : COLORS.textLight,
+                backgroundColor: COLORS.surface,
+              }}
+            >
+              <ArrowBackIosNewRoundedIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+            <IconButton
+              aria-label="Scroll vendor cards right"
+              disabled={!canScrollVendorsRight}
+              onClick={() => handleVendorArrowClick('right')}
+              sx={{
+                color: canScrollVendorsRight ? COLORS.primary : COLORS.textLight,
+                backgroundColor: COLORS.surface,
+              }}
+            >
+              <ArrowForwardIosRoundedIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Stack>
         </Stack>
-      </Stack>
 
-      <Box
-        ref={vendorsRowRef}
-        sx={{
-          bgcolor: COLORS.surface,
-          display: 'flex',
-          gap: 2,
-          overflowX: 'auto',
-          scrollBehavior: 'smooth',
-          scrollSnapType: 'x mandatory',
-          pb: 1,
-          '&::-webkit-scrollbar': {
-            display: 'none',
-          },
-          scrollbarWidth: 'none',
-        }}
-      >
-        {uniquePartners.map((vendor) => (
-          <Box
-            key={vendor.logoSrc}
-            sx={{
-              flex: '0 0 auto',
-              width: { xs: 250, sm: 280 },
-              scrollSnapAlign: 'start',
-            }}
-          >
-            <VendorCard imageSrc={vendor.logoSrc} imageAlt={`${vendor.name} logo`} />
-          </Box>
-        ))}
+        <Box
+          ref={vendorsRowRef}
+          sx={{
+            bgcolor: COLORS.surface,
+            display: 'flex',
+            gap: 2.5,
+            overflowX: 'auto',
+            scrollBehavior: 'smooth',
+            scrollSnapType: 'x mandatory',
+            pb: 1,
+            '&::-webkit-scrollbar': {
+              display: 'none',
+            },
+            scrollbarWidth: 'none',
+          }}
+        >
+          {uniquePartners.map((vendor) => (
+            <Box
+              key={vendor.logoSrc}
+              sx={{
+                flex: '0 0 auto',
+                width: { xs: 280, sm: 320 },
+                scrollSnapAlign: 'start',
+              }}
+            >
+              <VendorCard
+                imageSrc={vendor.logoSrc}
+                imageAlt={`${vendor.name} logo`}
+                imageSx={FEATURED_PARTNER_LOGO_STYLES[vendor.name?.trim().toLowerCase()]}
+              />
+            </Box>
+          ))}
+        </Box>
       </Box>
 
-      <NewsletterCTA />
+      <NewsletterCTA fullBleed backgroundImage="/assets/other/outdoorgathering.webp" />
 
       <AlertDialog
         open={isSignInDialogOpen}
@@ -524,7 +567,7 @@ function HomePage() {
         iconBackgroundColor={COLORS.primary}
         title="Sign in to continue"
         titleColor={COLORS.primary}
-        description="To be able to add items to your cart or favorites please sign in now"
+        description={signInDialogDescription}
         primaryButtonText="Sign in"
         primaryButtonColor={COLORS.accent}
         onPrimaryButtonClick={handleLoginRedirect}

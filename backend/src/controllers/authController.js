@@ -35,17 +35,40 @@ const signup = asyncHandler(async (request, response) => {
   const signupDto = createUserDto(request.body);
   const existingUser = await userRepository.findByEmail(signupDto.email);
 
-  if (existingUser) {
+  if (existingUser && !existingUser.isdeleted) {
     throw new ApiError(409, 'A user with this email already exists');
   }
 
   const passwordHash = await hashPassword(signupDto.password);
+
+  if (existingUser?.isdeleted) {
+    const restoredUser = await userRepository.updateUserById(existingUser.id, {
+      firstName: signupDto.firstName,
+      lastName: signupDto.lastName,
+      email: signupDto.email,
+      birthday: signupDto.birthday,
+      passwordHash,
+      isdeleted: false,
+      subscriptionPlan: 'free',
+      isPremium: false,
+      premiumSince: null,
+      avatarSrc: '',
+    });
+
+    response.status(201).json({
+      message: 'User created successfully',
+      data: buildAuthResponse(restoredUser),
+    });
+    return;
+  }
+
   const createdUser = await userRepository.createUser({
     firstName: signupDto.firstName,
     lastName: signupDto.lastName,
     email: signupDto.email,
     birthday: signupDto.birthday,
     passwordHash,
+    isdeleted: false,
   });
 
   response.status(201).json({
@@ -58,8 +81,8 @@ const login = asyncHandler(async (request, response) => {
   const loginDto = createLoginDto(request.body);
   const user = await userRepository.findByEmail(loginDto.email);
 
-  if (!user) {
-    throw new ApiError(401, 'Invalid email or password');
+  if (!user || user.isdeleted) {
+    throw new ApiError(404, 'Account does not exist');
   }
 
   const passwordMatches = await verifyPassword(
@@ -120,9 +143,24 @@ const upgradeToPremium = asyncHandler(async (request, response) => {
   });
 });
 
+const deleteAccount = asyncHandler(async (request, response) => {
+  const updatedUser = await userRepository.updateUserById(request.user.id, {
+    isdeleted: true,
+  });
+
+  if (!updatedUser) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  response.status(200).json({
+    message: 'Account deleted successfully',
+  });
+});
+
 module.exports = {
   signup,
   login,
   updateProfile,
   upgradeToPremium,
+  deleteAccount,
 };

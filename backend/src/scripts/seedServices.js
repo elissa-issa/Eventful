@@ -203,8 +203,8 @@ async function seedServices() {
       name: 'venues',
       Model: Venue,
       items: loadFrontendConstant(
-        'src/app/constants/entertainmentItems.js',
-        'ENTERTAINMENT_ITEMS',
+        'src/app/constants/venueItems.js',
+        'VENUE_ITEMS',
       ),
     },
     {

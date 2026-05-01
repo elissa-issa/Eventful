@@ -1,4 +1,5 @@
 import FavoriteRoundedIcon from '@mui/icons-material/FavoriteRounded'
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import { Box, Button, IconButton, Stack, Typography } from '@mui/material'
 import { COLORS } from '../../constants/colors'
 
@@ -108,12 +109,19 @@ function FavoriteItemCard({
           sx={{ width: { xs: '100%', sm: 140 }, flexShrink: 0 }}
         >
           <Stack direction="row" spacing={0.5}>
-            <IconButton
-              aria-label="Remove favorite item"
-              onClick={onDelete}
-              sx={{ color: '#ff1f1f', p: 0.5 }}
+            <Box
+              aria-label="Favorite item"
+              role="img"
+              sx={{ color: '#ff1f1f', p: 0.5, display: 'inline-flex' }}
             >
               <FavoriteRoundedIcon />
+            </Box>
+            <IconButton
+              aria-label="Delete favorite item"
+              onClick={onDelete}
+              sx={{ color: COLORS.primaryDark, p: 0.5 }}
+            >
+              <DeleteOutlineRoundedIcon />
             </IconButton>
           </Stack>
 

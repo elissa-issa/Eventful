@@ -27,3 +27,9 @@ export function upgradeToPremium() {
     method: 'PATCH',
   })
 }
+
+export function deleteAccount() {
+  return apiRequest('/auth/delete-account', {
+    method: 'PATCH',
+  })
+}

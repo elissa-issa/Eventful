@@ -10,6 +10,7 @@ const reviewRoutes = require('./routes/reviewRoutes');
 const serviceRoutes = require('./routes/serviceRoutes');
 const savedLocationRoutes = require('./routes/savedLocationRoutes');
 const contactMessageRoutes = require('./routes/contactMessageRoutes');
+const subscriberRoutes = require('./routes/subscriberRoutes');
 const { errorHandler, notFoundHandler } = require('./helpers/errorHandlers');
 
 const app = express();
@@ -38,6 +39,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/locations', savedLocationRoutes);
 app.use('/api/contact-messages', contactMessageRoutes);
+app.use('/api/subscribers', subscriberRoutes);
 app.use(notFoundHandler);
 app.use(errorHandler);
 

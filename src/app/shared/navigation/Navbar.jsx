@@ -20,7 +20,10 @@ import { Link as RouterLink, NavLink, useLocation, useNavigate } from 'react-rou
 import { useState } from 'react'
 import { useAuth } from '../../auth/useAuth'
 import { COLORS } from '../../constants/colors'
+import AlertDialog from '../components/AlertDialog'
 import { navItems } from './navItems'
+
+const guestProtectedPaths = new Set(['/customize', '/vendors', '/inspiration'])
 
 const getLinkStyles = ({ isActive }) => ({
   color: isActive ? COLORS.primary : COLORS.primaryHover,
@@ -38,6 +41,7 @@ function Navbar() {
   const { isAuthenticated, user } = useAuth()
   const avatarLabel = `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`.trim() || 'U'
   const [hoveredItem, setHoveredItem] = useState(null)
+  const [guestDialogPath, setGuestDialogPath] = useState('')
   const [searchValue, setSearchValue] = useState(() => {
     const params = new URLSearchParams(location.search)
 
@@ -75,16 +79,47 @@ function Navbar() {
     })
   }
 
+  const handleGuestProtectedNavigation = (event, path) => {
+    if (isAuthenticated || !guestProtectedPaths.has(path)) {
+      return
+    }
+
+    event.preventDefault()
+    setHoveredItem(null)
+    setGuestDialogPath(path)
+  }
+
+  const handleGuestDialogClose = () => {
+    setGuestDialogPath('')
+  }
+
+  const handleGuestDialogSignIn = () => {
+    const from = guestDialogPath || `${location.pathname}${location.search}${location.hash}`
+
+    handleGuestDialogClose()
+    navigate('/login', { state: { from } })
+  }
+
+  const guestDialogDescriptions = {
+    '/customize': 'To be able to customize your own event please sign in now',
+    '/vendors': 'To be able to view vendors please sign in now',
+    '/inspiration': 'To be able to explore inspiration boards please sign in now',
+  }
+  const guestDialogDescription =
+    guestDialogDescriptions[guestDialogPath] ||
+    'To be able to add items to your cart or favorites please sign in now'
+
   return (
-    <AppBar
-      position="sticky"
-      elevation={0}
-      sx={{
-        backgroundColor: COLORS.surface,
-        color: COLORS.primaryMuted,
-        borderBottom: `2px solid ${COLORS.borderStrong}`,
-      }}
-    >
+    <>
+      <AppBar
+        position="sticky"
+        elevation={0}
+        sx={{
+          backgroundColor: COLORS.surface,
+          color: COLORS.primaryMuted,
+          borderBottom: `2px solid ${COLORS.borderStrong}`,
+        }}
+      >
       <Container maxWidth="xl">
         <Toolbar sx={{ minHeight: 64, px: { xs: 0, sm: 1 } }}>
           <Stack
@@ -125,6 +160,7 @@ function Navbar() {
                   <NavLink
                     key={path}
                     to={path}
+                    onClick={(event) => handleGuestProtectedNavigation(event, path)}
                     style={{
                       ...getLinkStyles({ isActive: location.pathname === path }),
                       display: 'inline-flex',
@@ -164,6 +200,7 @@ function Navbar() {
                 >
                   <NavLink
                     to={path}
+                    onClick={(event) => handleGuestProtectedNavigation(event, path)}
                     style={() => ({
                       color: isActive ? COLORS.primary : COLORS.primaryHover,
                       textDecoration: 'none',
@@ -353,7 +390,23 @@ function Navbar() {
           </Stack>
         </Toolbar>
       </Container>
-    </AppBar>
+      </AppBar>
+
+      <AlertDialog
+        open={Boolean(guestDialogPath)}
+        onClose={handleGuestDialogClose}
+        iconBackgroundColor={COLORS.primary}
+        title="Sign in to continue"
+        titleColor={COLORS.primary}
+        description={guestDialogDescription}
+        primaryButtonText="Sign in"
+        primaryButtonColor={COLORS.accent}
+        onPrimaryButtonClick={handleGuestDialogSignIn}
+        secondaryActionText="Back to guest mode"
+        secondaryActionColor={COLORS.primary}
+        onSecondaryActionClick={handleGuestDialogClose}
+      />
+    </>
   )
 }
 
