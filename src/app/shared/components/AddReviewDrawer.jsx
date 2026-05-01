@@ -25,6 +25,8 @@ function AddReviewDrawer({
   onAddPictureClick,
   postReviewText = 'Post Review',
   onPostReviewClick,
+  isSubmitting = false,
+  error = '',
 }) {
   return (
     <Dialog
@@ -122,6 +124,12 @@ function AddReviewDrawer({
             }}
           />
 
+          {error ? (
+            <Typography sx={{ color: '#d32f2f', fontSize: '0.9rem', fontWeight: 700 }}>
+              {error}
+            </Typography>
+          ) : null}
+
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
             spacing={2}
@@ -132,6 +140,7 @@ function AddReviewDrawer({
               disableElevation
               variant="contained"
               onClick={onAddPictureClick}
+              disabled={isSubmitting}
               sx={{
                 minWidth: 160,
                 borderRadius: 1,
@@ -154,6 +163,7 @@ function AddReviewDrawer({
               disableElevation
               variant="contained"
               onClick={onPostReviewClick}
+              disabled={isSubmitting}
               sx={{
                 minWidth: 160,
                 borderRadius: 1,
@@ -169,7 +179,7 @@ function AddReviewDrawer({
                 },
               }}
             >
-              {postReviewText}
+              {isSubmitting ? 'Posting...' : postReviewText}
             </Button>
           </Stack>
         </Stack>

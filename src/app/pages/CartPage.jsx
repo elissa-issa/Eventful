@@ -53,6 +53,7 @@ function CartPage() {
   const [isLocationDialogOpen, setIsLocationDialogOpen] = useState(false)
   const [isPaymentSuccessOpen, setIsPaymentSuccessOpen] = useState(false)
   const [deliveryAddress, setDeliveryAddress] = useState(emptyLocationValues)
+  const [deliveryAddressErrors, setDeliveryAddressErrors] = useState({})
   const [savedLocations, setSavedLocations] = useState([])
   const [locationsLoading, setLocationsLoading] = useState(false)
   const [locationsError, setLocationsError] = useState('')
@@ -71,6 +72,7 @@ function CartPage() {
     expiryDate: '',
     cvc: '',
   })
+  const [paymentErrors, setPaymentErrors] = useState({})
 
   const cartItems = cart?.items || []
   const collectionTitle = cart?.collection?.name || cart?.collection?.title || 'Selected Collection'
@@ -160,10 +162,70 @@ function CartPage() {
 
   const handleCardPaymentChange = (fieldId, value) => {
     setCardPaymentValues((current) => ({ ...current, [fieldId]: value }))
+    setPaymentErrors((current) => ({
+      ...current,
+      [fieldId]: value.trim() ? '' : current[fieldId],
+    }))
   }
 
   const handleDeliveryAddressChange = (fieldId, value) => {
     setDeliveryAddress((current) => ({ ...current, [fieldId]: value }))
+    setDeliveryAddressErrors((current) => ({
+      ...current,
+      [fieldId]: value.trim() ? '' : current[fieldId],
+    }))
+  }
+
+  const validateDeliveryAddress = () => {
+    const errors = {}
+
+    if (!deliveryAddress.locationName?.trim()) {
+      errors.locationName = 'Location name is required'
+    }
+
+    if (!deliveryAddress.city?.trim()) {
+      errors.city = 'City is required'
+    }
+
+    if (!deliveryAddress.streetAddress?.trim()) {
+      errors.streetAddress = 'Street address is required'
+    }
+
+    if (!deliveryAddress.mobileNumber?.trim()) {
+      errors.mobileNumber = 'Mobile number is required'
+    }
+
+    if (!deliveryAddress.zipPostalCode?.trim()) {
+      errors.zipPostalCode = 'ZIP / Postal code is required'
+    }
+
+    setDeliveryAddressErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  const validatePaymentMethod = () => {
+    const errors = {}
+
+    if (paymentMethod === 'card') {
+      if (!cardPaymentValues.cardHolderName?.trim()) {
+        errors.cardHolderName = 'Card holder name is required'
+      }
+
+      if (!cardPaymentValues.cardNumber?.trim()) {
+        errors.cardNumber = 'Card number is required'
+      }
+
+      if (!cardPaymentValues.expiryDate?.trim()) {
+        errors.expiryDate = 'Expiry date is required'
+      }
+
+      if (!cardPaymentValues.cvc?.trim()) {
+        errors.cvc = 'CVC is required'
+      }
+    }
+
+    setPaymentErrors(errors)
+    return Object.keys(errors).length === 0
   }
 
   const handleItemCheckChange = (item) => (_, isChecked) => {
@@ -210,13 +272,18 @@ function CartPage() {
   }
 
   const handleCheckout = async () => {
+    if (!validatePaymentMethod()) {
+      return
+    }
+
     try {
       await checkoutCart({
         collectionId,
         paymentMethod,
         status: paymentMethod === 'card' ? 'paid' : 'pending',
       })
-      await loadCart()
+      setCart((current) => (current ? { ...current, items: [] } : current))
+      setSelectedItems({})
       setIsPaymentSuccessOpen(true)
       showToast('Order created successfully')
     } catch (error) {
@@ -288,6 +355,18 @@ function CartPage() {
     } finally {
       setLocationDeleting(false)
     }
+  }
+
+  const handleSummaryCheckout = () => {
+    if (!canContinue) {
+      return
+    }
+
+    if (isDeliveryStep && !validateDeliveryAddress()) {
+      return
+    }
+
+    setCheckoutStep((current) => (current < 2 ? current + 1 : current))
   }
 
   const canContinue = collectionId && cartItems.length > 0 && selectedCartItems.length > 0
@@ -401,6 +480,7 @@ function CartPage() {
                 {isDeliveryStep ? (
                   <DeliveryAddressCard
                     values={deliveryAddress}
+                    errors={deliveryAddressErrors}
                     onFieldChange={handleDeliveryAddressChange}
                     onSavedLocationsClick={() => setIsSavedLocationsOpen(true)}
                   />
@@ -414,11 +494,7 @@ function CartPage() {
                   savedText={summary.savedText}
                   rewardedText={summary.rewardedText}
                   checkoutLabel={isDeliveryStep ? 'Continue' : 'Checkout Now!'}
-                  onCheckout={() => {
-                    if (canContinue) {
-                      setCheckoutStep((current) => (current < 2 ? current + 1 : current))
-                    }
-                  }}
+                  onCheckout={handleSummaryCheckout}
                   secondaryActionLabel={isDeliveryStep ? 'Back to cart' : undefined}
                   onSecondaryAction={isDeliveryStep ? () => setCheckoutStep(0) : undefined}
                 />
@@ -459,6 +535,7 @@ function CartPage() {
                       selected={paymentMethod === 'card'}
                       fields={CARD_PAYMENT_FIELDS}
                       values={cardPaymentValues}
+                      errors={paymentErrors}
                       onSelect={() => setPaymentMethod('card')}
                       onFieldChange={handleCardPaymentChange}
                     />
@@ -467,21 +544,30 @@ function CartPage() {
                       title="Cash on delivery"
                       selected={paymentMethod === 'cash'}
                       description="You will receive a confirmation email once your payment method is verified."
-                      onSelect={() => setPaymentMethod('cash')}
+                      onSelect={() => {
+                        setPaymentMethod('cash')
+                        setPaymentErrors({})
+                      }}
                     />
 
                     <PaymentMethodOptionCard
                       title="OMT"
                       selected={paymentMethod === 'omt'}
                       description="You will receive your reference number and payment details via SMS and email after confirming your order."
-                      onSelect={() => setPaymentMethod('omt')}
+                      onSelect={() => {
+                        setPaymentMethod('omt')
+                        setPaymentErrors({})
+                      }}
                     />
 
                     <PaymentMethodOptionCard
                       title="Wish Money"
                       selected={paymentMethod === 'wish-money'}
                       description="You'll receive confirmation once your transaction is complete."
-                      onSelect={() => setPaymentMethod('wish-money')}
+                      onSelect={() => {
+                        setPaymentMethod('wish-money')
+                        setPaymentErrors({})
+                      }}
                     />
                   </Stack>
                 </Box>
@@ -515,6 +601,7 @@ function CartPage() {
         onDelete={setPendingDeleteLocation}
         onSelect={(location) => {
           setDeliveryAddress(normalizeLocationValues(location))
+          setDeliveryAddressErrors({})
           setIsSavedLocationsOpen(false)
         }}
       />

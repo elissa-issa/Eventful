@@ -2,7 +2,7 @@ import { Box, Button, Stack, TextField, Typography } from '@mui/material'
 import { COLORS } from '../../constants/colors'
 import { addLocationFields } from '../../constants/profilePage'
 
-function DeliveryAddressCard({ values, onFieldChange, onSavedLocationsClick }) {
+function DeliveryAddressCard({ values, errors = {}, onFieldChange, onSavedLocationsClick }) {
   const fieldSx = {
     '& .MuiOutlinedInput-root': {
       height: 36,
@@ -22,6 +22,11 @@ function DeliveryAddressCard({ values, onFieldChange, onSavedLocationsClick }) {
     '& .MuiOutlinedInput-input': {
       px: 1.1,
       py: 1,
+    },
+    '& .MuiFormHelperText-root': {
+      mx: 0,
+      mt: 0.35,
+      fontSize: '0.72rem',
     },
     '& .MuiInputLabel-root': {
       display: 'none',
@@ -107,6 +112,8 @@ function DeliveryAddressCard({ values, onFieldChange, onSavedLocationsClick }) {
                 type={field.type || 'text'}
                 value={values[field.id] || ''}
                 onChange={(event) => onFieldChange(field.id, event.target.value)}
+                error={Boolean(errors[field.id])}
+                helperText={errors[field.id] || ''}
                 slotProps={{
                   htmlInput: {
                     inputMode: field.inputMode,

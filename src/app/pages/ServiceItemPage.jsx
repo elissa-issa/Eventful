@@ -1,11 +1,16 @@
 import { Box } from '@mui/material'
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { COLORS } from '../constants/colors'
 import { useFavoriteActions, getFavoriteKey } from '../hooks/useFavoriteActions'
 import { useServicesData } from '../hooks/useServicesData'
 import { addItemToCustomizedPlan } from '../services/customizedPlans'
+import {
+  checkReviewEligibility,
+  createServiceReview,
+  getServiceReviews,
+} from '../services/reviews'
 import { useToast } from '../toast/useToast'
 import { getCollectionItemPayload, getServicePayload } from '../utils/servicePayload'
 import AddReviewDrawer from '../shared/components/AddReviewDrawer'
@@ -33,6 +38,15 @@ function ServiceItemPage() {
   const [isReviewsDrawerOpen, setIsReviewsDrawerOpen] = useState(false)
   const [reviewText, setReviewText] = useState('')
   const [reviewRating, setReviewRating] = useState(0)
+  const [reviews, setReviews] = useState([])
+  const [averageRating, setAverageRating] = useState(0)
+  const [reviewCount, setReviewCount] = useState(0)
+  const [isReviewsLoading, setIsReviewsLoading] = useState(false)
+  const [reviewsError, setReviewsError] = useState('')
+  const [isSavingReview, setIsSavingReview] = useState(false)
+  const [reviewFormError, setReviewFormError] = useState('')
+  const [canReview, setCanReview] = useState(false)
+  const [isCheckingReviewEligibility, setIsCheckingReviewEligibility] = useState(false)
   const [selectedBundleImageSrc, setSelectedBundleImageSrc] = useState(null)
 
   const activeItems = useMemo(
@@ -151,22 +165,80 @@ function ServiceItemPage() {
     return undefined
   }, [section, selectedItem])
 
-  const sampleReviews = useMemo(
-    () =>
-      Array.from({ length: 12 }, (_, index) => ({
-        id: `review-${index + 1}`,
-        author: index % 2 === 0 ? 'Charbel' : 'Maya',
-        dateLabel: index % 3 === 0 ? '22 Jul' : index % 3 === 1 ? '18 Jul' : '11 Jul',
-        rating: index % 4 === 0 ? 4.5 : 5,
-        avatarSrc:
-          index % 2 === 0
-            ? 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&q=80'
-            : 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80',
-        content:
-          'The plate offered a tasty mix of meat, tawouk, and kafta, perfectly complemented by fresh vegetable sides. The flavors blended well together, creating a satisfying and well-balanced meal that was both filling and enjoyable.',
-      })),
-    [],
-  )
+  const formatReviewDate = (value) => {
+    if (!value) {
+      return ''
+    }
+
+    return new Intl.DateTimeFormat(undefined, {
+      day: '2-digit',
+      month: 'short',
+    }).format(new Date(value))
+  }
+
+  const normalizeReview = (review) => ({
+    id: review.id,
+    author: review.userName || 'Eventful user',
+    avatarSrc: review.userAvatar || '',
+    dateLabel: formatReviewDate(review.createdAt),
+    rating: review.rating,
+    content: review.comment,
+  })
+
+  const applyReviewsPayload = (payload = {}) => {
+    setReviews((payload.reviews || []).map(normalizeReview))
+    setAverageRating(payload.averageRating || 0)
+    setReviewCount(payload.reviewCount || 0)
+  }
+
+  const loadReviews = useCallback(async () => {
+    if (!section || !itemId || isBundleSection) {
+      return
+    }
+
+    setIsReviewsLoading(true)
+    setReviewsError('')
+
+    try {
+      const result = await getServiceReviews(section, itemId)
+      applyReviewsPayload(result.data)
+    } catch (error) {
+      setReviewsError(error.message || 'Could not load reviews')
+    } finally {
+      setIsReviewsLoading(false)
+    }
+  }, [section, itemId, isBundleSection])
+
+  useEffect(() => {
+    loadReviews()
+  }, [loadReviews])
+
+  const loadReviewEligibility = useCallback(async () => {
+    if (!isAuthenticated || !section || !itemId || isBundleSection) {
+      setCanReview(false)
+      return
+    }
+
+    setIsCheckingReviewEligibility(true)
+
+    try {
+      const result = await checkReviewEligibility(section, itemId)
+      setCanReview(Boolean(result.data?.canReview))
+    } catch {
+      setCanReview(false)
+    } finally {
+      setIsCheckingReviewEligibility(false)
+    }
+  }, [isAuthenticated, section, itemId, isBundleSection])
+
+  useEffect(() => {
+    loadReviewEligibility()
+  }, [loadReviewEligibility])
+
+  const displayAverageRating = reviewCount > 0
+    ? averageRating
+    : selectedItem?.ratingValue ?? 0
+  const canShowAddReview = canReview && !isCheckingReviewEligibility
 
   const handleProtectedAction = async (action) => {
     if (!isAuthenticated) {
@@ -266,21 +338,56 @@ function ServiceItemPage() {
   }
 
   const handleOpenAddReviewDrawer = () => {
-    if (handleProtectedAction()) {
+    if (!isAuthenticated) {
+      setIsSignInDialogOpen(true)
       return
     }
 
+    if (!canReview) {
+      return
+    }
+
+    setReviewFormError('')
     setIsAddReviewDrawerOpen(true)
   }
 
   const handleCloseAddReviewDrawer = () => {
     setIsAddReviewDrawerOpen(false)
+    setReviewFormError('')
   }
 
-  const handlePostReview = () => {
-    setIsAddReviewDrawerOpen(false)
-    setReviewText('')
-    setReviewRating(0)
+  const handlePostReview = async () => {
+    const comment = reviewText.trim()
+
+    if (!reviewRating) {
+      setReviewFormError('Please choose a rating')
+      return
+    }
+
+    if (!comment) {
+      setReviewFormError('Please enter your review')
+      return
+    }
+
+    setIsSavingReview(true)
+    setReviewFormError('')
+
+    try {
+      const result = await createServiceReview(section, itemId, {
+        rating: reviewRating,
+        comment,
+      })
+      applyReviewsPayload(result.data)
+      setIsAddReviewDrawerOpen(false)
+      setReviewText('')
+      setReviewRating(0)
+      setCanReview(false)
+      showToast('Review added successfully', 'success')
+    } catch (error) {
+      setReviewFormError(error.message || 'Could not add review')
+    } finally {
+      setIsSavingReview(false)
+    }
   }
 
   const handleOpenReviewsDrawer = () => {
@@ -312,8 +419,8 @@ function ServiceItemPage() {
           vendorLocation={selectedItem.vendorLocation}
           vendorLogoSrc={selectedItem.vendorLogoSrc}
           vendorLogoAlt={selectedItem.vendorLogoAlt}
-          ratingValue={selectedItem.ratingValue}
-          reviewCount={selectedItem.reviewCount}
+          ratingValue={displayAverageRating}
+          reviewCount={reviewCount}
           description={selectedItem.detailsDescription || selectedItem.description}
           priceText={selectedItem.priceText}
           detailBadgeText={selectedItem.detailBadgeText}
@@ -347,10 +454,12 @@ function ServiceItemPage() {
           leftBottomContent={
             isBundleSection ? null : (
               <ReviewsSection
-                averageRating={selectedItem.ratingValue ?? 4.5}
-                reviewCount={selectedItem.reviewCount ?? 120}
-                reviews={sampleReviews}
-                onAddReviewClick={handleOpenAddReviewDrawer}
+                averageRating={displayAverageRating}
+                reviewCount={reviewCount}
+                reviews={reviews}
+                isLoading={isReviewsLoading}
+                error={reviewsError}
+                onAddReviewClick={canShowAddReview ? handleOpenAddReviewDrawer : undefined}
                 onViewAllClick={handleOpenReviewsDrawer}
               />
             )
@@ -368,6 +477,8 @@ function ServiceItemPage() {
           onRatingChange={setReviewRating}
           onAddPictureClick={() => console.log(`Add review picture clicked: ${selectedItem.id}`)}
           onPostReviewClick={handlePostReview}
+          isSubmitting={isSavingReview}
+          error={reviewFormError}
         />
       )}
 
@@ -375,10 +486,12 @@ function ServiceItemPage() {
         <ReviewsDrawer
           open={isReviewsDrawerOpen}
           onClose={handleCloseReviewsDrawer}
-          averageRating={selectedItem.ratingValue ?? 4.5}
-          reviewCount={selectedItem.reviewCount ?? 120}
-          reviews={sampleReviews}
-          onAddReviewClick={handleOpenAddReviewDrawer}
+          averageRating={displayAverageRating}
+          reviewCount={reviewCount}
+          reviews={reviews}
+          isLoading={isReviewsLoading}
+          error={reviewsError}
+          onAddReviewClick={canShowAddReview ? handleOpenAddReviewDrawer : undefined}
         />
       ) : null}
 

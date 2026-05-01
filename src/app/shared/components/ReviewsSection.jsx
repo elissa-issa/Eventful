@@ -7,6 +7,8 @@ function ReviewsSection({
   averageRating = 4.5,
   reviewCount = 120,
   reviews = [],
+  isLoading = false,
+  error = '',
   onAddReviewClick,
   onViewAllClick,
   addReviewLabel = '+ Add Review',
@@ -70,27 +72,45 @@ function ReviewsSection({
             All Reviews ({reviewCount})
           </Typography>
 
-          <Button
-            variant="text"
-            onClick={onAddReviewClick}
-            sx={{
-              minWidth: 0,
-              p: 0,
-              color: COLORS.accent,
-              textTransform: 'none',
-              fontWeight: 600,
-              fontSize: '1rem',
-              '&:hover': {
-                backgroundColor: 'transparent',
-                textDecoration: 'underline',
-              },
-            }}
-          >
-            {addReviewLabel}
-          </Button>
+          {onAddReviewClick ? (
+            <Button
+              variant="text"
+              onClick={onAddReviewClick}
+              sx={{
+                minWidth: 0,
+                p: 0,
+                color: COLORS.accent,
+                textTransform: 'none',
+                fontWeight: 600,
+                fontSize: '1rem',
+                '&:hover': {
+                  backgroundColor: 'transparent',
+                  textDecoration: 'underline',
+                },
+              }}
+            >
+              {addReviewLabel}
+            </Button>
+          ) : null}
         </Stack>
 
         <Stack spacing={2}>
+          {isLoading ? (
+            <Typography sx={{ color: COLORS.textLight, fontWeight: 600 }}>
+              Loading reviews...
+            </Typography>
+          ) : null}
+
+          {error ? (
+            <Typography sx={{ color: '#d32f2f', fontWeight: 700 }}>{error}</Typography>
+          ) : null}
+
+          {!isLoading && !error && visibleReviews.length === 0 ? (
+            <Typography sx={{ color: COLORS.textLight, fontWeight: 600 }}>
+              No reviews yet.
+            </Typography>
+          ) : null}
+
           {visibleReviews.map((review) => (
             <Box
               key={review.id}
