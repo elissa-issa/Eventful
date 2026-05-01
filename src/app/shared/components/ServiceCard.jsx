@@ -118,13 +118,17 @@ function ServiceCard({
 
             <Box
               sx={{
-                width: 62,
-                height: 28,
+                width: 56,
+                height: 24,
                 flexShrink: 0,
-                mt: 0.25,
+                mt: 0.15,
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'flex-end',
+                justifyContent: 'center',
+                borderRadius: 1,
+                backgroundColor: COLORS.surface,
+                border: `1px solid ${COLORS.border}`,
+                p: 0.35,
               }}
             >
               {vendorLogoSrc ? (
@@ -133,9 +137,10 @@ function ServiceCard({
                   src={vendorLogoSrc}
                   alt={vendorLogoAlt}
                   sx={{
-                    width: 62,
-                    height: 28,
+                    width: '100%',
+                    height: '100%',
                     objectFit: 'contain',
+                    display: 'block',
                   }}
                 />
               ) : null}

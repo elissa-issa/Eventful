@@ -49,25 +49,23 @@ function ServiceItemPage() {
         }))
       : []
 
-    const galleryCandidates = [
-      {
-        src: selectedItem.imageSrc,
-        alt: selectedItem.imageAlt,
-      },
-      ...planImages,
-      ...activeItems
-        .filter((item) => item.id !== selectedItem.id)
-        .map((item) => ({
-          src: item.imageSrc,
-          alt: item.imageAlt,
-        })),
-    ]
+    const galleryCandidates =
+      Array.isArray(selectedItem.galleryImages) && selectedItem.galleryImages.length > 0
+        ? selectedItem.galleryImages
+        : [
+            {
+              src: selectedItem.imageSrc,
+              alt: selectedItem.imageAlt,
+            },
+            ...planImages,
+          ]
 
     return galleryCandidates.filter(
       (image, index, collection) =>
+        image?.src &&
         collection.findIndex((candidate) => candidate.src === image.src) === index
     )
-  }, [activeItems, selectedItem])
+  }, [selectedItem])
   const activeBundleImageSrc =
     isBundleSection &&
     selectedBundleImageSrc &&

@@ -21,18 +21,23 @@ const fieldStyles = {
   },
 }
 
-function ContactUsForm({ onSubmit }) {
-  const handleSubmit = (event) => {
+function ContactUsForm({ onSubmit, loading = false, successMessage = '', errorMessage = '' }) {
+  const handleSubmit = async (event) => {
     event.preventDefault()
 
     if (onSubmit) {
+      const form = event.currentTarget
       const formData = new FormData(event.currentTarget)
 
-      onSubmit({
+      const wasSubmitted = await onSubmit({
         fullName: formData.get('fullName')?.toString() ?? '',
         email: formData.get('email')?.toString() ?? '',
         message: formData.get('message')?.toString() ?? '',
       })
+
+      if (wasSubmitted) {
+        form.reset()
+      }
     }
   }
 
@@ -104,10 +109,23 @@ function ContactUsForm({ onSubmit }) {
           />
         </Box>
 
+        {successMessage ? (
+          <Typography sx={{ color: '#2eaf55', fontWeight: 700, textAlign: 'center' }}>
+            {successMessage}
+          </Typography>
+        ) : null}
+
+        {errorMessage ? (
+          <Typography sx={{ color: COLORS.accent, fontWeight: 700, textAlign: 'center' }}>
+            {errorMessage}
+          </Typography>
+        ) : null}
+
         <Button
           type="submit"
           variant="contained"
           disableElevation
+          disabled={loading}
           sx={{
             alignSelf: 'center',
             minWidth: { xs: 200, sm: 165 },
@@ -125,7 +143,7 @@ function ContactUsForm({ onSubmit }) {
             },
           }}
         >
-          Send Message
+          {loading ? 'Sending...' : 'Send Message'}
         </Button>
       </Stack>
     </Box>

@@ -6,6 +6,7 @@ const favoriteRoutes = require('./routes/favoriteRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const serviceRoutes = require('./routes/serviceRoutes');
 const savedLocationRoutes = require('./routes/savedLocationRoutes');
+const contactMessageRoutes = require('./routes/contactMessageRoutes');
 const { errorHandler, notFoundHandler } = require('./helpers/errorHandlers');
 
 const app = express();
@@ -15,7 +16,7 @@ app.use(
     origin: process.env.CLIENT_URL || '*',
   }),
 );
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 
 app.get('/api/health', (_request, response) => {
   response.status(200).json({
@@ -30,6 +31,7 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/favorites', favoriteRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/locations', savedLocationRoutes);
+app.use('/api/contact-messages', contactMessageRoutes);
 app.use(notFoundHandler);
 app.use(errorHandler);
 

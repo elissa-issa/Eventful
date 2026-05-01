@@ -1,6 +1,7 @@
 export const CATEGORY_CARDS = [
   {
     id: 'venues',
+    targetHash: '#venues',
     title: 'Venues',
     description: 'Explore top-rated event spaces that suit your style and budget.',
     buttonLabel: 'View All',
@@ -10,6 +11,7 @@ export const CATEGORY_CARDS = [
   },
   {
     id: 'menus',
+    targetHash: '#menus',
     title: 'Menus',
     description: 'Delicious food and drinks, customized for your event.',
     buttonLabel: 'View All',
@@ -19,6 +21,7 @@ export const CATEGORY_CARDS = [
   },
   {
     id: 'decoration',
+    targetHash: '#decorations',
     title: 'Decoration',
     description: 'From florals to lighting, we bring your vision to life.',
     buttonLabel: 'View All',
@@ -28,6 +31,7 @@ export const CATEGORY_CARDS = [
   },
   {
     id: 'entertainment',
+    targetHash: '#entertainment',
     title: 'Entertainment',
     description: 'Entertainement with music, DJs, and performances.',
     buttonLabel: 'View All',

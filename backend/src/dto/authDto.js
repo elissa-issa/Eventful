@@ -84,7 +84,33 @@ function createLoginDto(payload = {}) {
   };
 }
 
+function createProfileUpdateDto(payload = {}) {
+  const firstName = normalizeString(payload.firstName);
+  const lastName = normalizeString(payload.lastName);
+  const email = normalizeEmail(payload.email);
+  const birthday = parseBirthday(payload.birthday);
+  const avatarSrc =
+    typeof payload.avatarSrc === 'string' ? payload.avatarSrc.trim() : '';
+
+  ensureRequired(firstName, 'firstName');
+  ensureRequired(lastName, 'lastName');
+  ensureRequired(email, 'email');
+
+  if (!isValidEmail(email)) {
+    throw new ApiError(400, 'email must be valid');
+  }
+
+  return {
+    firstName,
+    lastName,
+    email,
+    birthday,
+    avatarSrc,
+  };
+}
+
 module.exports = {
   createUserDto,
   createLoginDto,
+  createProfileUpdateDto,
 };

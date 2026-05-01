@@ -48,6 +48,35 @@ export function persistAuth(authData, rememberUser = false) {
   targetStorage.setItem(USER_KEY, JSON.stringify(authData.user))
 }
 
+export function persistStoredUser(user) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const targetStorage = window.localStorage.getItem(TOKEN_KEY)
+    ? window.localStorage
+    : window.sessionStorage
+
+  if (targetStorage.getItem(TOKEN_KEY)) {
+    targetStorage.setItem(USER_KEY, JSON.stringify(user))
+  }
+}
+
+export function persistStoredAuth(authData) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const targetStorage = window.localStorage.getItem(TOKEN_KEY)
+    ? window.localStorage
+    : window.sessionStorage
+
+  if (targetStorage.getItem(TOKEN_KEY)) {
+    targetStorage.setItem(TOKEN_KEY, authData.token)
+    targetStorage.setItem(USER_KEY, JSON.stringify(authData.user))
+  }
+}
+
 export function clearStoredAuth() {
   if (typeof window === 'undefined') {
     return

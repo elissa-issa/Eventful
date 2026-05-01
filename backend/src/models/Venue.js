@@ -18,6 +18,23 @@ const venueSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    galleryImages: {
+      type: [
+        {
+          src: {
+            type: String,
+            required: true,
+            trim: true,
+          },
+          alt: {
+            type: String,
+            default: '',
+            trim: true,
+          },
+        },
+      ],
+      default: [],
+    },
     title: {
       type: String,
       required: true,

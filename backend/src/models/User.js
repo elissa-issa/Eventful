@@ -23,6 +23,10 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    avatarSrc: {
+      type: String,
+      default: '',
+    },
     passwordHash: {
       type: String,
       required: true,

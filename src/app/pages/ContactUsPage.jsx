@@ -3,7 +3,9 @@ import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined'
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined'
 import LocalPhoneOutlinedIcon from '@mui/icons-material/LocalPhoneOutlined'
 import { Box, Stack, Typography } from '@mui/material'
+import { useState } from 'react'
 import { COLORS } from '../constants/colors'
+import { sendContactMessage } from '../services/contactMessages'
 import ContactUsForm from '../shared/components/ContactUsForm'
 import ContactInfoCard from '../shared/components/ContactInfoCard'
 
@@ -26,7 +28,37 @@ const CONTACT_ITEMS = [
   },
 ]
 
+const EMAIL_FORMAT_MESSAGE = 'Please enter an email in this format: name@example.com'
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 function ContactUsPage() {
+  const [isSending, setIsSending] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
+
+  const handleSubmitMessage = async (values) => {
+    setSuccessMessage('')
+    setErrorMessage('')
+
+    if (!EMAIL_PATTERN.test(values.email.trim())) {
+      setErrorMessage(EMAIL_FORMAT_MESSAGE)
+      return false
+    }
+
+    setIsSending(true)
+
+    try {
+      await sendContactMessage(values)
+      setSuccessMessage('Your message was sent successfully.')
+      return true
+    } catch (error) {
+      setErrorMessage(error.message || 'Could not send your message')
+      return false
+    } finally {
+      setIsSending(false)
+    }
+  }
+
   return (
     <Box sx={{ py: { xs: 4, md: 6 } }}>
       <Typography
@@ -47,7 +79,12 @@ function ContactUsPage() {
         alignItems={{ xs: 'stretch', lg: 'flex-start' }}
       >
         <Box sx={{ flex: 1.15 }}>
-          <ContactUsForm />
+          <ContactUsForm
+            onSubmit={handleSubmitMessage}
+            loading={isSending}
+            successMessage={successMessage}
+            errorMessage={errorMessage}
+          />
         </Box>
 
         <Stack

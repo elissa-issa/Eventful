@@ -14,3 +14,10 @@ export function signupUser(payload) {
 export function loginUser(payload) {
   return sendAuthRequest('/auth/login', payload)
 }
+
+export function updateProfile(payload) {
+  return apiRequest('/auth/profile', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}

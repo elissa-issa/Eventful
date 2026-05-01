@@ -76,8 +76,11 @@ export const profileFieldStyles = {
     borderRadius: 1.5,
     backgroundColor: COLORS.surface,
   },
+  '& .MuiOutlinedInput-root.Mui-disabled': {
+    backgroundColor: '#f8f8f8',
+  },
   '& .MuiInputBase-input.Mui-disabled': {
-    WebkitTextFillColor: '#1f1f1f',
+    WebkitTextFillColor: '#8f8f8f',
   },
 }
 

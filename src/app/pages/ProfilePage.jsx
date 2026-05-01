@@ -1,14 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import FavoriteRoundedIcon from '@mui/icons-material/FavoriteRounded'
 import ShoppingCartRoundedIcon from '@mui/icons-material/ShoppingCartRounded'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import {
   Avatar,
   Box,
   Button,
   CircularProgress,
+  Dialog,
   Divider,
   Grid,
   IconButton,
@@ -19,6 +21,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { COLORS } from '../constants/colors'
+import { updateProfile } from '../services/auth'
 import AddLocationDialog from '../shared/components/AddLocationDialog'
 import AlertDialog from '../shared/components/AlertDialog'
 import {
@@ -42,10 +45,191 @@ function formatLocationSubtitle(location) {
   return [location.streetAddress, location.city, location.zipPostalCode].filter(Boolean).join(', ')
 }
 
+function formatBirthdayInputValue(birthday) {
+  if (!birthday) {
+    return ''
+  }
+
+  const birthdayDate = new Date(birthday)
+
+  if (Number.isNaN(birthdayDate.getTime())) {
+    return ''
+  }
+
+  return birthdayDate.toISOString().slice(0, 10)
+}
+
+function getProfileFormValues(user) {
+  return {
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
+    username: user?.username || user?.email?.split('@')[0] || '',
+    email: user?.email || '',
+    password: '..............',
+    birthday: formatBirthdayInputValue(user?.birthday),
+  }
+}
+
+function OrderHistoryDialog({ open, onClose, orders = [] }) {
+  return (
+    <Dialog
+      fullWidth
+      maxWidth="md"
+      open={open}
+      onClose={onClose}
+      PaperProps={{
+        sx: {
+          width: '100%',
+          maxWidth: 760,
+          maxHeight: 'min(88vh, 760px)',
+          borderRadius: 2.5,
+          overflow: 'hidden',
+          backgroundColor: COLORS.surface,
+        },
+      }}
+    >
+      <Stack sx={{ px: { xs: 2, sm: 3 }, py: 2, minHeight: 0 }}>
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          sx={{ gap: 2, mb: 1.5 }}
+        >
+          <Typography
+            variant="h4"
+            sx={{
+              color: COLORS.primary,
+              fontWeight: 800,
+              fontSize: { xs: '1.7rem', md: '1.9rem' },
+            }}
+          >
+            Order History
+          </Typography>
+
+          <IconButton
+            aria-label="Close order history"
+            onClick={onClose}
+            sx={{ color: COLORS.primary, p: 0.25 }}
+          >
+            <CloseRoundedIcon sx={{ fontSize: 32 }} />
+          </IconButton>
+        </Stack>
+
+        <Divider sx={{ borderColor: COLORS.borderStrong, mb: 1.5 }} />
+
+        <Typography sx={{ color: COLORS.accent, fontSize: '1.02rem', fontWeight: 500, mb: 1.75 }}>
+          All Orders ({orders.length})
+        </Typography>
+
+        <Box sx={{ maxHeight: '62vh', overflowY: 'auto', pr: 1, pb: 0.5 }}>
+          <Stack spacing={1.5}>
+            {orders.map((order) => (
+              <Box
+                key={order.id}
+                sx={{
+                  border: `1px solid ${COLORS.border}`,
+                  borderRadius: 2,
+                  px: { xs: 1.2, md: 1.5 },
+                  py: 1,
+                  boxShadow: `0 1px 4px ${COLORS.shadow}`,
+                }}
+              >
+                <Grid container spacing={1.5} alignItems="center">
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Stack direction="row" spacing={1.25} alignItems="center">
+                      <Box
+                        sx={{
+                          width: 106,
+                          height: 74,
+                          borderRadius: 1.5,
+                          backgroundColor: '#000',
+                          color: COLORS.surface,
+                          display: 'grid',
+                          placeItems: 'center',
+                          fontWeight: 900,
+                          fontSize: '2rem',
+                          letterSpacing: '-0.06em',
+                          flexShrink: 0,
+                        }}
+                      >
+                        RODGE
+                      </Box>
+                      <Box>
+                        <Typography
+                          sx={{
+                            color: COLORS.primary,
+                            fontWeight: 800,
+                            fontSize: '1.05rem',
+                          }}
+                        >
+                          {order.item}
+                        </Typography>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          sx={{
+                            mt: 1,
+                            borderRadius: '999px',
+                            textTransform: 'none',
+                            backgroundColor: COLORS.accent,
+                            minWidth: 0,
+                            px: 1.3,
+                            fontSize: '0.72rem',
+                            '&:hover': {
+                              backgroundColor: COLORS.accentHover,
+                            },
+                          }}
+                        >
+                          View Details
+                        </Button>
+                      </Box>
+                    </Stack>
+                  </Grid>
+
+                  <Grid size={{ xs: 6, md: 3 }}>
+                    <Typography
+                      sx={{
+                        color: order.statusColor,
+                        fontWeight: 800,
+                        textAlign: { xs: 'left', md: 'center' },
+                      }}
+                    >
+                      {order.status}
+                    </Typography>
+                  </Grid>
+
+                  <Grid size={{ xs: 6, md: 3 }}>
+                    <Typography
+                      sx={{
+                        color: COLORS.primary,
+                        fontWeight: 800,
+                        textAlign: 'right',
+                        fontSize: '1.05rem',
+                      }}
+                    >
+                      {order.total}
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Box>
+            ))}
+          </Stack>
+        </Box>
+      </Stack>
+    </Dialog>
+  )
+}
+
 function ProfilePage() {
   const navigate = useNavigate()
-  const { token, user, logout } = useAuth()
+  const { token, user, logout, replaceAuth } = useAuth()
+  const profileImageInputRef = useRef(null)
   const [isAddLocationDialogOpen, setIsAddLocationDialogOpen] = useState(false)
+  const [isEditingProfile, setIsEditingProfile] = useState(false)
+  const [isOrderHistoryOpen, setIsOrderHistoryOpen] = useState(false)
+  const [profileFormValues, setProfileFormValues] = useState(() => getProfileFormValues(user))
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileError, setProfileError] = useState('')
   const [savedLocations, setSavedLocations] = useState([])
   const [locationsLoading, setLocationsLoading] = useState(false)
   const [locationsError, setLocationsError] = useState('')
@@ -60,23 +244,30 @@ function ProfilePage() {
     `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`.trim() || 'U'
   const profileFields = useMemo(
     () => [
-      { label: 'First Name', value: user?.firstName || '-', size: { xs: 12, md: 6 } },
-      { label: 'Last Name', value: user?.lastName || '-', size: { xs: 12, md: 6 } },
+      { id: 'firstName', label: 'First Name', size: { xs: 12, md: 6 } },
+      { id: 'lastName', label: 'Last Name', size: { xs: 12, md: 6 } },
       {
+        id: 'username',
         label: 'Username',
-        value: user?.email?.split('@')[0] || '-',
         size: { xs: 12, md: 6 },
       },
-      { label: 'Email', value: user?.email || '-', size: { xs: 12, md: 6 } },
-      { label: 'Password', value: '..............', size: { xs: 12, md: 6 } },
+      { id: 'email', label: 'Email', size: { xs: 12, md: 6 }, type: 'email' },
+      { id: 'password', label: 'Password', size: { xs: 12, md: 6 }, type: 'password' },
       {
+        id: 'birthday',
         label: 'Birthday',
-        value: user?.birthday ? new Date(user.birthday).toLocaleDateString() : '-',
         size: { xs: 12, md: 6 },
+        type: 'date',
       },
     ],
-    [user],
+    [],
   )
+
+  useEffect(() => {
+    if (!isEditingProfile) {
+      setProfileFormValues(getProfileFormValues(user))
+    }
+  }, [isEditingProfile, user])
 
   const loadSavedLocations = useCallback(async () => {
     if (!token) {
@@ -108,6 +299,88 @@ function ProfilePage() {
   const handleSwitchAccount = () => {
     logout()
     navigate('/login', { replace: true })
+  }
+
+  const handleProfileFieldChange = (fieldId, value) => {
+    setProfileFormValues((currentValues) => ({
+      ...currentValues,
+      [fieldId]: value,
+    }))
+  }
+
+  const handleEditProfile = () => {
+    setIsEditingProfile(true)
+  }
+
+  const saveProfileUpdates = async (updates = {}) => {
+    setProfileSaving(true)
+    setProfileError('')
+
+    try {
+      const result = await updateProfile({
+        firstName: profileFormValues.firstName,
+        lastName: profileFormValues.lastName,
+        email: profileFormValues.email,
+        birthday: profileFormValues.birthday || null,
+        avatarSrc: user?.avatarSrc || '',
+        ...updates,
+      })
+
+      replaceAuth({
+        token: result.data.token,
+        user: {
+          ...result.data.user,
+          username: profileFormValues.username.trim(),
+        },
+      })
+      setIsEditingProfile(false)
+    } catch (error) {
+      setProfileError(error.message || 'Could not save profile changes')
+    } finally {
+      setProfileSaving(false)
+    }
+  }
+
+  const handleSaveProfile = () => {
+    saveProfileUpdates()
+  }
+
+  const handleUploadImageClick = () => {
+    profileImageInputRef.current?.click()
+  }
+
+  const handleProfileImageChange = (event) => {
+    const [file] = event.target.files || []
+
+    if (!file) {
+      return
+    }
+
+    if (!file.type.startsWith('image/')) {
+      setProfileError('Please choose an image file')
+      event.target.value = ''
+      return
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setProfileError('Please choose an image smaller than 2MB')
+      event.target.value = ''
+      return
+    }
+
+    const reader = new FileReader()
+
+    reader.onload = () => {
+      saveProfileUpdates({ avatarSrc: reader.result })
+      event.target.value = ''
+    }
+
+    reader.onerror = () => {
+      setProfileError('Could not read the selected image')
+      event.target.value = ''
+    }
+
+    reader.readAsDataURL(file)
   }
 
   const openAddLocationDialog = () => {
@@ -220,6 +493,7 @@ function ProfilePage() {
                 </Typography>
 
                 <Avatar
+                  src={user?.avatarSrc || undefined}
                   sx={{
                     width: 116,
                     height: 116,
@@ -277,18 +551,30 @@ function ProfilePage() {
                 </Stack>
 
                 <Stack spacing={1.3} sx={{ width: '100%', maxWidth: 250 }}>
+                  <Box
+                    component="input"
+                    ref={profileImageInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleProfileImageChange}
+                    sx={{ display: 'none' }}
+                  />
                   <Button
                     variant="contained"
-                    disabled
+                    onClick={handleUploadImageClick}
+                    disabled={profileSaving}
                     sx={{
                       borderRadius: 1.5,
                       textTransform: 'none',
                       fontWeight: 800,
                       fontSize: '1rem',
                       backgroundColor: COLORS.primary,
+                      '&:hover': {
+                        backgroundColor: COLORS.primaryHover,
+                      },
                     }}
                   >
-                    Upload Image
+                    {profileSaving ? 'Uploading...' : 'Upload Image'}
                   </Button>
                   <Button
                     variant="contained"
@@ -347,23 +633,34 @@ function ProfilePage() {
                   <Typography sx={profileSectionTitleStyles}>Basic Info</Typography>
                   <Button
                     variant="contained"
-                    disabled
+                    disabled={profileSaving}
+                    onClick={isEditingProfile ? handleSaveProfile : handleEditProfile}
                     sx={{
                       borderRadius: '999px',
                       textTransform: 'none',
                       px: 2.25,
                       py: 0.5,
-                      backgroundColor: COLORS.accent,
+                      backgroundColor: isEditingProfile ? COLORS.primary : COLORS.accent,
                       '&:hover': {
-                        backgroundColor: COLORS.accentHover,
+                        backgroundColor: isEditingProfile ? COLORS.primaryHover : COLORS.accentHover,
                       },
                     }}
                   >
-                    Edit profile
+                    {profileSaving
+                      ? 'Saving...'
+                      : isEditingProfile
+                        ? 'Save changes'
+                        : 'Edit profile'}
                   </Button>
                 </Stack>
 
                 <Divider sx={{ mb: 2.5, borderColor: '#cfcfcf' }} />
+
+                {profileError ? (
+                  <Typography sx={{ color: '#d93a2e', fontWeight: 700, mb: 2 }}>
+                    {profileError}
+                  </Typography>
+                ) : null}
 
                 <Grid container spacing={2}>
                   {profileFields.map((field) => (
@@ -382,8 +679,11 @@ function ProfilePage() {
                       <TextField
                         fullWidth
                         size="small"
-                        disabled
-                        value={field.value}
+                        disabled={!isEditingProfile}
+                        type={field.type || 'text'}
+                        value={profileFormValues[field.id] || ''}
+                        onChange={(event) => handleProfileFieldChange(field.id, event.target.value)}
+                        inputProps={field.type === 'date' ? { max: '9999-12-31' } : undefined}
                         sx={profileFieldStyles}
                       />
                     </Grid>
@@ -523,9 +823,26 @@ function ProfilePage() {
                     spacing={1}
                     sx={{ mt: 2, color: COLORS.primary }}
                   >
-                    <Divider sx={{ flex: 1, borderColor: COLORS.primary }} />
-                    <Typography sx={{ fontSize: '0.95rem' }}>View All</Typography>
-                    <Divider sx={{ flex: 1, borderColor: COLORS.primary }} />
+                    <Divider sx={{ flex: 1, borderColor: COLORS.accent }} />
+                    <Button
+                      variant="text"
+                      onClick={() => setIsOrderHistoryOpen(true)}
+                      sx={{
+                        minWidth: 0,
+                        p: 0,
+                        color: COLORS.accent,
+                        textTransform: 'none',
+                        fontWeight: 500,
+                        fontSize: '0.95rem',
+                        '&:hover': {
+                          backgroundColor: 'transparent',
+                          textDecoration: 'underline',
+                        },
+                      }}
+                    >
+                      View All
+                    </Button>
+                    <Divider sx={{ flex: 1, borderColor: COLORS.accent }} />
                   </Stack>
                 </Box>
               </Box>
@@ -724,6 +1041,12 @@ function ProfilePage() {
         submitLabel={editingLocation ? 'Update Location' : 'Add Location'}
         loading={locationSaving}
         error={locationFormError}
+      />
+
+      <OrderHistoryDialog
+        open={isOrderHistoryOpen}
+        onClose={() => setIsOrderHistoryOpen(false)}
+        orders={profileOrders}
       />
 
       <AlertDialog

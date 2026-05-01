@@ -1,6 +1,5 @@
 import EventAvailableIcon from '@mui/icons-material/EventAvailable'
 import FavoriteBorderRoundedIcon from '@mui/icons-material/FavoriteBorderRounded'
-import MicRoundedIcon from '@mui/icons-material/MicRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined'
 import TuneRoundedIcon from '@mui/icons-material/TuneRounded'
@@ -255,11 +254,6 @@ function Navbar() {
                   </IconButton>
                 </InputAdornment>
               }
-              endAdornment={
-                <InputAdornment position="end">
-                  <MicRoundedIcon sx={{ color: COLORS.textLight, fontSize: 18 }} />
-                </InputAdornment>
-              }
               sx={{
                 display: { xs: 'none', md: 'flex' },
                 mr: 2,
@@ -317,7 +311,10 @@ function Navbar() {
                   onClick={() => navigate('/profile')}
                   sx={{ p: 0.5, ml: 0.25 }}
                 >
-                  <Avatar sx={{ width: 28, height: 28, bgcolor: COLORS.accent }}>
+                  <Avatar
+                    src={user?.avatarSrc || undefined}
+                    sx={{ width: 28, height: 28, bgcolor: COLORS.accent }}
+                  >
                     {avatarLabel}
                   </Avatar>
                 </IconButton>

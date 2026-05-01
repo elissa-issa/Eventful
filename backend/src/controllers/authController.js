@@ -1,4 +1,8 @@
-const { createUserDto, createLoginDto } = require('../dto/authDto');
+const {
+  createUserDto,
+  createLoginDto,
+  createProfileUpdateDto,
+} = require('../dto/authDto');
 const userRepository = require('../repository/userRepository');
 const { ApiError } = require('../helpers/apiError');
 const { asyncHandler } = require('../helpers/asyncHandler');
@@ -17,6 +21,7 @@ function buildAuthResponse(user) {
       lastName: user.lastName,
       email: user.email,
       birthday: user.birthday,
+      avatarSrc: user.avatarSrc,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     },
@@ -69,7 +74,34 @@ const login = asyncHandler(async (request, response) => {
   });
 });
 
+const updateProfile = asyncHandler(async (request, response) => {
+  const profileDto = createProfileUpdateDto(request.body);
+  const existingUser = await userRepository.findByEmail(profileDto.email);
+
+  if (
+    existingUser &&
+    existingUser.id.toString() !== request.user.id.toString()
+  ) {
+    throw new ApiError(409, 'A user with this email already exists');
+  }
+
+  const updatedUser = await userRepository.updateUserById(
+    request.user.id,
+    profileDto,
+  );
+
+  if (!updatedUser) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  response.status(200).json({
+    message: 'Profile updated successfully',
+    data: buildAuthResponse(updatedUser),
+  });
+});
+
 module.exports = {
   signup,
   login,
+  updateProfile,
 };

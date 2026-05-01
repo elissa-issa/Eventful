@@ -341,7 +341,7 @@ function HomePage() {
               title={card.title}
               description={card.description}
               buttonLabel={card.buttonLabel}
-              onButtonClick={() => console.log(`View category clicked: ${card.id}`)}
+              onButtonClick={() => navigate(`/services${card.targetHash}`)}
               imageSrc={card.imageSrc}
               imageAlt={card.imageAlt}
             />
@@ -406,6 +406,7 @@ function HomePage() {
           <Button
             disableElevation
             variant="contained"
+            onClick={() => navigate('/customize')}
             sx={{
               minWidth: 160,
               borderRadius: '999px',

@@ -3,10 +3,6 @@ const path = require('path');
 const vm = require('vm');
 const mongoose = require('mongoose');
 const { connectToDatabase } = require('../config/database');
-const Bundle = require('../models/Bundle');
-const Decoration = require('../models/Decoration');
-const Entertainment = require('../models/Entertainment');
-const Menu = require('../models/Menu');
 const Venue = require('../models/Venue');
 
 function loadEnvFile() {
@@ -66,12 +62,19 @@ function prepareServiceItems(items) {
 }
 
 async function replaceCollection(Model, items) {
-  await Model.deleteMany({});
-  const createdItems = await Model.insertMany(prepareServiceItems(items), {
-    ordered: true,
-  });
+  let count = 0;
 
-  return createdItems.length;
+  for (const item of prepareServiceItems(items)) {
+    await Model.findOneAndUpdate(
+      { itemId: item.itemId },
+      { $set: item },
+      { upsert: true, returnDocument: 'after' },
+    );
+
+    count += 1;
+  }
+
+  return count;
 }
 
 async function seedServices() {
@@ -80,43 +83,11 @@ async function seedServices() {
 
   const seedTargets = [
     {
-      name: 'bundles',
-      Model: Bundle,
-      items: loadFrontendConstant(
-        'src/app/constants/bundleCards.js',
-        'BUNDLE_CARDS',
-      ),
-    },
-    {
-      name: 'menus',
-      Model: Menu,
-      items: loadFrontendConstant(
-        'src/app/constants/menuItems.js',
-        'MENU_ITEMS',
-      ),
-    },
-    {
       name: 'venues',
       Model: Venue,
       items: loadFrontendConstant(
         'src/app/constants/venueItems.js',
         'VENUE_ITEMS',
-      ),
-    },
-    {
-      name: 'decorations',
-      Model: Decoration,
-      items: loadFrontendConstant(
-        'src/app/constants/decorationItems.js',
-        'DECORATION_ITEMS',
-      ),
-    },
-    {
-      name: 'entertainment',
-      Model: Entertainment,
-      items: loadFrontendConstant(
-        'src/app/constants/entertainmentItems.js',
-        'ENTERTAINMENT_ITEMS',
       ),
     },
   ];
