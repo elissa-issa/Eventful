@@ -5,7 +5,6 @@ import { useAuth } from '../auth/useAuth'
 import { COLORS } from '../constants/colors'
 import { useFavoriteActions, getFavoriteKey } from '../hooks/useFavoriteActions'
 import { useServicesData } from '../hooks/useServicesData'
-import { addCartItem } from '../services/cart'
 import { addItemToCustomizedPlan } from '../services/customizedPlans'
 import { useToast } from '../toast/useToast'
 import { getCollectionItemPayload, getServicePayload } from '../utils/servicePayload'
@@ -15,6 +14,7 @@ import BundlePlanItems from '../shared/components/BundlePlanItems'
 import ReviewsSection from '../shared/components/ReviewsSection'
 import ReviewsDrawer from '../shared/components/ReviewsDrawer'
 import ServiceItemGalleryDialog from '../shared/components/ServiceItemGalleryDialog'
+import { useCollectionCartAction } from '../hooks/useCollectionCartAction'
 
 function ServiceItemPage() {
   const location = useLocation()
@@ -24,6 +24,7 @@ function ServiceItemPage() {
   const { showToast } = useToast()
   const { itemsBySection } = useServicesData()
   const { favoriteItems, toggleFavoriteItem } = useFavoriteActions()
+   const { collectionPickerDialog, openCollectionPicker } = useCollectionCartAction()
   const { section, itemId } = useParams()
   const planId = searchParams.get('planId')
   const isPlanMode = Boolean(planId)
@@ -260,13 +261,6 @@ function ServiceItemPage() {
         return
       }
 
-      await addCartItem({
-        ...payload,
-        quantity,
-        selectedDate,
-        customOptions,
-      })
-      showToast('Added to cart')
       openCollectionPicker(event, selectedItem, section, { quantity, selectedDate, customOptions })
     })
   }
@@ -407,6 +401,7 @@ function ServiceItemPage() {
         secondaryActionColor={COLORS.primary}
         onSecondaryActionClick={() => setIsSignInDialogOpen(false)}
       />
+      {collectionPickerDialog}
     </>
   )
 }

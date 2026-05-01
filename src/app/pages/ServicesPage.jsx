@@ -6,7 +6,6 @@ import { LEBANESE_CITIES } from '../constants/lebaneseCities'
 import { COLORS } from '../constants/colors'
 import { useFavoriteActions, getFavoriteKey } from '../hooks/useFavoriteActions'
 import { useServicesData } from '../hooks/useServicesData'
-import { addCartItem } from '../services/cart'
 import { useToast } from '../toast/useToast'
 import { getServicePayload } from '../utils/servicePayload'
 import DecorationFilterPanel from '../shared/Filters/DecorationFilterPanel'
@@ -18,6 +17,7 @@ import BundleCard from '../shared/components/BundleCard'
 import SearchEmptyState from '../shared/components/SearchEmptyState'
 import ServiceCard from '../shared/components/ServiceCard'
 import ServicesSubnav from '../shared/navigation/ServicesSubnav'
+import { useCollectionCartAction } from '../hooks/useCollectionCartAction'
 
 const DEFAULT_VENUE_FILTERS = {
   priceRange: [0, 100],
@@ -95,6 +95,7 @@ function ServicesPage() {
   const { showToast } = useToast()
   const { itemsBySection } = useServicesData()
   const { favoriteItems, toggleFavoriteItem } = useFavoriteActions()
+   const { collectionPickerDialog, openCollectionPicker } = useCollectionCartAction()
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const [venueFilters, setVenueFilters] = useState(DEFAULT_VENUE_FILTERS)
@@ -170,11 +171,6 @@ function ServicesPage() {
         return
       }
 
-      await addCartItem({
-        ...payload,
-        quantity: 1,
-      })
-      showToast('Added to cart')
       openCollectionPicker(event, item, serviceType)
     })
   }
@@ -517,7 +513,9 @@ function ServicesPage() {
                       primaryButtonLabel={isPlanMode ? 'Choose Template' : item.primaryButtonLabel}
                       onPrimaryButtonClick={() => navigate(getDetailPath('bundles', item.id))}
                       secondaryButtonLabel={isPlanMode ? 'Add to Plan' : item.secondaryButtonLabel}
-                      onSecondaryButtonClick={() => handleAddToCart(item, itemSection)}
+                      onSecondaryButtonClick={(event) =>
+                        handleAddToCart(event, item, itemSection)
+                      }
                       maxWidth={400}
                       imageHeight={312}
                       cardBorderRadius={2}
@@ -544,7 +542,7 @@ function ServicesPage() {
                     onFavoriteToggle={() => handleFavoriteToggle(item, itemSection)}
                     onViewButtonClick={() => navigate(getDetailPath(itemSection, item.id))}
                     cartButtonLabel={isPlanMode ? 'Add to Plan' : 'Add to Cart'}
-                    onCartButtonClick={() => handleAddToCart(item, itemSection)}
+                    onCartButtonClick={(event) => handleAddToCart(event, item, itemSection)}
                   />
                 )
               })}
@@ -566,6 +564,7 @@ function ServicesPage() {
         secondaryActionColor={COLORS.primary}
         onSecondaryActionClick={handleCloseSignInDialog}
       />
+      {collectionPickerDialog}
     </>
   )
 }
