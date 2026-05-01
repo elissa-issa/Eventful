@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react'
 import AlertDialog from '../shared/components/AlertDialog'
 import { COLORS } from '../constants/colors'
 import { VENDOR_DIRECTORY } from '../constants/vendorDirectory'
+import PremiumPlansDialog from '../shared/components/PremiumPlansDialog'
 import VendorDirectoryCard from '../shared/components/VendorDirectoryCard'
 import VendorFeatureCard from '../shared/components/VendorFeatureCard'
 
@@ -15,6 +16,7 @@ function VendorsPage() {
   const [selectedServiceType, setSelectedServiceType] = useState('All')
   const [selectedVendor, setSelectedVendor] = useState('All Vendors')
   const [isPremiumDialogOpen, setIsPremiumDialogOpen] = useState(false)
+  const [isPlansDialogOpen, setIsPlansDialogOpen] = useState(false)
 
   const vendorOptions = useMemo(() => {
     const filteredByService =
@@ -269,10 +271,17 @@ function VendorsPage() {
         description="Contacting vendors directly is available on the premium plan. Upgrade to unlock direct vendor access."
         primaryButtonText="Upgrade Now"
         primaryButtonColor={COLORS.accent}
-        onPrimaryButtonClick={handleClosePremiumDialog}
+        onPrimaryButtonClick={() => {
+          handleClosePremiumDialog()
+          setIsPlansDialogOpen(true)
+        }}
         secondaryActionText="Maybe later"
         secondaryActionColor={COLORS.primary}
         onSecondaryActionClick={handleClosePremiumDialog}
+      />
+      <PremiumPlansDialog
+        open={isPlansDialogOpen}
+        onClose={() => setIsPlansDialogOpen(false)}
       />
     </Stack>
   )

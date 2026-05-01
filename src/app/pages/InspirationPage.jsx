@@ -12,6 +12,7 @@ import AlertDialog from '../shared/components/AlertDialog'
 import HeroCarousel from '../shared/components/HeroCarousel'
 import InspirationThemeCard from '../shared/components/InspirationThemeCard'
 import NewsletterCTA from '../shared/components/NewsletterCTA'
+import PremiumPlansDialog from '../shared/components/PremiumPlansDialog'
 import ServiceCard from '../shared/components/ServiceCard'
 import { INSPIRATION_HERO_SLIDES } from '../constants/inspirationHeroSlides'
 import { useFavoriteActions, getFavoriteKey } from '../hooks/useFavoriteActions'
@@ -115,6 +116,7 @@ function InspirationPage() {
   const [activeHeroSlideIndex, setActiveHeroSlideIndex] = useState(0)
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const [isPremiumDialogOpen, setIsPremiumDialogOpen] = useState(false)
+  const [isPlansDialogOpen, setIsPlansDialogOpen] = useState(false)
   const visibleTopPicks = isLargeUp ? 3 : isSmallUp ? 2 : 1
   const {
     maxTopPicksIndex,
@@ -459,10 +461,18 @@ function InspirationPage() {
         description="Exploring curated inspiration boards is available on the premium plan. Upgrade to unlock more event ideas and recommendations."
         primaryButtonText="Upgrade Now"
         primaryButtonColor={COLORS.accent}
-        onPrimaryButtonClick={handleClosePremiumDialog}
+        onPrimaryButtonClick={() => {
+          handleClosePremiumDialog()
+          setIsPlansDialogOpen(true)
+        }}
         secondaryActionText="Maybe later"
         secondaryActionColor={COLORS.primary}
         onSecondaryActionClick={handleClosePremiumDialog}
+      />
+
+      <PremiumPlansDialog
+        open={isPlansDialogOpen}
+        onClose={() => setIsPlansDialogOpen(false)}
       />
 
       <NewsletterCTA

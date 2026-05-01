@@ -21,3 +21,9 @@ export function updateProfile(payload) {
     body: JSON.stringify(payload),
   })
 }
+
+export function upgradeToPremium() {
+  return apiRequest('/auth/premium', {
+    method: 'PATCH',
+  })
+}

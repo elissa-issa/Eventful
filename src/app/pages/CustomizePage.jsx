@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import ArrowBackIosNewRoundedIcon from '@mui/icons-material/ArrowBackIosNewRounded'
 import ArrowForwardIosRoundedIcon from '@mui/icons-material/ArrowForwardIosRounded'
+import WorkspacePremiumRoundedIcon from '@mui/icons-material/WorkspacePremiumRounded'
 import {
   Box,
   Button,
@@ -29,6 +30,7 @@ import AlertDialog from '../shared/components/AlertDialog'
 import CartItemRow from '../shared/components/CartItemRow'
 import CollectionsList from '../shared/components/CollectionsList'
 import CreateCollectionCard from '../shared/components/CreateCollectionCard'
+import PremiumPlansDialog from '../shared/components/PremiumPlansDialog'
 
 const PLAN_SECTION_CONFIG = [
   { id: 'venues', title: 'Venues' },
@@ -156,14 +158,28 @@ function TopPickTile({ item, onClick }) {
   if (item.isUpgrade) {
     return (
       <Box
+        component="button"
+        type="button"
+        onClick={onClick}
         sx={{
+          width: '100%',
           minHeight: 172,
+          border: 0,
           borderRadius: 2,
           backgroundColor: COLORS.primarySoft,
+          cursor: 'pointer',
           display: 'grid',
           placeItems: 'center',
           px: 2,
           textAlign: 'center',
+          font: 'inherit',
+          '&:hover': {
+            backgroundColor: 'rgba(43, 120, 204, 0.14)',
+          },
+          '&:focus-visible': {
+            outline: `3px solid ${COLORS.accent}`,
+            outlineOffset: 3,
+          },
         }}
       >
         <Typography sx={{ color: COLORS.primary, fontWeight: 800 }}>
@@ -224,6 +240,8 @@ function CreatePlanView({ plan, onChooseTemplate, onBackToPlans, onRefreshPlan, 
   const [isSavingName, setIsSavingName] = useState(false)
   const [pendingRemoveItem, setPendingRemoveItem] = useState(null)
   const [isRemovingItem, setIsRemovingItem] = useState(false)
+  const [isPremiumDialogOpen, setIsPremiumDialogOpen] = useState(false)
+  const [isPlansDialogOpen, setIsPlansDialogOpen] = useState(false)
   const {
     maxTopPicksIndex,
     rightArrowClickCount,
@@ -509,6 +527,11 @@ function CreatePlanView({ plan, onChooseTemplate, onBackToPlans, onRefreshPlan, 
                   key={item.id}
                   item={item}
                   onClick={() => {
+                    if (item.isUpgrade) {
+                      setIsPremiumDialogOpen(true)
+                      return
+                    }
+
                     if (item.targetPath) {
                       navigate(`${item.targetPath}?planId=${plan.id}`)
                     }
@@ -556,6 +579,29 @@ function CreatePlanView({ plan, onChooseTemplate, onBackToPlans, onRefreshPlan, 
       secondaryActionColor={COLORS.primary}
       onSecondaryActionClick={() => setPendingRemoveItem(null)}
       disableBackdropClick={isRemovingItem}
+    />
+    <AlertDialog
+      open={isPremiumDialogOpen}
+      onClose={() => setIsPremiumDialogOpen(false)}
+      icon={<WorkspacePremiumRoundedIcon />}
+      iconBackgroundColor="rgba(234, 122, 36, 0.14)"
+      iconColor={COLORS.accent}
+      title="Upgrade to Premium"
+      titleColor={COLORS.primaryDark}
+      description="Top pick recommendations beyond this preview are available on the premium plan. Upgrade to unlock more tailored event ideas."
+      primaryButtonText="Upgrade Now"
+      primaryButtonColor={COLORS.accent}
+      onPrimaryButtonClick={() => {
+        setIsPremiumDialogOpen(false)
+        setIsPlansDialogOpen(true)
+      }}
+      secondaryActionText="Maybe later"
+      secondaryActionColor={COLORS.primary}
+      onSecondaryActionClick={() => setIsPremiumDialogOpen(false)}
+    />
+    <PremiumPlansDialog
+      open={isPlansDialogOpen}
+      onClose={() => setIsPlansDialogOpen(false)}
     />
     </>
   )

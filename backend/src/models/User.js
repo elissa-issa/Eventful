@@ -27,6 +27,19 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    subscriptionPlan: {
+      type: String,
+      enum: ['free', 'premium'],
+      default: 'free',
+    },
+    isPremium: {
+      type: Boolean,
+      default: false,
+    },
+    premiumSince: {
+      type: Date,
+      default: null,
+    },
     passwordHash: {
       type: String,
       required: true,

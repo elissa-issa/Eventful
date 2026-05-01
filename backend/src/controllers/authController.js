@@ -22,6 +22,9 @@ function buildAuthResponse(user) {
       email: user.email,
       birthday: user.birthday,
       avatarSrc: user.avatarSrc,
+      subscriptionPlan: user.subscriptionPlan || 'free',
+      isPremium: Boolean(user.isPremium),
+      premiumSince: user.premiumSince,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     },
@@ -100,8 +103,26 @@ const updateProfile = asyncHandler(async (request, response) => {
   });
 });
 
+const upgradeToPremium = asyncHandler(async (request, response) => {
+  const updatedUser = await userRepository.updateUserById(request.user.id, {
+    subscriptionPlan: 'premium',
+    isPremium: true,
+    premiumSince: request.user.premiumSince || new Date(),
+  });
+
+  if (!updatedUser) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  response.status(200).json({
+    message: 'Premium plan activated successfully',
+    data: buildAuthResponse(updatedUser),
+  });
+});
+
 module.exports = {
   signup,
   login,
   updateProfile,
+  upgradeToPremium,
 };

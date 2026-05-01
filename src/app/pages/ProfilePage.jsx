@@ -5,6 +5,7 @@ import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
+import WorkspacePremiumRoundedIcon from '@mui/icons-material/WorkspacePremiumRounded'
 import {
   Avatar,
   Box,
@@ -317,6 +318,7 @@ function ProfilePage() {
   const [locationFormError, setLocationFormError] = useState('')
   const [locationSaving, setLocationSaving] = useState(false)
   const [locationDeleting, setLocationDeleting] = useState(false)
+  const isPremiumUser = Boolean(user?.isPremium)
   const displayName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'User'
   const avatarLabel =
     `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`.trim() || 'U'
@@ -624,6 +626,26 @@ function ProfilePage() {
                 >
                   {displayName}
                 </Typography>
+
+                <Stack
+                  direction="row"
+                  spacing={0.75}
+                  alignItems="center"
+                  sx={{
+                    mt: 1,
+                    borderRadius: 999,
+                    px: 1.4,
+                    py: 0.55,
+                    backgroundColor: isPremiumUser ? '#fff8f3' : COLORS.primarySoft,
+                    color: isPremiumUser ? COLORS.accent : COLORS.primary,
+                    border: `1px solid ${isPremiumUser ? 'rgba(234, 122, 36, 0.35)' : COLORS.borderStrong}`,
+                  }}
+                >
+                  {isPremiumUser ? <WorkspacePremiumRoundedIcon sx={{ fontSize: 18 }} /> : null}
+                  <Typography sx={{ fontWeight: 800, fontSize: '0.88rem' }}>
+                    {isPremiumUser ? 'Premium User' : 'Free User'}
+                  </Typography>
+                </Stack>
 
                 <Stack direction="row" spacing={2.5} sx={{ mt: 1.75, mb: 4 }}>
                   <Box
