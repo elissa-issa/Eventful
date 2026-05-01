@@ -2,9 +2,11 @@ const Cart = require('../models/Cart');
 const Order = require('../models/Order');
 const { ApiError } = require('../helpers/apiError');
 const { asyncHandler } = require('../helpers/asyncHandler');
+const { findOwnedCollection } = require('./collectionController');
 const {
   attachServiceDetails,
   getServiceByType,
+  validateObjectId,
 } = require('../helpers/serviceResolver');
 
 async function buildOrderResponse(order) {
@@ -63,13 +65,32 @@ const checkout = asyncHandler(async (request, response) => {
     throw new ApiError(400, 'status must be one of: pending, paid, completed');
   }
 
-  const cart = await Cart.findOne({ user: request.user.id });
+  let cart = await Cart.findOne({ user: request.user.id });
+  let cartItems = cart?.items || [];
 
-  if (!cart || cart.items.length === 0) {
+  if (request.body.collectionId) {
+    validateObjectId(request.body.collectionId, 'collectionId');
+    const collection = await findOwnedCollection(request.user.id, request.body.collectionId);
+    cartItems = await Promise.all(
+      collection.items.map(async (item) => {
+        const service = await getServiceByType(item.section, item.itemId);
+
+        return {
+          serviceId: service._id,
+          serviceType: item.section,
+          quantity: item.quantity,
+          selectedDate: null,
+          customOptions: item.selectedOptions || {},
+        };
+      }),
+    );
+  }
+
+  if (cartItems.length === 0) {
     throw new ApiError(400, 'Cannot checkout an empty cart');
   }
 
-  const { orderItems, totalPrice } = await buildOrderItems(cart.items);
+  const { orderItems, totalPrice } = await buildOrderItems(cartItems);
   const order = await Order.create({
     user: request.user.id,
     items: orderItems,
@@ -78,8 +99,10 @@ const checkout = asyncHandler(async (request, response) => {
     paymentMethod,
   });
 
-  cart.items = [];
-  await cart.save();
+  if (cart) {
+    cart.items = [];
+    await cart.save();
+  }
 
   response.status(201).json({
     message: 'Order created successfully',

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Stack, Typography } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { COLORS } from '../constants/colors'
-import { addCartItem } from '../services/cart'
+import { useCollectionCartAction } from '../hooks/useCollectionCartAction'
 import { getFavorites, removeFavorite } from '../services/favorites'
 import { useToast } from '../toast/useToast'
 import FavoriteItemCard from '../shared/components/FavoriteItemCard'
@@ -10,6 +10,7 @@ import FavoriteItemCard from '../shared/components/FavoriteItemCard'
 function FavoritesPage() {
   const navigate = useNavigate()
   const { showToast } = useToast()
+  const { collectionPickerDialog, openCollectionPicker } = useCollectionCartAction()
   const [favorites, setFavorites] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
@@ -65,12 +66,14 @@ function FavoritesPage() {
 
   const handleAddToCart = async (item) => {
     try {
-      await addCartItem({
-        serviceId: item.serviceId,
-        serviceType: item.serviceType,
-        quantity: 1,
-      })
-      showToast('Added to cart')
+      openCollectionPicker(
+        {
+          ...item.service,
+          id: item.service?.id || item.serviceId,
+          mongoId: item.serviceId,
+        },
+        item.serviceType,
+      )
     } catch (error) {
       showToast(error.message, 'error')
     }
@@ -115,6 +118,7 @@ function FavoritesPage() {
           onAddToCart={() => handleAddToCart(item)}
         />
       ))}
+      {collectionPickerDialog}
     </Stack>
   )
 }

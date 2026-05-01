@@ -4,8 +4,8 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { COLORS } from '../constants/colors'
 import { useFavoriteActions, getFavoriteKey } from '../hooks/useFavoriteActions'
+import { useCollectionCartAction } from '../hooks/useCollectionCartAction'
 import { useServicesData } from '../hooks/useServicesData'
-import { addCartItem } from '../services/cart'
 import { useToast } from '../toast/useToast'
 import { getServicePayload } from '../utils/servicePayload'
 import AlertDialog from '../shared/components/AlertDialog'
@@ -55,6 +55,7 @@ function SearchPage() {
   const { showToast } = useToast()
   const { itemsBySection } = useServicesData()
   const { favoriteItems, toggleFavoriteItem } = useFavoriteActions()
+  const { collectionPickerDialog, openCollectionPicker } = useCollectionCartAction()
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const [searchParams] = useSearchParams()
   const searchQuery = searchParams.get('q')?.trim() || ''
@@ -111,8 +112,7 @@ function SearchPage() {
     }
 
     handleProtectedAction(async () => {
-      await addCartItem({ ...payload, quantity: 1 })
-      showToast('Added to cart')
+      openCollectionPicker(item, serviceType)
     })
   }
 
@@ -234,6 +234,7 @@ function SearchPage() {
         secondaryActionColor={COLORS.primary}
         onSecondaryActionClick={handleCloseSignInDialog}
       />
+      {collectionPickerDialog}
     </>
   )
 }

@@ -5,8 +5,8 @@ import { useAuth } from '../auth/useAuth'
 import { LEBANESE_CITIES } from '../constants/lebaneseCities'
 import { COLORS } from '../constants/colors'
 import { useFavoriteActions, getFavoriteKey } from '../hooks/useFavoriteActions'
+import { useCollectionCartAction } from '../hooks/useCollectionCartAction'
 import { useServicesData } from '../hooks/useServicesData'
-import { addCartItem } from '../services/cart'
 import { useToast } from '../toast/useToast'
 import { getServicePayload } from '../utils/servicePayload'
 import DecorationFilterPanel from '../shared/Filters/DecorationFilterPanel'
@@ -95,6 +95,7 @@ function ServicesPage() {
   const { showToast } = useToast()
   const { itemsBySection } = useServicesData()
   const { favoriteItems, toggleFavoriteItem } = useFavoriteActions()
+  const { collectionPickerDialog, openCollectionPicker } = useCollectionCartAction()
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const [venueFilters, setVenueFilters] = useState(DEFAULT_VENUE_FILTERS)
@@ -160,8 +161,7 @@ function ServicesPage() {
     }
 
     handleProtectedAction(async () => {
-      await addCartItem({ ...payload, quantity: 1 })
-      showToast('Added to cart')
+      openCollectionPicker(item, serviceType)
     })
   }
 
@@ -551,6 +551,7 @@ function ServicesPage() {
         secondaryActionColor={COLORS.primary}
         onSecondaryActionClick={handleCloseSignInDialog}
       />
+      {collectionPickerDialog}
     </>
   )
 }

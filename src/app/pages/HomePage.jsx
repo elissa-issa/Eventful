@@ -9,8 +9,8 @@ import { CATEGORY_CARDS } from '../constants/categoryCards'
 import { COLORS } from '../constants/colors'
 import { VENDOR_CARDS } from '../constants/vendorCards'
 import { useFavoriteActions, getFavoriteKey } from '../hooks/useFavoriteActions'
+import { useCollectionCartAction } from '../hooks/useCollectionCartAction'
 import { useServicesData } from '../hooks/useServicesData'
-import { addCartItem } from '../services/cart'
 import { useToast } from '../toast/useToast'
 import { getServicePayload } from '../utils/servicePayload'
 import AlertDialog from '../shared/components/AlertDialog'
@@ -27,6 +27,7 @@ function HomePage() {
   const { showToast } = useToast()
   const { itemsBySection } = useServicesData()
   const { favoriteItems, toggleFavoriteItem } = useFavoriteActions()
+  const { collectionPickerDialog, openCollectionPicker } = useCollectionCartAction()
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
@@ -66,9 +67,7 @@ function HomePage() {
     const payload = getServicePayload(card, 'bundles')
 
     if (payload.serviceId) {
-      addCartItem({ ...payload, quantity: 1 })
-        .then(() => showToast('Added to cart'))
-        .catch((error) => showToast(error.message, 'error'))
+      openCollectionPicker(card, 'bundles')
     }
   }
 
@@ -503,6 +502,7 @@ function HomePage() {
         secondaryActionColor={COLORS.primary}
         onSecondaryActionClick={handleCloseSignInDialog}
       />
+      {collectionPickerDialog}
     </Stack>
   )
 }

@@ -15,8 +15,8 @@ import NewsletterCTA from '../shared/components/NewsletterCTA'
 import ServiceCard from '../shared/components/ServiceCard'
 import { INSPIRATION_HERO_SLIDES } from '../constants/inspirationHeroSlides'
 import { useFavoriteActions, getFavoriteKey } from '../hooks/useFavoriteActions'
+import { useCollectionCartAction } from '../hooks/useCollectionCartAction'
 import { useTopPicks } from '../hooks/useTopPicks'
-import { addCartItem } from '../services/cart'
 import { useToast } from '../toast/useToast'
 import { getServicePayload } from '../utils/servicePayload'
 
@@ -105,6 +105,7 @@ function InspirationPage() {
   const { isAuthenticated } = useAuth()
   const { showToast } = useToast()
   const { favoriteItems, toggleFavoriteItem } = useFavoriteActions()
+  const { collectionPickerDialog, openCollectionPicker } = useCollectionCartAction()
   const isLargeUp = useMediaQuery(theme.breakpoints.up('lg'))
   const isSmallUp = useMediaQuery(theme.breakpoints.up('sm'))
   const featureTheme = INSPIRATION_THEMES.find((theme) => theme.layout === 'feature')
@@ -183,8 +184,7 @@ function InspirationPage() {
     }
 
     handleProtectedAction(async () => {
-      await addCartItem({ ...payload, quantity: 1 })
-      showToast('Added to cart')
+      openCollectionPicker(item, item.section)
     })
   }
 
@@ -439,6 +439,7 @@ function InspirationPage() {
         fullBleed
         backgroundImage="https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=1800&q=80"
       />
+      {collectionPickerDialog}
     </Stack>
   )
 }

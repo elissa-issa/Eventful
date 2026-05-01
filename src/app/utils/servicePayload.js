@@ -9,6 +9,24 @@ export function getServicePayload(item, serviceType) {
   }
 }
 
+export function getCollectionItemPayload(item, section, options = {}) {
+  return {
+    section,
+    itemId: item?.id || item?.itemId || getServiceMongoId(item),
+    serviceId: getServiceMongoId(item),
+    quantity: options.quantity || 1,
+    selectedOptions: options.customOptions || options.selectedOptions || {},
+    pricingSnapshot: {
+      priceValue: item?.priceValue,
+      priceText: item?.priceText,
+    },
+    titleSnapshot: item?.title || '',
+    imageSnapshot: item?.imageSrc || '',
+    vendorSnapshot: item?.vendorName || '',
+    priceTextSnapshot: item?.priceText || '',
+  }
+}
+
 export function formatCartItemDetails(item) {
   const details = []
 
