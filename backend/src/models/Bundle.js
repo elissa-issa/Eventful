@@ -1,5 +1,21 @@
 const mongoose = require('mongoose');
 
+function createServiceReference(ref) {
+  return {
+    type: mongoose.Schema.Types.ObjectId,
+    ref,
+  };
+}
+
+function hasComponentReferences(bundle) {
+  return Boolean(
+    bundle.venue ||
+      bundle.menus?.length ||
+      bundle.entertainment?.length ||
+      bundle.decorations?.length,
+  );
+}
+
 const bundleSchema = new mongoose.Schema(
   {
     itemId: {
@@ -41,6 +57,22 @@ const bundleSchema = new mongoose.Schema(
     data: {
       type: mongoose.Schema.Types.Mixed,
       default: {},
+    },
+    venue: {
+      ...createServiceReference('Venue'),
+      default: null,
+    },
+    menus: {
+      type: [createServiceReference('Menu')],
+      default: [],
+    },
+    entertainment: {
+      type: [createServiceReference('Entertainment')],
+      default: [],
+    },
+    decorations: {
+      type: [createServiceReference('Decoration')],
+      default: [],
     },
     leftText: {
       type: String,
@@ -121,5 +153,33 @@ const bundleSchema = new mongoose.Schema(
     },
   },
 );
+
+bundleSchema.pre('validate', function validateBundleComposition(next) {
+  if (!hasComponentReferences(this)) {
+    next();
+    return;
+  }
+
+  if (!this.venue) {
+    this.invalidate('venue', 'Bundle must include one venue');
+  }
+
+  if (!this.menus.length) {
+    this.invalidate('menus', 'Bundle must include at least one menu');
+  }
+
+  if (!this.entertainment.length) {
+    this.invalidate(
+      'entertainment',
+      'Bundle must include at least one entertainment option',
+    );
+  }
+
+  if (!this.decorations.length) {
+    this.invalidate('decorations', 'Bundle must include at least one decoration');
+  }
+
+  next();
+});
 
 module.exports = mongoose.model('Bundle', bundleSchema);
