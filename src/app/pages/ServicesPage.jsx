@@ -5,8 +5,8 @@ import { useAuth } from '../auth/useAuth'
 import { LEBANESE_CITIES } from '../constants/lebaneseCities'
 import { COLORS } from '../constants/colors'
 import { useFavoriteActions, getFavoriteKey } from '../hooks/useFavoriteActions'
-import { useCollectionCartAction } from '../hooks/useCollectionCartAction'
 import { useServicesData } from '../hooks/useServicesData'
+import { addCartItem } from '../services/cart'
 import { useToast } from '../toast/useToast'
 import { getServicePayload } from '../utils/servicePayload'
 import DecorationFilterPanel from '../shared/Filters/DecorationFilterPanel'
@@ -95,7 +95,6 @@ function ServicesPage() {
   const { showToast } = useToast()
   const { itemsBySection } = useServicesData()
   const { favoriteItems, toggleFavoriteItem } = useFavoriteActions()
-  const { collectionPickerDialog, openCollectionPicker } = useCollectionCartAction()
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const [venueFilters, setVenueFilters] = useState(DEFAULT_VENUE_FILTERS)
@@ -107,8 +106,13 @@ function ServicesPage() {
 
   const activeSection = location.hash.replace('#', '') || 'menus'
   const searchQuery = searchParams.get('q')?.trim() || ''
+  const planId = searchParams.get('planId')
+  const isPlanMode = Boolean(planId)
   const normalizedSearchQuery = searchQuery.toLowerCase()
   const isSearchMode = normalizedSearchQuery.length > 0
+
+  const getDetailPath = (serviceType, id) =>
+    `/services/${serviceType}/${id}${isPlanMode ? `?planId=${planId}` : ''}`
 
   const handleCloseSignInDialog = () => {
     setIsSignInDialogOpen(false)
@@ -161,7 +165,16 @@ function ServicesPage() {
     }
 
     handleProtectedAction(async () => {
-      openCollectionPicker(item, serviceType)
+      if (isPlanMode) {
+        navigate(getDetailPath(serviceType, item.id))
+        return
+      }
+
+      await addCartItem({
+        ...payload,
+        quantity: 1,
+      })
+      showToast('Added to cart')
     })
   }
 
@@ -500,9 +513,9 @@ function ServicesPage() {
                       onFavoriteToggle={() => handleFavoriteToggle(item, itemSection)}
                       leftText={item.leftText}
                       rightText={item.rightText}
-                      primaryButtonLabel={item.primaryButtonLabel}
-                      onPrimaryButtonClick={() => navigate(`/services/bundles/${item.id}`)}
-                      secondaryButtonLabel={item.secondaryButtonLabel}
+                      primaryButtonLabel={isPlanMode ? 'Choose Template' : item.primaryButtonLabel}
+                      onPrimaryButtonClick={() => navigate(getDetailPath('bundles', item.id))}
+                      secondaryButtonLabel={isPlanMode ? 'Add to Plan' : item.secondaryButtonLabel}
                       onSecondaryButtonClick={() => handleAddToCart(item, itemSection)}
                       maxWidth={400}
                       imageHeight={312}
@@ -528,7 +541,8 @@ function ServicesPage() {
                     vendorLogoAlt={item.vendorLogoAlt}
                     isFavorite={Boolean(favoriteItems[backendFavoriteKey])}
                     onFavoriteToggle={() => handleFavoriteToggle(item, itemSection)}
-                    onViewButtonClick={() => navigate(`/services/${itemSection}/${item.id}`)}
+                    onViewButtonClick={() => navigate(getDetailPath(itemSection, item.id))}
+                    cartButtonLabel={isPlanMode ? 'Add to Plan' : 'Add to Cart'}
                     onCartButtonClick={() => handleAddToCart(item, itemSection)}
                   />
                 )
@@ -551,7 +565,6 @@ function ServicesPage() {
         secondaryActionColor={COLORS.primary}
         onSecondaryActionClick={handleCloseSignInDialog}
       />
-      {collectionPickerDialog}
     </>
   )
 }

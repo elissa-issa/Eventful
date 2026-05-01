@@ -3,7 +3,15 @@ import WorkspacePremiumRoundedIcon from '@mui/icons-material/WorkspacePremiumRou
 import { Box, Button, Chip, Stack, Typography } from '@mui/material'
 import { COLORS } from '../../constants/colors'
 
-function InspirationThemeCard({ title, subtitle, ctaLabel, imageSrc, imageAlt, large = false }) {
+function InspirationThemeCard({
+  title,
+  subtitle,
+  ctaLabel,
+  imageSrc,
+  imageAlt,
+  large = false,
+  onCtaClick,
+}) {
   return (
     <Box
       sx={{
@@ -90,6 +98,7 @@ function InspirationThemeCard({ title, subtitle, ctaLabel, imageSrc, imageAlt, l
         <Button
           variant="contained"
           endIcon={<ArrowOutwardRoundedIcon />}
+          onClick={onCtaClick}
           sx={{
             alignSelf: 'flex-start',
             px: 2.1,

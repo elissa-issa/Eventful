@@ -21,6 +21,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { COLORS } from '../constants/colors'
+import { getOrders } from '../services/orders'
 import { updateProfile } from '../services/auth'
 import AddLocationDialog from '../shared/components/AddLocationDialog'
 import AlertDialog from '../shared/components/AlertDialog'
@@ -37,7 +38,6 @@ import {
 } from '../services/savedLocations'
 import {
   profileFieldStyles,
-  profileOrders,
   profileSectionTitleStyles,
 } from '../constants/profilePage'
 
@@ -68,6 +68,97 @@ function getProfileFormValues(user) {
     password: '..............',
     birthday: formatBirthdayInputValue(user?.birthday),
   }
+}
+
+function formatCurrency(value) {
+  const amount = Number(value || 0)
+
+  return `$${amount.toLocaleString('en-US')}`
+}
+
+function formatOrderStatus(status) {
+  const statusLabels = {
+    pending: 'Pending',
+    paid: 'Paid',
+    completed: 'Completed',
+  }
+
+  return statusLabels[status] || status || 'Pending'
+}
+
+function getOrderStatusColor(status) {
+  if (status === 'completed' || status === 'paid') {
+    return '#2ecc55'
+  }
+
+  return '#b7b7b7'
+}
+
+function getOrderTitle(order) {
+  const [firstItem] = order.items || []
+  const firstTitle = firstItem?.service?.title || 'Order'
+  const additionalCount = (order.items?.length || 0) - 1
+
+  return additionalCount > 0 ? `${firstTitle} + ${additionalCount} more` : firstTitle
+}
+
+function getOrderImage(order) {
+  const [firstItem] = order.items || []
+
+  return {
+    src: firstItem?.service?.imageSrc || '',
+    alt: firstItem?.service?.imageAlt || getOrderTitle(order),
+  }
+}
+
+function formatOrderHistoryItem(order) {
+  return {
+    id: order.id,
+    item: getOrderTitle(order),
+    image: getOrderImage(order),
+    status: formatOrderStatus(order.status),
+    statusColor: getOrderStatusColor(order.status),
+    total: formatCurrency(order.totalPrice),
+  }
+}
+
+function OrderThumbnail({ image, title }) {
+  if (image?.src) {
+    return (
+      <Box
+        component="img"
+        src={image.src}
+        alt={image.alt || title}
+        sx={{
+          width: 106,
+          height: 74,
+          borderRadius: 1.5,
+          objectFit: 'cover',
+          flexShrink: 0,
+          backgroundColor: '#f2f2f2',
+        }}
+      />
+    )
+  }
+
+  return (
+    <Box
+      sx={{
+        width: 106,
+        height: 74,
+        borderRadius: 1.5,
+        backgroundColor: COLORS.primary,
+        color: COLORS.surface,
+        display: 'grid',
+        placeItems: 'center',
+        fontWeight: 900,
+        fontSize: '1.6rem',
+        flexShrink: 0,
+      }}
+    >
+      {title.slice(0, 2).toUpperCase()}
+    </Box>
+  )
 }
 
 function OrderHistoryDialog({ open, onClose, orders = [] }) {
@@ -137,23 +228,7 @@ function OrderHistoryDialog({ open, onClose, orders = [] }) {
                 <Grid container spacing={1.5} alignItems="center">
                   <Grid size={{ xs: 12, md: 6 }}>
                     <Stack direction="row" spacing={1.25} alignItems="center">
-                      <Box
-                        sx={{
-                          width: 106,
-                          height: 74,
-                          borderRadius: 1.5,
-                          backgroundColor: '#000',
-                          color: COLORS.surface,
-                          display: 'grid',
-                          placeItems: 'center',
-                          fontWeight: 900,
-                          fontSize: '2rem',
-                          letterSpacing: '-0.06em',
-                          flexShrink: 0,
-                        }}
-                      >
-                        RODGE
-                      </Box>
+                      <OrderThumbnail image={order.image} title={order.item} />
                       <Box>
                         <Typography
                           sx={{
@@ -233,6 +308,9 @@ function ProfilePage() {
   const [savedLocations, setSavedLocations] = useState([])
   const [locationsLoading, setLocationsLoading] = useState(false)
   const [locationsError, setLocationsError] = useState('')
+  const [orders, setOrders] = useState([])
+  const [ordersLoading, setOrdersLoading] = useState(false)
+  const [ordersError, setOrdersError] = useState('')
   const [locationFormValues, setLocationFormValues] = useState(emptyLocationValues)
   const [editingLocation, setEditingLocation] = useState(null)
   const [pendingDeleteLocation, setPendingDeleteLocation] = useState(null)
@@ -262,6 +340,14 @@ function ProfilePage() {
     ],
     [],
   )
+  const orderHistoryItems = useMemo(
+    () => orders.map(formatOrderHistoryItem),
+    [orders],
+  )
+  const visibleOrderHistoryItems = useMemo(
+    () => orderHistoryItems.slice(0, 2),
+    [orderHistoryItems],
+  )
 
   useEffect(() => {
     if (!isEditingProfile) {
@@ -290,6 +376,28 @@ function ProfilePage() {
   useEffect(() => {
     loadSavedLocations()
   }, [loadSavedLocations])
+
+  const loadOrders = useCallback(async () => {
+    if (!token) {
+      return
+    }
+
+    setOrdersLoading(true)
+    setOrdersError('')
+
+    try {
+      const result = await getOrders()
+      setOrders(result.data || [])
+    } catch (error) {
+      setOrdersError(error.message || 'Could not load order history')
+    } finally {
+      setOrdersLoading(false)
+    }
+  }, [token])
+
+  useEffect(() => {
+    loadOrders()
+  }, [loadOrders])
 
   const handleLogout = () => {
     logout()
@@ -724,98 +832,102 @@ function ProfilePage() {
                     </Grid>
                   </Grid>
 
-                  <Stack spacing={1.5}>
-                    {profileOrders.map((order) => (
-                      <Box
-                        key={order.id}
-                        sx={{
-                          border: '1px solid #e2e2e2',
-                          borderRadius: 2,
-                          px: { xs: 1, md: 1.5 },
-                          py: 1,
-                          boxShadow: '0 2px 8px rgba(15, 45, 75, 0.05)',
-                        }}
-                      >
-                        <Grid container spacing={1.5} alignItems="center">
-                          <Grid size={{ xs: 12, md: 6 }}>
-                            <Stack direction="row" spacing={1.25} alignItems="center">
-                              <Box
+                  {ordersLoading ? (
+                    <Box sx={{ py: 4, display: 'grid', placeItems: 'center' }}>
+                      <CircularProgress size={30} sx={{ color: COLORS.primary }} />
+                    </Box>
+                  ) : null}
+
+                  {!ordersLoading && ordersError ? (
+                    <Typography sx={{ color: '#d93a2e', fontWeight: 700, px: 1, py: 2 }}>
+                      {ordersError}
+                    </Typography>
+                  ) : null}
+
+                  {!ordersLoading && !ordersError && visibleOrderHistoryItems.length === 0 ? (
+                    <Typography sx={{ color: COLORS.textLight, fontWeight: 700, px: 1, py: 2 }}>
+                      No orders yet.
+                    </Typography>
+                  ) : null}
+
+                  {!ordersLoading && !ordersError && visibleOrderHistoryItems.length > 0 ? (
+                    <Stack spacing={1.5}>
+                      {visibleOrderHistoryItems.map((order) => (
+                        <Box
+                          key={order.id}
+                          sx={{
+                            border: '1px solid #e2e2e2',
+                            borderRadius: 2,
+                            px: { xs: 1, md: 1.5 },
+                            py: 1,
+                            boxShadow: '0 2px 8px rgba(15, 45, 75, 0.05)',
+                          }}
+                        >
+                          <Grid container spacing={1.5} alignItems="center">
+                            <Grid size={{ xs: 12, md: 6 }}>
+                              <Stack direction="row" spacing={1.25} alignItems="center">
+                                <OrderThumbnail image={order.image} title={order.item} />
+                                <Box>
+                                  <Typography
+                                    sx={{
+                                      color: COLORS.primary,
+                                      fontWeight: 800,
+                                      fontSize: '1.05rem',
+                                    }}
+                                  >
+                                    {order.item}
+                                  </Typography>
+                                  <Button
+                                    variant="contained"
+                                    size="small"
+                                    sx={{
+                                      mt: 1,
+                                      borderRadius: '999px',
+                                      textTransform: 'none',
+                                      backgroundColor: COLORS.accent,
+                                      minWidth: 0,
+                                      px: 1.3,
+                                      fontSize: '0.72rem',
+                                      '&:hover': {
+                                        backgroundColor: COLORS.accentHover,
+                                      },
+                                    }}
+                                  >
+                                    View Details
+                                  </Button>
+                                </Box>
+                              </Stack>
+                            </Grid>
+
+                            <Grid size={{ xs: 6, md: 3 }}>
+                              <Typography
                                 sx={{
-                                  width: 106,
-                                  height: 74,
-                                  borderRadius: 1.5,
-                                  backgroundColor: '#000',
-                                  color: COLORS.surface,
-                                  display: 'grid',
-                                  placeItems: 'center',
-                                  fontWeight: 900,
-                                  fontSize: '2rem',
-                                  letterSpacing: '-0.06em',
-                                  flexShrink: 0,
+                                  color: order.statusColor,
+                                  fontWeight: 800,
+                                  textAlign: { xs: 'left', md: 'center' },
                                 }}
                               >
-                                RODGE
-                              </Box>
-                              <Box>
-                                <Typography
-                                  sx={{
-                                    color: COLORS.primary,
-                                    fontWeight: 800,
-                                    fontSize: '1.05rem',
-                                  }}
-                                >
-                                  {order.item}
-                                </Typography>
-                                <Button
-                                  variant="contained"
-                                  size="small"
-                                  sx={{
-                                    mt: 1,
-                                    borderRadius: '999px',
-                                    textTransform: 'none',
-                                    backgroundColor: COLORS.accent,
-                                    minWidth: 0,
-                                    px: 1.3,
-                                    fontSize: '0.72rem',
-                                    '&:hover': {
-                                      backgroundColor: COLORS.accentHover,
-                                    },
-                                  }}
-                                >
-                                  View Details
-                                </Button>
-                              </Box>
-                            </Stack>
-                          </Grid>
+                                {order.status}
+                              </Typography>
+                            </Grid>
 
-                          <Grid size={{ xs: 6, md: 3 }}>
-                            <Typography
-                              sx={{
-                                color: order.statusColor,
-                                fontWeight: 800,
-                                textAlign: { xs: 'left', md: 'center' },
-                              }}
-                            >
-                              {order.status}
-                            </Typography>
+                            <Grid size={{ xs: 6, md: 3 }}>
+                              <Typography
+                                sx={{
+                                  color: COLORS.primary,
+                                  fontWeight: 800,
+                                  textAlign: 'right',
+                                  fontSize: '1.05rem',
+                                }}
+                              >
+                                {order.total}
+                              </Typography>
+                            </Grid>
                           </Grid>
-
-                          <Grid size={{ xs: 6, md: 3 }}>
-                            <Typography
-                              sx={{
-                                color: COLORS.primary,
-                                fontWeight: 800,
-                                textAlign: 'right',
-                                fontSize: '1.05rem',
-                              }}
-                            >
-                              {order.total}
-                            </Typography>
-                          </Grid>
-                        </Grid>
-                      </Box>
-                    ))}
-                  </Stack>
+                        </Box>
+                      ))}
+                    </Stack>
+                  ) : null}
 
                   <Stack
                     direction="row"
@@ -827,6 +939,7 @@ function ProfilePage() {
                     <Button
                       variant="text"
                       onClick={() => setIsOrderHistoryOpen(true)}
+                      disabled={orderHistoryItems.length === 0}
                       sx={{
                         minWidth: 0,
                         p: 0,
@@ -837,6 +950,9 @@ function ProfilePage() {
                         '&:hover': {
                           backgroundColor: 'transparent',
                           textDecoration: 'underline',
+                        },
+                        '&.Mui-disabled': {
+                          color: COLORS.textLight,
                         },
                       }}
                     >
@@ -1046,7 +1162,7 @@ function ProfilePage() {
       <OrderHistoryDialog
         open={isOrderHistoryOpen}
         onClose={() => setIsOrderHistoryOpen(false)}
-        orders={profileOrders}
+        orders={orderHistoryItems}
       />
 
       <AlertDialog

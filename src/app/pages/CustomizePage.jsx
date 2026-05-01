@@ -1,51 +1,79 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import ArrowBackIosNewRoundedIcon from '@mui/icons-material/ArrowBackIosNewRounded'
 import ArrowForwardIosRoundedIcon from '@mui/icons-material/ArrowForwardIosRounded'
-import { Box, Button, IconButton, Stack, Typography } from '@mui/material'
-import { useNavigate } from 'react-router-dom'
+import {
+  Box,
+  Button,
+  CircularProgress,
+  Dialog,
+  DialogContent,
+  IconButton,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { COLORS } from '../constants/colors'
-import { DECORATION_ITEMS } from '../constants/decorationItems'
-import { MY_COLLECTIONS } from '../constants/myCollections'
-import { VENUE_ITEMS } from '../constants/venueItems'
 import { useTopPicks } from '../hooks/useTopPicks'
+import { useToast } from '../toast/useToast'
+import { addFavorite } from '../services/favorites'
+import {
+  createCustomizedPlan,
+  deleteCustomizedPlan,
+  getCustomizedPlan,
+  getCustomizedPlans,
+  removeItemFromCustomizedPlan,
+  updateCustomizedPlan,
+} from '../services/customizedPlans'
+import AlertDialog from '../shared/components/AlertDialog'
 import CartItemRow from '../shared/components/CartItemRow'
 import CollectionsList from '../shared/components/CollectionsList'
 import CreateCollectionCard from '../shared/components/CreateCollectionCard'
 
-const selectedVenue = VENUE_ITEMS.find((item) => item.id === 'garden-jbeil') ?? VENUE_ITEMS[0]
-const selectedDecoration =
-  DECORATION_ITEMS.find((item) => item.id === 'flower-bouquet') ?? DECORATION_ITEMS[0]
-
-const PLAN_SECTIONS = [
-  {
-    id: 'venues',
-    title: 'Venues',
-    items: [
-      {
-        ...selectedVenue,
-        title: 'Outdoor venue in jbeil',
-        details: ['Date: 20 Jun, 2026', 'Time: 5pm to 10pm', 'Guests: 350'],
-        price: '$2500',
-      },
-    ],
-  },
-  { id: 'menus', title: 'Menus', items: [] },
-  {
-    id: 'decorations',
-    title: 'Decoration',
-    items: [
-      {
-        ...selectedDecoration,
-        title: 'Flowers Bouquet',
-        details: ['Date: 20 Jun, 2026', 'Time: 5pm', 'Quantity: 10 pcs'],
-        price: '$320',
-      },
-    ],
-  },
-  { id: 'entertainment', title: 'Entertainment', items: [] },
+const PLAN_SECTION_CONFIG = [
+  { id: 'venues', title: 'Venues' },
+  { id: 'menus', title: 'Menus' },
+  { id: 'decorations', title: 'Decoration' },
+  { id: 'entertainment', title: 'Entertainment' },
 ]
 
-function PlanSection({ section }) {
+function formatPlanItemDetails(item) {
+  const details = []
+  const selectedOptions = item.selectedOptions || {}
+
+  if (selectedOptions.selectedDate) {
+    details.push(`Date: ${new Date(selectedOptions.selectedDate).toLocaleDateString()}`)
+  }
+
+  if (selectedOptions.selectedTime) {
+    details.push(`Time: ${selectedOptions.selectedTime}`)
+  }
+
+  details.push(`Quantity: ${item.quantity || 1}`)
+
+  return details
+}
+
+function getPlanItemPrice(item) {
+  const priceValue = item.pricingSnapshot?.priceValue ?? item.service?.priceValue
+  const quantity = item.quantity || 1
+
+  if (Number.isFinite(Number(priceValue))) {
+    return `$${Number(priceValue) * quantity}`
+  }
+
+  return item.priceTextSnapshot || item.service?.priceText || ''
+}
+
+function PlanSection({
+  section,
+  collapsed,
+  onToggle,
+  onAddNew,
+  onModify,
+  onFavorite,
+  onDelete,
+}) {
   return (
     <Stack spacing={1.05}>
       <Stack direction="row" alignItems="center" justifyContent="space-between">
@@ -61,6 +89,7 @@ function PlanSection({ section }) {
             {section.title}
           </Typography>
           <Button
+            onClick={onAddNew}
             sx={{
               minWidth: 0,
               p: 0,
@@ -75,38 +104,50 @@ function PlanSection({ section }) {
           </Button>
         </Stack>
 
-        <Typography
+        <Button
+          onClick={onToggle}
+          aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${section.title}`}
           sx={{
+            minWidth: 0,
+            p: 0,
             color: COLORS.primary,
             fontSize: '1.9rem',
             fontWeight: 800,
             lineHeight: 1,
           }}
         >
-          -
-        </Typography>
+          {collapsed ? '+' : '-'}
+        </Button>
       </Stack>
 
-      {section.items.map((item) => (
-        <CartItemRow
-          key={item.id}
-          showCheckbox={false}
-          imageSrc={item.imageSrc}
-          imageAlt={item.imageAlt}
-          imageSx={{
-            width: { xs: '100%', sm: 130 },
-            maxWidth: { xs: 220, sm: 130 },
-            height: { xs: 140, sm: 120 },
-          }}
-          title={item.title}
-          details={item.details}
-          price={item.price}
-          modifyLabel="Modify"
-          onModify={() => {}}
-          onFavorite={() => {}}
-          onDelete={() => {}}
-        />
-      ))}
+      {!collapsed && section.items.length === 0 ? (
+        <Typography sx={{ color: COLORS.textLight, fontSize: '0.9rem', fontWeight: 600 }}>
+          No items added yet.
+        </Typography>
+      ) : null}
+
+      {!collapsed
+        ? section.items.map((item) => (
+            <CartItemRow
+              key={item.id}
+              showCheckbox={false}
+              imageSrc={item.service?.imageSrc || item.imageSnapshot}
+              imageAlt={item.service?.imageAlt || item.titleSnapshot}
+              imageSx={{
+                width: { xs: '100%', sm: 130 },
+                maxWidth: { xs: 220, sm: 130 },
+                height: { xs: 140, sm: 120 },
+              }}
+              title={item.service?.title || item.titleSnapshot}
+              details={formatPlanItemDetails(item)}
+              price={getPlanItemPrice(item)}
+              modifyLabel="Modify"
+              onModify={() => onModify(item)}
+              onFavorite={() => onFavorite(item)}
+              onDelete={() => onDelete(item)}
+            />
+          ))
+        : null}
     </Stack>
   )
 }
@@ -174,8 +215,15 @@ function TopPickTile({ item, onClick }) {
   )
 }
 
-function CreatePlanView({ onChooseTemplate }) {
+function CreatePlanView({ plan, onChooseTemplate, onBackToPlans, onRefreshPlan, onRenamePlan }) {
   const navigate = useNavigate()
+  const { showToast } = useToast()
+  const [collapsedSections, setCollapsedSections] = useState({})
+  const [isRenaming, setIsRenaming] = useState(false)
+  const [planName, setPlanName] = useState(plan?.name || '')
+  const [isSavingName, setIsSavingName] = useState(false)
+  const [pendingRemoveItem, setPendingRemoveItem] = useState(null)
+  const [isRemovingItem, setIsRemovingItem] = useState(false)
   const {
     maxTopPicksIndex,
     rightArrowClickCount,
@@ -185,19 +233,168 @@ function CreatePlanView({ onChooseTemplate }) {
     handleTopPicksPrevious,
   } = useTopPicks(4)
 
+  const sections = useMemo(
+    () =>
+      PLAN_SECTION_CONFIG.map((section) => ({
+        ...section,
+        items: (plan?.items || []).filter((item) => item.section === section.id),
+      })),
+    [plan],
+  )
+
+  useEffect(() => {
+    setPlanName(plan?.name || '')
+  }, [plan?.name])
+
+  const handleFavoriteItem = async (item) => {
+    const serviceId = item.service?.mongoId
+
+    if (!serviceId) {
+      showToast('Could not add this item to favorites', 'error')
+      return
+    }
+
+    try {
+      await addFavorite({
+        serviceId,
+        serviceType: item.section,
+      })
+      showToast('Added to favorites')
+    } catch (error) {
+      showToast(error.message || 'Could not add favorite', 'error')
+    }
+  }
+
+  const handleConfirmRemoveItem = async () => {
+    if (!pendingRemoveItem || isRemovingItem) {
+      return
+    }
+
+    setIsRemovingItem(true)
+    try {
+      await removeItemFromCustomizedPlan(
+        plan.id,
+        pendingRemoveItem.section,
+        pendingRemoveItem.itemId,
+      )
+      showToast('Item removed from plan')
+      setPendingRemoveItem(null)
+      await onRefreshPlan()
+    } catch (error) {
+      showToast(error.message || 'Could not remove item', 'error')
+    } finally {
+      setIsRemovingItem(false)
+    }
+  }
+
+  const navigateToService = (section, itemId) => {
+    navigate(`/services/${section}/${itemId}?planId=${plan.id}`)
+  }
+
+  const handleSaveName = async () => {
+    const nextName = planName.trim()
+
+    if (!nextName) {
+      showToast('Plan name is required', 'error')
+      return
+    }
+
+    setIsSavingName(true)
+    try {
+      await onRenamePlan(nextName)
+      setIsRenaming(false)
+    } finally {
+      setIsSavingName(false)
+    }
+  }
+
   return (
+    <>
     <Stack spacing={2.2} sx={{ py: { xs: 3, md: 2.5 } }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
-        <Typography
-          sx={{
-            color: COLORS.primary,
-            fontWeight: 800,
-            fontSize: { xs: '2rem', md: '2.15rem' },
-            lineHeight: 1.05,
-          }}
-        >
-          Create Plan
-        </Typography>
+        <Stack spacing={0.35}>
+          <Button
+            onClick={onBackToPlans}
+            sx={{
+              alignSelf: 'flex-start',
+              minWidth: 0,
+              p: 0,
+              color: COLORS.textLight,
+              textTransform: 'none',
+              fontWeight: 700,
+            }}
+          >
+            Back to plans
+          </Button>
+          {isRenaming ? (
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
+              <TextField
+                size="small"
+                value={planName}
+                onChange={(event) => setPlanName(event.target.value)}
+                autoFocus
+                inputProps={{ maxLength: 80 }}
+                sx={{
+                  minWidth: { xs: '100%', sm: 280 },
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1.5,
+                    backgroundColor: COLORS.surface,
+                  },
+                }}
+              />
+              <Stack direction="row" spacing={1}>
+                <Button
+                  variant="contained"
+                  disabled={isSavingName}
+                  onClick={handleSaveName}
+                  sx={{
+                    backgroundColor: COLORS.primary,
+                    textTransform: 'none',
+                    '&:hover': { backgroundColor: COLORS.primaryHover },
+                  }}
+                >
+                  {isSavingName ? 'Saving...' : 'Save'}
+                </Button>
+                <Button
+                  disabled={isSavingName}
+                  onClick={() => {
+                    setPlanName(plan?.name || '')
+                    setIsRenaming(false)
+                  }}
+                  sx={{ color: COLORS.textLight, textTransform: 'none' }}
+                >
+                  Cancel
+                </Button>
+              </Stack>
+            </Stack>
+          ) : (
+            <Stack direction="row" spacing={1.25} alignItems="center" flexWrap="wrap">
+              <Typography
+                sx={{
+                  color: COLORS.primary,
+                  fontWeight: 800,
+                  fontSize: { xs: '2rem', md: '2.15rem' },
+                  lineHeight: 1.05,
+                }}
+              >
+                {plan?.name || 'Create Plan'}
+              </Typography>
+              {/* <Button
+                onClick={() => setIsRenaming(true)}
+                sx={{
+                  minWidth: 0,
+                  p: 0,
+                  color: COLORS.accent,
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  '&:hover': { backgroundColor: 'transparent', textDecoration: 'underline' },
+                }}
+              >
+                Rename
+              </Button>  */}
+            </Stack>
+          )}
+        </Stack>
 
         <Button
           variant="contained"
@@ -233,8 +430,22 @@ function CreatePlanView({ onChooseTemplate }) {
           }}
         >
           <Stack spacing={1.45}>
-            {PLAN_SECTIONS.map((section) => (
-              <PlanSection key={section.id} section={section} />
+            {sections.map((section) => (
+              <PlanSection
+                key={section.id}
+                section={section}
+                collapsed={Boolean(collapsedSections[section.id])}
+                onToggle={() =>
+                  setCollapsedSections((current) => ({
+                    ...current,
+                    [section.id]: !current[section.id],
+                  }))
+                }
+                onAddNew={() => navigate(`/services?planId=${plan.id}#${section.id}`)}
+                onModify={(item) => navigateToService(item.section, item.itemId)}
+                onFavorite={handleFavoriteItem}
+                onDelete={setPendingRemoveItem}
+              />
             ))}
           </Stack>
         </Box>
@@ -299,7 +510,7 @@ function CreatePlanView({ onChooseTemplate }) {
                   item={item}
                   onClick={() => {
                     if (item.targetPath) {
-                      navigate(item.targetPath)
+                      navigate(`${item.targetPath}?planId=${plan.id}`)
                     }
                   }}
                 />
@@ -311,6 +522,7 @@ function CreatePlanView({ onChooseTemplate }) {
 
       <Button
         variant="contained"
+        onClick={onBackToPlans}
         sx={{
           alignSelf: { xs: 'stretch', md: 'center' },
           minWidth: { md: 236 },
@@ -324,23 +536,164 @@ function CreatePlanView({ onChooseTemplate }) {
           '&:hover': { backgroundColor: COLORS.accentHover, boxShadow: 'none' },
         }}
       >
-        Add Plan
+        Save Plan
       </Button>
     </Stack>
+    <AlertDialog
+      open={Boolean(pendingRemoveItem)}
+      onClose={() => {
+        if (!isRemovingItem) {
+          setPendingRemoveItem(null)
+        }
+      }}
+      title="Remove item?"
+      titleColor={COLORS.primary}
+      description="Are you sure u want to remove this item?"
+      primaryButtonText={isRemovingItem ? 'Removing...' : 'Remove'}
+      primaryButtonColor="#f44336"
+      onPrimaryButtonClick={handleConfirmRemoveItem}
+      secondaryActionText="Cancel"
+      secondaryActionColor={COLORS.primary}
+      onSecondaryActionClick={() => setPendingRemoveItem(null)}
+      disableBackdropClick={isRemovingItem}
+    />
+    </>
   )
 }
 
 function CustomizePage() {
   const navigate = useNavigate()
-  const [plans, setPlans] = useState(MY_COLLECTIONS)
+  const { showToast } = useToast()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activePlanId = searchParams.get('planId')
+  const [plans, setPlans] = useState([])
+  const [activePlan, setActivePlan] = useState(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isPlanLoading, setIsPlanLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [newPlanName, setNewPlanName] = useState('')
   const [isCreatingPlan, setIsCreatingPlan] = useState(false)
 
-  const handleDeletePlan = (planId) => {
-    setPlans((currentPlans) => currentPlans.filter((plan) => plan.id !== planId))
+  const loadPlans = useCallback(async () => {
+    setIsLoading(true)
+    setErrorMessage('')
+
+    try {
+      const result = await getCustomizedPlans()
+      setPlans(result.data || [])
+    } catch (error) {
+      setErrorMessage(error.message || 'Could not load customized plans')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  const loadActivePlan = useCallback(async () => {
+    if (!activePlanId) {
+      setActivePlan(null)
+      return
+    }
+
+    setIsPlanLoading(true)
+    setErrorMessage('')
+
+    try {
+      const result = await getCustomizedPlan(activePlanId)
+      setActivePlan(result.data)
+    } catch (error) {
+      setErrorMessage(error.message || 'Could not load plan')
+    } finally {
+      setIsPlanLoading(false)
+    }
+  }, [activePlanId])
+
+  useEffect(() => {
+    loadPlans()
+  }, [loadPlans])
+
+  useEffect(() => {
+    loadActivePlan()
+  }, [loadActivePlan])
+
+  const handleDeletePlan = async (planId) => {
+    try {
+      await deleteCustomizedPlan(planId)
+      setPlans((currentPlans) => currentPlans.filter((plan) => plan.id !== planId))
+      showToast('Plan deleted')
+    } catch (error) {
+      showToast(error.message || 'Could not delete plan', 'error')
+    }
   }
 
-  if (isCreatingPlan) {
-    return <CreatePlanView onChooseTemplate={() => setIsCreatingPlan(false)} />
+  const handleCreatePlan = async () => {
+    const name = newPlanName.trim()
+
+    if (!name) {
+      showToast('Plan name is required', 'error')
+      return
+    }
+
+    setIsCreatingPlan(true)
+    try {
+      const result = await createCustomizedPlan({
+        name,
+        description: 'Customized event plan',
+      })
+      setPlans((current) => [result.data, ...current])
+      setNewPlanName('')
+      setIsCreateDialogOpen(false)
+      setSearchParams({ planId: result.data.id })
+    } catch (error) {
+      showToast(error.message || 'Could not create plan', 'error')
+    } finally {
+      setIsCreatingPlan(false)
+    }
+  }
+
+  const handleRenamePlan = async (name) => {
+    try {
+      const result = await updateCustomizedPlan(activePlanId, { name })
+      setActivePlan(result.data)
+      setPlans((currentPlans) =>
+        currentPlans.map((plan) => (plan.id === result.data.id ? result.data : plan)),
+      )
+      showToast('Plan renamed')
+    } catch (error) {
+      showToast(error.message || 'Could not rename plan', 'error')
+      throw error
+    }
+  }
+
+  if (activePlanId) {
+    return (
+      <Box sx={{ minHeight: 'calc(100vh - 180px)' }}>
+        {isPlanLoading ? (
+          <Box sx={{ py: 8, display: 'grid', placeItems: 'center' }}>
+            <CircularProgress size={34} sx={{ color: COLORS.primary }} />
+          </Box>
+        ) : null}
+
+        {!isPlanLoading && errorMessage ? (
+          <Typography sx={{ color: '#d93a2e', fontWeight: 700, py: 4 }}>
+            {errorMessage}
+          </Typography>
+        ) : null}
+
+        {!isPlanLoading && activePlan ? (
+          <CreatePlanView
+            plan={activePlan}
+            onChooseTemplate={() => navigate(`/services?planId=${activePlan.id}#bundles`)}
+            onBackToPlans={() => {
+              setSearchParams({})
+              loadPlans()
+            }}
+            onRefreshPlan={loadActivePlan}
+            onRenamePlan={handleRenamePlan}
+          />
+        ) : null}
+      </Box>
+    )
   }
 
   return (
@@ -362,35 +715,124 @@ function CustomizePage() {
           My Customized Plans
         </Typography>
 
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: {
-              xs: '1fr',
-              sm: 'repeat(2, minmax(0, 1fr))',
-              lg: 'repeat(3, minmax(0, 1fr))',
-            },
-            gap: { xs: 4, md: 5, lg: 6 },
-            alignItems: 'stretch',
-          }}
-        >
-          <CollectionsList
-            collections={plans}
-            onViewCollection={(planId) => navigate(`/cart?collection=${planId}`)}
-            onDeleteCollection={handleDeletePlan}
-            getCollectionSelected={() => false}
-            cardSpacing={1.05}
-            viewLabel="View Plan"
-            sx={{ display: 'contents' }}
-          />
+        {isLoading ? (
+          <Box sx={{ py: 8, display: 'grid', placeItems: 'center' }}>
+            <CircularProgress size={34} sx={{ color: COLORS.primary }} />
+          </Box>
+        ) : null}
 
-          <CreateCollectionCard
-            label="Create New Plan"
-            minHeight={{ xs: 320, sm: 347 }}
-            onClick={() => setIsCreatingPlan(true)}
-          />
-        </Box>
+        {!isLoading && errorMessage ? (
+          <Typography sx={{ color: '#d93a2e', fontWeight: 700 }}>
+            {errorMessage}
+          </Typography>
+        ) : null}
+
+        {!isLoading && !errorMessage ? (
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, minmax(0, 1fr))',
+                lg: 'repeat(3, minmax(0, 1fr))',
+              },
+              gap: { xs: 4, md: 5, lg: 6 },
+              alignItems: 'stretch',
+            }}
+          >
+            <CollectionsList
+              collections={plans}
+              onViewCollection={(planId) => setSearchParams({ planId })}
+              onDeleteCollection={handleDeletePlan}
+              getCollectionSelected={() => false}
+              cardSpacing={1.05}
+              viewLabel="View Plan"
+              sx={{ display: 'contents' }}
+            />
+
+            <CreateCollectionCard
+              label="Create New Plan"
+              minHeight={{ xs: 320, sm: 347 }}
+              onClick={() => setIsCreateDialogOpen(true)}
+            />
+          </Box>
+        ) : null}
       </Stack>
+
+      <Dialog
+        open={isCreateDialogOpen}
+        onClose={() => {
+          if (!isCreatingPlan) {
+            setIsCreateDialogOpen(false)
+          }
+        }}
+        fullWidth
+        maxWidth="xs"
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+          },
+        }}
+      >
+        <DialogContent sx={{ p: { xs: 3, sm: 4 } }}>
+          <Stack spacing={2.2}>
+            <Typography
+              sx={{
+                color: COLORS.primary,
+                fontWeight: 800,
+                fontSize: '1.65rem',
+                lineHeight: 1.1,
+              }}
+            >
+              Name Your Plan
+            </Typography>
+            <TextField
+              fullWidth
+              autoFocus
+              label="Plan name"
+              value={newPlanName}
+              onChange={(event) => setNewPlanName(event.target.value)}
+              inputProps={{ maxLength: 80 }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  handleCreatePlan()
+                }
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 1.5,
+                },
+              }}
+            />
+            <Stack direction="row" spacing={1.2} justifyContent="flex-end">
+              <Button
+                disabled={isCreatingPlan}
+                onClick={() => setIsCreateDialogOpen(false)}
+                sx={{
+                  color: COLORS.primary,
+                  textTransform: 'none',
+                  fontWeight: 700,
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="contained"
+                disabled={isCreatingPlan}
+                onClick={handleCreatePlan}
+                sx={{
+                  backgroundColor: COLORS.accent,
+                  textTransform: 'none',
+                  fontWeight: 800,
+                  '&:hover': { backgroundColor: COLORS.accentHover },
+                }}
+              >
+                {isCreatingPlan ? 'Creating...' : 'Create Plan'}
+              </Button>
+            </Stack>
+          </Stack>
+        </DialogContent>
+      </Dialog>
     </Box>
   )
 }

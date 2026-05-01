@@ -20,7 +20,7 @@ import { useTopPicks } from '../hooks/useTopPicks'
 import { useToast } from '../toast/useToast'
 import { getServicePayload } from '../utils/servicePayload'
 
-function PremiumUpgradeCard() {
+function PremiumUpgradeCard({ onUpgradeClick }) {
   return (
     <Box
       sx={{
@@ -76,6 +76,7 @@ function PremiumUpgradeCard() {
         <Button
           variant="contained"
           endIcon={<ArrowOutwardRoundedIcon />}
+          onClick={onUpgradeClick}
           sx={{
             alignSelf: 'flex-start',
             borderRadius: '999px',
@@ -113,6 +114,7 @@ function InspirationPage() {
   const standardThemes = INSPIRATION_THEMES.filter((theme) => theme.layout === 'standard')
   const [activeHeroSlideIndex, setActiveHeroSlideIndex] = useState(0)
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
+  const [isPremiumDialogOpen, setIsPremiumDialogOpen] = useState(false)
   const visibleTopPicks = isLargeUp ? 3 : isSmallUp ? 2 : 1
   const {
     maxTopPicksIndex,
@@ -144,6 +146,14 @@ function InspirationPage() {
         from: `${location.pathname}${location.search}${location.hash}`,
       },
     })
+  }
+
+  const handleOpenPremiumDialog = () => {
+    setIsPremiumDialogOpen(true)
+  }
+
+  const handleClosePremiumDialog = () => {
+    setIsPremiumDialogOpen(false)
   }
 
   const handleProtectedAction = async (action) => {
@@ -287,6 +297,7 @@ function InspirationPage() {
             imageSrc={featureTheme.imageSrc}
             imageAlt={featureTheme.imageAlt}
             large
+            onCtaClick={handleOpenPremiumDialog}
           />
         ) : null}
 
@@ -296,6 +307,7 @@ function InspirationPage() {
             ctaLabel={sideTheme.ctaLabel}
             imageSrc={sideTheme.imageSrc}
             imageAlt={sideTheme.imageAlt}
+            onCtaClick={handleOpenPremiumDialog}
           />
         ) : null}
       </Box>
@@ -318,6 +330,7 @@ function InspirationPage() {
             ctaLabel={theme.ctaLabel}
             imageSrc={theme.imageSrc}
             imageAlt={theme.imageAlt}
+            onCtaClick={handleOpenPremiumDialog}
           />
         ))}
       </Box>
@@ -391,7 +404,7 @@ function InspirationPage() {
         >
           {topPicksToRender.map((item) => (
             item.isUpgrade ? (
-              <PremiumUpgradeCard key={item.id} />
+              <PremiumUpgradeCard key={item.id} onUpgradeClick={handleOpenPremiumDialog} />
             ) : (
               (() => {
                 const serviceId = getServicePayload(item, item.section).serviceId
@@ -433,6 +446,23 @@ function InspirationPage() {
         secondaryActionText="Back to guest mode"
         secondaryActionColor={COLORS.primary}
         onSecondaryActionClick={handleCloseSignInDialog}
+      />
+
+      <AlertDialog
+        open={isPremiumDialogOpen}
+        onClose={handleClosePremiumDialog}
+        icon={<WorkspacePremiumRoundedIcon />}
+        iconBackgroundColor="rgba(234, 122, 36, 0.14)"
+        iconColor={COLORS.accent}
+        title="Upgrade to Premium"
+        titleColor={COLORS.primaryDark}
+        description="Exploring curated inspiration boards is available on the premium plan. Upgrade to unlock more event ideas and recommendations."
+        primaryButtonText="Upgrade Now"
+        primaryButtonColor={COLORS.accent}
+        onPrimaryButtonClick={handleClosePremiumDialog}
+        secondaryActionText="Maybe later"
+        secondaryActionColor={COLORS.primary}
+        onSecondaryActionClick={handleClosePremiumDialog}
       />
 
       <NewsletterCTA

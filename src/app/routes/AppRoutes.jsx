@@ -27,7 +27,14 @@ function AppRoutes() {
         <Route path="/search" element={<SearchPage />} />
         <Route path="/services" element={<ServicesPage />} />
         <Route path="/services/:section/:itemId" element={<ServiceItemPage />} />
-        <Route path="/customize" element={<CustomizePage />} />
+        <Route
+          path="/customize"
+          element={
+            <RequireAuth>
+              <CustomizePage />
+            </RequireAuth>
+          }
+        />
         <Route path="/contact-us" element={<ContactUsPage />} />
         <Route path="/vendors" element={<VendorsPage />} />
         <Route

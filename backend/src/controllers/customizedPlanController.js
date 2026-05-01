@@ -1,4 +1,4 @@
-const Collection = require('../models/Collection');
+const CustomizedPlan = require('../models/CustomizedPlan');
 const { ApiError } = require('../helpers/apiError');
 const { asyncHandler } = require('../helpers/asyncHandler');
 const {
@@ -19,23 +19,23 @@ function normalizeQuantity(value, fallback = 1) {
   return quantity;
 }
 
-function getCollectionId(request) {
-  const { collectionId } = request.params;
-  validateObjectId(collectionId, 'collectionId');
-  return collectionId;
+function getPlanId(request) {
+  const { planId } = request.params;
+  validateObjectId(planId, 'planId');
+  return planId;
 }
 
-async function findOwnedCollection(userId, collectionId) {
-  const collection = await Collection.findOne({
-    _id: collectionId,
+async function findOwnedPlan(userId, planId) {
+  const plan = await CustomizedPlan.findOne({
+    _id: planId,
     user: userId,
   });
 
-  if (!collection) {
-    throw new ApiError(404, 'Collection not found');
+  if (!plan) {
+    throw new ApiError(404, 'Customized plan not found');
   }
 
-  return collection;
+  return plan;
 }
 
 function buildSnapshot(service, body = {}) {
@@ -51,7 +51,7 @@ function buildSnapshot(service, body = {}) {
   };
 }
 
-async function normalizeCollectionItem(body) {
+async function normalizePlanItem(body) {
   const section = body.section || body.serviceType;
   const rawItemId = body.itemId || body.serviceId;
 
@@ -69,8 +69,8 @@ async function normalizeCollectionItem(body) {
   };
 }
 
-async function buildCollectionResponse(collection) {
-  const compatibleItems = collection.items.map((item) => {
+async function buildPlanResponse(plan) {
+  const compatibleItems = plan.items.map((item) => {
     const itemObject = item.toObject ? item.toObject() : item;
     return {
       ...itemObject,
@@ -98,11 +98,11 @@ async function buildCollectionResponse(collection) {
   }));
 
   return {
-    id: collection.id,
-    user: collection.user.toString(),
-    name: collection.name,
-    title: collection.name,
-    description: collection.description,
+    id: plan.id,
+    user: plan.user.toString(),
+    name: plan.name,
+    title: plan.name,
+    description: plan.description,
     totalItems: items.reduce((total, item) => total + item.quantity, 0),
     previewItems: items.slice(0, 4).map((item) => ({
       id: `${item.section}:${item.itemId}`,
@@ -110,31 +110,31 @@ async function buildCollectionResponse(collection) {
       imageAlt: item.service?.imageAlt || item.titleSnapshot || item.section,
     })),
     items,
-    createdAt: collection.createdAt,
-    updatedAt: collection.updatedAt,
+    createdAt: plan.createdAt,
+    updatedAt: plan.updatedAt,
   };
 }
 
-const listCollections = asyncHandler(async (request, response) => {
-  const collections = await Collection.find({ user: request.user.id }).sort({
+const listPlans = asyncHandler(async (request, response) => {
+  const plans = await CustomizedPlan.find({ user: request.user.id }).sort({
     updatedAt: -1,
   });
-  const data = await Promise.all(collections.map(buildCollectionResponse));
+  const data = await Promise.all(plans.map(buildPlanResponse));
 
   response.status(200).json({
-    message: 'Collections fetched successfully',
+    message: 'Customized plans fetched successfully',
     data,
   });
 });
 
-const createCollection = asyncHandler(async (request, response) => {
+const createPlan = asyncHandler(async (request, response) => {
   const name = String(request.body.name || '').trim();
 
   if (!name) {
     throw new ApiError(400, 'name is required');
   }
 
-  const collection = await Collection.create({
+  const plan = await CustomizedPlan.create({
     user: request.user.id,
     name,
     description: String(request.body.description || '').trim(),
@@ -142,22 +142,22 @@ const createCollection = asyncHandler(async (request, response) => {
   });
 
   response.status(201).json({
-    message: 'Collection created successfully',
-    data: await buildCollectionResponse(collection),
+    message: 'Customized plan created successfully',
+    data: await buildPlanResponse(plan),
   });
 });
 
-const getCollection = asyncHandler(async (request, response) => {
-  const collection = await findOwnedCollection(request.user.id, getCollectionId(request));
+const getPlan = asyncHandler(async (request, response) => {
+  const plan = await findOwnedPlan(request.user.id, getPlanId(request));
 
   response.status(200).json({
-    message: 'Collection fetched successfully',
-    data: await buildCollectionResponse(collection),
+    message: 'Customized plan fetched successfully',
+    data: await buildPlanResponse(plan),
   });
 });
 
-const updateCollection = asyncHandler(async (request, response) => {
-  const collection = await findOwnedCollection(request.user.id, getCollectionId(request));
+const updatePlan = asyncHandler(async (request, response) => {
+  const plan = await findOwnedPlan(request.user.id, getPlanId(request));
 
   if (request.body.name !== undefined) {
     const name = String(request.body.name || '').trim();
@@ -166,35 +166,35 @@ const updateCollection = asyncHandler(async (request, response) => {
       throw new ApiError(400, 'name cannot be empty');
     }
 
-    collection.name = name;
+    plan.name = name;
   }
 
   if (request.body.description !== undefined) {
-    collection.description = String(request.body.description || '').trim();
+    plan.description = String(request.body.description || '').trim();
   }
 
-  await collection.save();
+  await plan.save();
 
   response.status(200).json({
-    message: 'Collection updated successfully',
-    data: await buildCollectionResponse(collection),
+    message: 'Customized plan updated successfully',
+    data: await buildPlanResponse(plan),
   });
 });
 
-const deleteCollection = asyncHandler(async (request, response) => {
-  const collection = await findOwnedCollection(request.user.id, getCollectionId(request));
-  await collection.deleteOne();
+const deletePlan = asyncHandler(async (request, response) => {
+  const plan = await findOwnedPlan(request.user.id, getPlanId(request));
+  await plan.deleteOne();
 
   response.status(200).json({
-    message: 'Collection deleted successfully',
-    data: { id: collection.id },
+    message: 'Customized plan deleted successfully',
+    data: { id: plan.id },
   });
 });
 
 const addItem = asyncHandler(async (request, response) => {
-  const collection = await findOwnedCollection(request.user.id, getCollectionId(request));
-  const itemPayload = await normalizeCollectionItem(request.body);
-  const existingItem = collection.items.find(
+  const plan = await findOwnedPlan(request.user.id, getPlanId(request));
+  const itemPayload = await normalizePlanItem(request.body);
+  const existingItem = plan.items.find(
     (item) => item.section === itemPayload.section && item.itemId === itemPayload.itemId,
   );
 
@@ -210,33 +210,33 @@ const addItem = asyncHandler(async (request, response) => {
     existingItem.vendorSnapshot = itemPayload.vendorSnapshot;
     existingItem.priceTextSnapshot = itemPayload.priceTextSnapshot;
   } else {
-    collection.items.push(itemPayload);
+    plan.items.push(itemPayload);
   }
 
-  await collection.save();
+  await plan.save();
 
   response.status(200).json({
     message: existingItem
-      ? 'Collection item quantity updated successfully'
-      : 'Collection item added successfully',
-    data: await buildCollectionResponse(collection),
+      ? 'Customized plan item quantity updated successfully'
+      : 'Customized plan item added successfully',
+    data: await buildPlanResponse(plan),
   });
 });
 
 const updateItem = asyncHandler(async (request, response) => {
-  const collection = await findOwnedCollection(request.user.id, getCollectionId(request));
+  const plan = await findOwnedPlan(request.user.id, getPlanId(request));
   const { itemId } = request.params;
   const section = request.body?.section || request.query.section;
 
   validateServiceType(section);
   validateServiceId(itemId, 'itemId');
 
-  const item = collection.items.find(
-    (collectionItem) => collectionItem.section === section && collectionItem.itemId === itemId,
+  const item = plan.items.find(
+    (planItem) => planItem.section === section && planItem.itemId === itemId,
   );
 
   if (!item) {
-    throw new ApiError(404, 'Collection item not found');
+    throw new ApiError(404, 'Customized plan item not found');
   }
 
   if (request.body.quantity !== undefined) {
@@ -247,48 +247,46 @@ const updateItem = asyncHandler(async (request, response) => {
     item.selectedOptions = request.body.selectedOptions || request.body.customOptions || {};
   }
 
-  await collection.save();
+  await plan.save();
 
   response.status(200).json({
-    message: 'Collection item updated successfully',
-    data: await buildCollectionResponse(collection),
+    message: 'Customized plan item updated successfully',
+    data: await buildPlanResponse(plan),
   });
 });
 
 const removeItem = asyncHandler(async (request, response) => {
-  const collection = await findOwnedCollection(request.user.id, getCollectionId(request));
+  const plan = await findOwnedPlan(request.user.id, getPlanId(request));
   const { itemId } = request.params;
   const section = request.body?.section || request.query.section;
 
   validateServiceType(section);
   validateServiceId(itemId, 'itemId');
 
-  const initialItemCount = collection.items.length;
-  collection.items = collection.items.filter(
+  const initialItemCount = plan.items.length;
+  plan.items = plan.items.filter(
     (item) => !(item.section === section && item.itemId === itemId),
   );
 
-  if (collection.items.length === initialItemCount) {
-    throw new ApiError(404, 'Collection item not found');
+  if (plan.items.length === initialItemCount) {
+    throw new ApiError(404, 'Customized plan item not found');
   }
 
-  await collection.save();
+  await plan.save();
 
   response.status(200).json({
-    message: 'Collection item removed successfully',
-    data: await buildCollectionResponse(collection),
+    message: 'Customized plan item removed successfully',
+    data: await buildPlanResponse(plan),
   });
 });
 
 module.exports = {
   addItem,
-  buildCollectionResponse,
-  createCollection,
-  deleteCollection,
-  findOwnedCollection,
-  getCollection,
-  listCollections,
+  createPlan,
+  deletePlan,
+  getPlan,
+  listPlans,
   removeItem,
-  updateCollection,
   updateItem,
+  updatePlan,
 };

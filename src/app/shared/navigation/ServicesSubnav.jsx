@@ -52,7 +52,7 @@ function ServicesSubnav() {
               <Button
                 key={item.hash}
                 component={RouterLink}
-                to={{ pathname: '/services', hash: item.hash }}
+                to={{ pathname: '/services', search: location.search, hash: item.hash }}
                 disableElevation
                 sx={{
                   minWidth: 110,

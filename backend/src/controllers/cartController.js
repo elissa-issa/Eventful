@@ -260,7 +260,7 @@ const updateItemById = asyncHandler(async (request, response) => {
 
 const removeItem = asyncHandler(async (request, response) => {
   const { id } = request.params;
-  const serviceType = request.query.serviceType || request.body.serviceType;
+  const serviceType = request.query.serviceType || request.body?.serviceType;
 
   validateServiceType(serviceType);
   validateObjectId(id, 'id');

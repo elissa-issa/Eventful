@@ -1,13 +1,14 @@
 import { Box } from '@mui/material'
 import { useMemo, useState } from 'react'
-import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { COLORS } from '../constants/colors'
 import { useFavoriteActions, getFavoriteKey } from '../hooks/useFavoriteActions'
-import { useCollectionCartAction } from '../hooks/useCollectionCartAction'
 import { useServicesData } from '../hooks/useServicesData'
+import { addCartItem } from '../services/cart'
+import { addItemToCustomizedPlan } from '../services/customizedPlans'
 import { useToast } from '../toast/useToast'
-import { getServicePayload } from '../utils/servicePayload'
+import { getCollectionItemPayload, getServicePayload } from '../utils/servicePayload'
 import AddReviewDrawer from '../shared/components/AddReviewDrawer'
 import AlertDialog from '../shared/components/AlertDialog'
 import BundlePlanItems from '../shared/components/BundlePlanItems'
@@ -18,12 +19,14 @@ import ServiceItemGalleryDialog from '../shared/components/ServiceItemGalleryDia
 function ServiceItemPage() {
   const location = useLocation()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { isAuthenticated } = useAuth()
   const { showToast } = useToast()
   const { itemsBySection } = useServicesData()
   const { favoriteItems, toggleFavoriteItem } = useFavoriteActions()
-  const { collectionPickerDialog, openCollectionPicker } = useCollectionCartAction()
   const { section, itemId } = useParams()
+  const planId = searchParams.get('planId')
+  const isPlanMode = Boolean(planId)
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const [isAddReviewDrawerOpen, setIsAddReviewDrawerOpen] = useState(false)
   const [isReviewsDrawerOpen, setIsReviewsDrawerOpen] = useState(false)
@@ -198,6 +201,49 @@ function ServiceItemPage() {
     })
   }
 
+  const getBundleComponentPayloads = () => {
+    if (!selectedItem?.components) {
+      return []
+    }
+
+    const { venue, menus = [], entertainment = [], decorations = [] } = selectedItem.components
+
+    return [
+      venue ? getCollectionItemPayload(venue, 'venues') : null,
+      ...menus.map((item) => getCollectionItemPayload(item, 'menus')),
+      ...entertainment.map((item) => getCollectionItemPayload(item, 'entertainment')),
+      ...decorations.map((item) => getCollectionItemPayload(item, 'decorations')),
+    ].filter(Boolean)
+  }
+
+  const handleAddToPlan = async ({ quantity = 1, selectedDate, customOptions } = {}) => {
+    if (!selectedItem || !planId) {
+      return
+    }
+
+    const itemPayloads =
+      section === 'bundles'
+        ? getBundleComponentPayloads()
+        : [
+            getCollectionItemPayload(selectedItem, section, {
+              quantity,
+              selectedOptions: {
+                ...(customOptions || {}),
+                ...(selectedDate ? { selectedDate } : {}),
+              },
+            }),
+          ]
+
+    if (!itemPayloads.length) {
+      showToast('This template has no services to add', 'error')
+      return
+    }
+
+    await Promise.all(itemPayloads.map((payload) => addItemToCustomizedPlan(planId, payload)))
+    showToast(section === 'bundles' ? 'Template added to plan' : 'Item added to plan')
+    navigate(`/customize?planId=${planId}`)
+  }
+
   const handleAddToCart = ({ quantity = 1, selectedDate, customOptions } = {}) => {
     if (!selectedItem) {
       return
@@ -210,7 +256,18 @@ function ServiceItemPage() {
     }
 
     handleProtectedAction(async () => {
-      openCollectionPicker(selectedItem, section, { quantity, selectedDate, customOptions })
+      if (isPlanMode) {
+        await handleAddToPlan({ quantity, selectedDate, customOptions })
+        return
+      }
+
+      await addCartItem({
+        ...payload,
+        quantity,
+        selectedDate,
+        customOptions,
+      })
+      showToast('Added to cart')
     })
   }
 
@@ -271,13 +328,19 @@ function ServiceItemPage() {
           peopleLabel={selectedItem.peopleLabel}
           datePlaceholder={selectedItem.datePlaceholder}
           timePlaceholder={selectedItem.timePlaceholder}
-          actionButtonText={selectedItem.actionButtonText}
+          actionButtonText={isPlanMode ? 'Add to Plan' : selectedItem.actionButtonText}
           pricing={pricingConfig}
           selectedImageSrc={activeBundleImageSrc}
           onSelectedImageChange={isBundleSection ? setSelectedBundleImageSrc : undefined}
           onAddToCart={handleAddToCart}
           onFavoriteToggle={handleFavoriteToggle}
-          onBack={() => navigate(`/services#${section}`)}
+          onBack={() =>
+            navigate(
+              isPlanMode
+                ? `/services?planId=${planId}#${section}`
+                : `/services#${section}`
+            )
+          }
           belowGalleryContent={
             isBundleSection ? (
               <BundlePlanItems
@@ -344,7 +407,6 @@ function ServiceItemPage() {
         secondaryActionColor={COLORS.primary}
         onSecondaryActionClick={() => setIsSignInDialogOpen(false)}
       />
-      {collectionPickerDialog}
     </>
   )
 }
