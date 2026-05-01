@@ -7,6 +7,7 @@ function PaymentMethodOptionCard({
   description,
   fields = [],
   values = {},
+  errors = {},
   onSelect,
   onFieldChange,
 }) {
@@ -29,6 +30,11 @@ function PaymentMethodOptionCard({
     '& .MuiOutlinedInput-input': {
       px: 1.1,
       py: 1,
+    },
+    '& .MuiFormHelperText-root': {
+      mx: 0,
+      mt: 0.35,
+      fontSize: '0.72rem',
     },
   }
 
@@ -116,6 +122,8 @@ function PaymentMethodOptionCard({
                   value={values[field.id] ?? ''}
                   onClick={(event) => event.stopPropagation()}
                   onChange={(event) => onFieldChange?.(field.id, event.target.value)}
+                  error={Boolean(errors[field.id])}
+                  helperText={errors[field.id] || ''}
                   sx={fieldSx}
                 />
               </Box>

@@ -75,6 +75,16 @@ const collectionSchema = new mongoose.Schema(
       default: '',
       trim: true,
     },
+    status: {
+      type: String,
+      enum: ['active', 'checked_out'],
+      default: 'active',
+      index: true,
+    },
+    checkedOutAt: {
+      type: Date,
+      default: null,
+    },
     items: {
       type: [collectionItemSchema],
       default: [],
@@ -87,5 +97,6 @@ const collectionSchema = new mongoose.Schema(
 );
 
 collectionSchema.index({ user: 1, name: 1 });
+collectionSchema.index({ user: 1, status: 1, updatedAt: -1 });
 
 module.exports = mongoose.model('Collection', collectionSchema);

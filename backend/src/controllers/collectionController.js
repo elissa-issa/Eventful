@@ -25,10 +25,17 @@ function getCollectionId(request) {
   return collectionId;
 }
 
+function activeCollectionFilter() {
+  return {
+    $or: [{ status: 'active' }, { status: { $exists: false } }],
+  };
+}
+
 async function findOwnedCollection(userId, collectionId) {
   const collection = await Collection.findOne({
     _id: collectionId,
     user: userId,
+    ...activeCollectionFilter(),
   });
 
   if (!collection) {
@@ -103,6 +110,7 @@ async function buildCollectionResponse(collection) {
     name: collection.name,
     title: collection.name,
     description: collection.description,
+    status: collection.status || 'active',
     totalItems: items.reduce((total, item) => total + item.quantity, 0),
     previewItems: items.slice(0, 4).map((item) => ({
       id: `${item.section}:${item.itemId}`,
@@ -116,9 +124,10 @@ async function buildCollectionResponse(collection) {
 }
 
 const listCollections = asyncHandler(async (request, response) => {
-  const collections = await Collection.find({ user: request.user.id }).sort({
-    updatedAt: -1,
-  });
+  const collections = await Collection.find({
+    user: request.user.id,
+    ...activeCollectionFilter(),
+  }).sort({ updatedAt: -1 });
   const data = await Promise.all(collections.map(buildCollectionResponse));
 
   response.status(200).json({
@@ -138,6 +147,7 @@ const createCollection = asyncHandler(async (request, response) => {
     user: request.user.id,
     name,
     description: String(request.body.description || '').trim(),
+    status: 'active',
     items: [],
   });
 

@@ -131,30 +131,6 @@ function MyCollectionsPage() {
               />
             ) : null}
 
-            {!isLoading && !hasCollections ? (
-              <Box
-                sx={{
-                  minHeight: 306,
-                  borderRadius: 2,
-                  border: `1px dashed ${COLORS.borderStrong}`,
-                  display: 'grid',
-                  placeItems: 'center',
-                  px: 3,
-                }}
-              >
-                <Typography
-                  sx={{
-                    color: COLORS.textLight,
-                    textAlign: 'center',
-                    fontWeight: 600,
-                  }}
-                >
-                  You do not have any collections yet. Go to services and add an item to create
-                  one.
-                </Typography>
-              </Box>
-            ) : null}
-
             <CreateCollectionCard onClick={() => navigate('/services')} />
           </Box>
         </Stack>

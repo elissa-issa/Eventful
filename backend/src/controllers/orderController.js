@@ -61,18 +61,22 @@ const checkout = asyncHandler(async (request, response) => {
     throw new ApiError(400, 'paymentMethod is required');
   }
 
-  if (!['pending', 'paid', 'completed'].includes(status)) {
-    throw new ApiError(400, 'status must be one of: pending, paid, completed');
+  if (!['pending', 'paid', 'processing', 'completed', 'delivered', 'cancelled'].includes(status)) {
+    throw new ApiError(
+      400,
+      'status must be one of: pending, paid, processing, completed, delivered, cancelled',
+    );
   }
 
   let cart = await Cart.findOne({ user: request.user.id });
   let cartItems = cart?.items || [];
+  let checkoutCollection = null;
 
   if (request.body.collectionId) {
     validateObjectId(request.body.collectionId, 'collectionId');
-    const collection = await findOwnedCollection(request.user.id, request.body.collectionId);
+    checkoutCollection = await findOwnedCollection(request.user.id, request.body.collectionId);
     cartItems = await Promise.all(
-      collection.items.map(async (item) => {
+      checkoutCollection.items.map(async (item) => {
         const service = await getServiceByType(item.section, item.itemId);
 
         return {
@@ -99,8 +103,15 @@ const checkout = asyncHandler(async (request, response) => {
     paymentMethod,
   });
 
+  if (checkoutCollection) {
+    checkoutCollection.status = 'checked_out';
+    checkoutCollection.checkedOutAt = new Date();
+    await checkoutCollection.save();
+  }
+
   if (cart) {
     cart.items = [];
+    cart.selectedCollection = null;
     await cart.save();
   }
 
