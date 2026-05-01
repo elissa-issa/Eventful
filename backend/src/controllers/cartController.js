@@ -2,6 +2,10 @@ const Cart = require('../models/Cart');
 const { ApiError } = require('../helpers/apiError');
 const { asyncHandler } = require('../helpers/asyncHandler');
 const {
+  buildCollectionResponse,
+  findOwnedCollection,
+} = require('./collectionController');
+const {
   attachServiceDetails,
   getServiceByType,
   validateObjectId,
@@ -14,6 +18,30 @@ async function findOrCreateCart(userId) {
     { $setOnInsert: { user: userId, items: [] } },
     { returnDocument: 'after', upsert: true },
   );
+}
+
+async function copyCollectionToCart(userId, collectionId) {
+  validateObjectId(collectionId, 'collectionId');
+  const collection = await findOwnedCollection(userId, collectionId);
+  const cartItems = [];
+
+  for (const item of collection.items) {
+    const service = await getServiceByType(item.section, item.itemId);
+    cartItems.push({
+      serviceId: service._id,
+      serviceType: item.section,
+      quantity: item.quantity,
+      selectedDate: null,
+      customOptions: item.selectedOptions || {},
+    });
+  }
+
+  const cart = await findOrCreateCart(userId);
+  cart.selectedCollection = collection._id;
+  cart.items = cartItems;
+  await cart.save();
+
+  return { cart, collection };
 }
 
 function normalizeQuantity(value, fallback = 1) {
@@ -46,6 +74,7 @@ async function buildCartResponse(cart) {
   return {
     id: cart.id,
     user: cart.user.toString(),
+    collectionId: cart.selectedCollection ? cart.selectedCollection.toString() : null,
     items,
     createdAt: cart.createdAt,
     updatedAt: cart.updatedAt,
@@ -53,11 +82,32 @@ async function buildCartResponse(cart) {
 }
 
 const getCart = asyncHandler(async (request, response) => {
-  const cart = await findOrCreateCart(request.user.id);
+  const { collectionId } = request.query;
+  const { cart, collection } = collectionId
+    ? await copyCollectionToCart(request.user.id, collectionId)
+    : { cart: await findOrCreateCart(request.user.id), collection: null };
 
   response.status(200).json({
     message: 'Cart fetched successfully',
-    data: await buildCartResponse(cart),
+    data: {
+      ...(await buildCartResponse(cart)),
+      collection: collection ? await buildCollectionResponse(collection) : null,
+    },
+  });
+});
+
+const createFromCollection = asyncHandler(async (request, response) => {
+  const { cart, collection } = await copyCollectionToCart(
+    request.user.id,
+    request.params.collectionId,
+  );
+
+  response.status(200).json({
+    message: 'Cart created from collection successfully',
+    data: {
+      ...(await buildCartResponse(cart)),
+      collection: await buildCollectionResponse(collection),
+    },
   });
 });
 
@@ -113,7 +163,8 @@ const addItem = asyncHandler(async (request, response) => {
 });
 
 const updateItem = asyncHandler(async (request, response) => {
-  const { serviceId, serviceType, selectedDate, customOptions } = request.body;
+  const { serviceId, selectedDate, customOptions } = request.body;
+  const serviceType = request.body.serviceType || request.body.section;
   const quantity = normalizeQuantity(request.body.quantity);
 
   validateServiceType(serviceType);
@@ -141,6 +192,65 @@ const updateItem = asyncHandler(async (request, response) => {
   }
 
   await cart.save();
+
+  if (cart.selectedCollection) {
+    const service = await getServiceByType(serviceType, serviceId);
+    const itemId = service.itemId || service.id;
+    const collection = await findOwnedCollection(request.user.id, cart.selectedCollection);
+    const syncedItem = collection.items.find(
+      (candidate) => candidate.section === serviceType && candidate.itemId === itemId,
+    );
+
+    if (syncedItem) {
+      syncedItem.quantity = quantity;
+      syncedItem.selectedOptions = customOptions || syncedItem.selectedOptions || {};
+      await collection.save();
+    }
+  }
+
+  response.status(200).json({
+    message: 'Cart item updated successfully',
+    data: await buildCartResponse(cart),
+  });
+});
+
+const updateItemById = asyncHandler(async (request, response) => {
+  validateObjectId(request.params.cartItemId, 'cartItemId');
+  const quantity = normalizeQuantity(request.body.quantity);
+  const cart = await findOrCreateCart(request.user.id);
+  const item = cart.items.id(request.params.cartItemId);
+
+  if (!item) {
+    throw new ApiError(404, 'Cart item not found');
+  }
+
+  item.quantity = quantity;
+
+  if (request.body.selectedDate !== undefined) {
+    item.selectedDate = parseSelectedDate(request.body.selectedDate);
+  }
+
+  if (request.body.customOptions !== undefined) {
+    item.customOptions = request.body.customOptions;
+  }
+
+  await cart.save();
+
+  if (cart.selectedCollection) {
+    const service = await getServiceByType(item.serviceType, item.serviceId);
+    const collection = await findOwnedCollection(request.user.id, cart.selectedCollection);
+    const syncedItem = collection.items.find(
+      (candidate) =>
+        candidate.section === item.serviceType &&
+        candidate.itemId === (service.itemId || service.id),
+    );
+
+    if (syncedItem) {
+      syncedItem.quantity = quantity;
+      syncedItem.selectedOptions = item.customOptions || {};
+      await collection.save();
+    }
+  }
 
   response.status(200).json({
     message: 'Cart item updated successfully',
@@ -171,6 +281,45 @@ const removeItem = asyncHandler(async (request, response) => {
 
   await cart.save();
 
+  if (cart.selectedCollection) {
+    const service = await getServiceByType(serviceType, id);
+    const collection = await findOwnedCollection(request.user.id, cart.selectedCollection);
+    collection.items = collection.items.filter(
+      (item) =>
+        !(item.section === serviceType && item.itemId === (service.itemId || service.id)),
+    );
+    await collection.save();
+  }
+
+  response.status(200).json({
+    message: 'Cart item removed successfully',
+    data: await buildCartResponse(cart),
+  });
+});
+
+const removeItemById = asyncHandler(async (request, response) => {
+  validateObjectId(request.params.cartItemId, 'cartItemId');
+  const cart = await findOrCreateCart(request.user.id);
+  const item = cart.items.id(request.params.cartItemId);
+
+  if (!item) {
+    throw new ApiError(404, 'Cart item not found');
+  }
+
+  const service = await getServiceByType(item.serviceType, item.serviceId);
+  const serviceType = item.serviceType;
+  const itemId = service.itemId || service.id;
+  item.deleteOne();
+  await cart.save();
+
+  if (cart.selectedCollection) {
+    const collection = await findOwnedCollection(request.user.id, cart.selectedCollection);
+    collection.items = collection.items.filter(
+      (candidate) => !(candidate.section === serviceType && candidate.itemId === itemId),
+    );
+    await collection.save();
+  }
+
   response.status(200).json({
     message: 'Cart item removed successfully',
     data: await buildCartResponse(cart),
@@ -180,6 +329,7 @@ const removeItem = asyncHandler(async (request, response) => {
 const clearCart = asyncHandler(async (request, response) => {
   const cart = await findOrCreateCart(request.user.id);
   cart.items = [];
+  cart.selectedCollection = null;
   await cart.save();
 
   response.status(200).json({
@@ -191,7 +341,10 @@ const clearCart = asyncHandler(async (request, response) => {
 module.exports = {
   addItem,
   clearCart,
+  createFromCollection,
   getCart,
   removeItem,
+  removeItemById,
   updateItem,
+  updateItemById,
 };

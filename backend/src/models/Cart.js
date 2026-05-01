@@ -42,6 +42,12 @@ const cartSchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
+    selectedCollection: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Collection',
+      default: null,
+      index: true,
+    },
     items: {
       type: [cartItemSchema],
       default: [],

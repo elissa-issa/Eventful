@@ -1,23 +1,69 @@
-import { useMemo, useState } from 'react'
-import { Box, Container, Stack, Typography } from '@mui/material'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Box, Container, Stack, TextField, Typography } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
-import { MY_COLLECTIONS } from '../constants/myCollections'
 import { COLORS } from '../constants/colors'
+import { createCollection, deleteCollection, getCollections } from '../services/collections'
+import { useToast } from '../toast/useToast'
 import CollectionsList from '../shared/components/CollectionsList'
 import CreateCollectionCard from '../shared/components/CreateCollectionCard'
 
 function MyCollectionsPage() {
   const navigate = useNavigate()
-  const [collections, setCollections] = useState(MY_COLLECTIONS)
+  const { showToast } = useToast()
+  const [collections, setCollections] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState('')
+  const [newCollectionName, setNewCollectionName] = useState('')
 
   const hasCollections = useMemo(() => collections.length > 0, [collections])
 
-  const handleDeleteCollection = (collectionId) => {
-    setCollections((current) => current.filter((collection) => collection.id !== collectionId))
+  const loadCollections = useCallback(
+    async () => {
+      setIsLoading(true)
+      setErrorMessage('')
+
+      try {
+        const result = await getCollections()
+        setCollections(result.data || [])
+      } catch (error) {
+        setErrorMessage(error.message || 'Could not load collections')
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [],
+  )
+
+  useEffect(() => {
+    loadCollections()
+  }, [loadCollections])
+
+  const handleDeleteCollection = async (collectionId) => {
+    try {
+      await deleteCollection(collectionId)
+      setCollections((current) => current.filter((collection) => collection.id !== collectionId))
+      showToast('Collection deleted')
+    } catch (error) {
+      showToast(error.message, 'error')
+    }
   }
 
-  const handleViewCollection = (collectionId) => {
-    navigate(`/cart?collection=${collectionId}`)
+  const handleCreateCollection = async () => {
+    const name = newCollectionName.trim()
+
+    if (!name) {
+      showToast('Collection name is required', 'error')
+      return
+    }
+
+    try {
+      const result = await createCollection({ name })
+      setCollections((current) => [result.data, ...current])
+      setNewCollectionName('')
+      showToast('Collection created')
+    } catch (error) {
+      showToast(error.message, 'error')
+    }
   }
 
   return (
@@ -40,6 +86,16 @@ function MyCollectionsPage() {
             My Collections
           </Typography>
 
+          {isLoading ? (
+            <Typography sx={{ color: COLORS.primary, fontWeight: 700 }}>
+              Loading collections...
+            </Typography>
+          ) : null}
+
+          {errorMessage ? (
+            <Typography sx={{ color: '#d32f2f', fontWeight: 700 }}>{errorMessage}</Typography>
+          ) : null}
+
           <Box
             sx={{
               display: 'grid',
@@ -52,18 +108,20 @@ function MyCollectionsPage() {
               alignItems: 'stretch',
             }}
           >
-            {hasCollections ? (
+            {!isLoading && hasCollections ? (
               <CollectionsList
                 collections={collections}
-                onViewCollection={handleViewCollection}
+                onViewCollection={(collectionId) => navigate(`/cart?collectionId=${collectionId}`)}
                 onDeleteCollection={handleDeleteCollection}
                 sx={{ display: 'contents' }}
               />
-            ) : (
+            ) : null}
+
+            {!isLoading && !hasCollections ? (
               <Box
                 sx={{
                   minHeight: 306,
-                  borderRadius: 3,
+                  borderRadius: 2,
                   border: `1px dashed ${COLORS.borderStrong}`,
                   display: 'grid',
                   placeItems: 'center',
@@ -81,9 +139,17 @@ function MyCollectionsPage() {
                   event.
                 </Typography>
               </Box>
-            )}
+            ) : null}
 
-            <CreateCollectionCard onClick={() => navigate('/services')} />
+            <Stack spacing={1.5}>
+              <TextField
+                size="small"
+                label="Collection name"
+                value={newCollectionName}
+                onChange={(event) => setNewCollectionName(event.target.value)}
+              />
+              <CreateCollectionCard onClick={handleCreateCollection} />
+            </Stack>
           </Box>
         </Stack>
       </Container>

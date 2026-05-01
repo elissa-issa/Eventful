@@ -4,8 +4,8 @@ import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { COLORS } from '../constants/colors'
 import { useFavoriteActions, getFavoriteKey } from '../hooks/useFavoriteActions'
+import { useCollectionCartAction } from '../hooks/useCollectionCartAction'
 import { useServicesData } from '../hooks/useServicesData'
-import { addCartItem } from '../services/cart'
 import { useToast } from '../toast/useToast'
 import { getServicePayload } from '../utils/servicePayload'
 import AddReviewDrawer from '../shared/components/AddReviewDrawer'
@@ -22,6 +22,7 @@ function ServiceItemPage() {
   const { showToast } = useToast()
   const { itemsBySection } = useServicesData()
   const { favoriteItems, toggleFavoriteItem } = useFavoriteActions()
+  const { collectionPickerDialog, openCollectionPicker } = useCollectionCartAction()
   const { section, itemId } = useParams()
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const [isAddReviewDrawerOpen, setIsAddReviewDrawerOpen] = useState(false)
@@ -209,13 +210,7 @@ function ServiceItemPage() {
     }
 
     handleProtectedAction(async () => {
-      await addCartItem({
-        ...payload,
-        quantity,
-        selectedDate,
-        customOptions,
-      })
-      showToast('Added to cart')
+      openCollectionPicker(selectedItem, section, { quantity, selectedDate, customOptions })
     })
   }
 
@@ -349,6 +344,7 @@ function ServiceItemPage() {
         secondaryActionColor={COLORS.primary}
         onSecondaryActionClick={() => setIsSignInDialogOpen(false)}
       />
+      {collectionPickerDialog}
     </>
   )
 }
