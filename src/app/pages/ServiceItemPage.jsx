@@ -198,7 +198,7 @@ function ServiceItemPage() {
     })
   }
 
-  const handleAddToCart = ({ quantity = 1, selectedDate, customOptions } = {}) => {
+  const handleAddToCart = ({ event, quantity = 1, selectedDate, customOptions } = {}) => {
     if (!selectedItem) {
       return
     }
@@ -210,7 +210,7 @@ function ServiceItemPage() {
     }
 
     handleProtectedAction(async () => {
-      openCollectionPicker(selectedItem, section, { quantity, selectedDate, customOptions })
+      openCollectionPicker(event, selectedItem, section, { quantity, selectedDate, customOptions })
     })
   }
 

@@ -58,7 +58,7 @@ function HomePage() {
     }
   }
 
-  const handleAddToCartClick = (card) => {
+  const handleAddToCartClick = (event, card) => {
     if (!isAuthenticated) {
       setIsSignInDialogOpen(true)
       return
@@ -67,7 +67,7 @@ function HomePage() {
     const payload = getServicePayload(card, 'bundles')
 
     if (payload.serviceId) {
-      openCollectionPicker(card, 'bundles')
+      openCollectionPicker(event, card, 'bundles')
     }
   }
 
@@ -274,7 +274,7 @@ function HomePage() {
               primaryButtonLabel={card.primaryButtonLabel}
               onPrimaryButtonClick={() => navigate(`/services/bundles/${card.id}`)}
               secondaryButtonLabel={card.secondaryButtonLabel}
-              onSecondaryButtonClick={() => handleAddToCartClick(card)}
+              onSecondaryButtonClick={(event) => handleAddToCartClick(event, card)}
             />
           </Box>
           )

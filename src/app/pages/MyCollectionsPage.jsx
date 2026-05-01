@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Box, Container, Stack, TextField, Typography } from '@mui/material'
+import {
+  Box,
+  Button,
+  Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Stack,
+  Typography,
+} from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { COLORS } from '../constants/colors'
-import { createCollection, deleteCollection, getCollections } from '../services/collections'
+import { deleteCollection, getCollections } from '../services/collections'
 import { useToast } from '../toast/useToast'
 import CollectionsList from '../shared/components/CollectionsList'
 import CreateCollectionCard from '../shared/components/CreateCollectionCard'
@@ -13,7 +23,8 @@ function MyCollectionsPage() {
   const [collections, setCollections] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
-  const [newCollectionName, setNewCollectionName] = useState('')
+  const [collectionToDelete, setCollectionToDelete] = useState(null)
+  const [isDeletingCollection, setIsDeletingCollection] = useState(false)
 
   const hasCollections = useMemo(() => collections.length > 0, [collections])
 
@@ -38,31 +49,34 @@ function MyCollectionsPage() {
     loadCollections()
   }, [loadCollections])
 
-  const handleDeleteCollection = async (collectionId) => {
-    try {
-      await deleteCollection(collectionId)
-      setCollections((current) => current.filter((collection) => collection.id !== collectionId))
-      showToast('Collection deleted')
-    } catch (error) {
-      showToast(error.message, 'error')
+  const handleAskDelete = (collectionId) => {
+    const collection = collections.find((item) => item.id === collectionId)
+    setCollectionToDelete(collection || { id: collectionId })
+  }
+
+  const handleCancelDelete = () => {
+    if (!isDeletingCollection) {
+      setCollectionToDelete(null)
     }
   }
 
-  const handleCreateCollection = async () => {
-    const name = newCollectionName.trim()
-
-    if (!name) {
-      showToast('Collection name is required', 'error')
+  const handleConfirmDelete = async () => {
+    if (!collectionToDelete) {
       return
     }
 
     try {
-      const result = await createCollection({ name })
-      setCollections((current) => [result.data, ...current])
-      setNewCollectionName('')
-      showToast('Collection created')
+      setIsDeletingCollection(true)
+      await deleteCollection(collectionToDelete.id)
+      setCollections((current) =>
+        current.filter((collection) => collection.id !== collectionToDelete.id),
+      )
+      setCollectionToDelete(null)
+      showToast('Collection deleted successfully', 'success')
     } catch (error) {
-      showToast(error.message, 'error')
+      showToast(error.message || 'Could not delete collection', 'error')
+    } finally {
+      setIsDeletingCollection(false)
     }
   }
 
@@ -105,14 +119,14 @@ function MyCollectionsPage() {
                 lg: 'repeat(3, minmax(0, 1fr))',
               },
               gap: { xs: 3, sm: 4 },
-              alignItems: 'stretch',
+              alignItems: 'start',
             }}
           >
             {!isLoading && hasCollections ? (
               <CollectionsList
                 collections={collections}
                 onViewCollection={(collectionId) => navigate(`/cart?collectionId=${collectionId}`)}
-                onDeleteCollection={handleDeleteCollection}
+                onDeleteCollection={handleAskDelete}
                 sx={{ display: 'contents' }}
               />
             ) : null}
@@ -135,24 +149,49 @@ function MyCollectionsPage() {
                     fontWeight: 600,
                   }}
                 >
-                  You do not have any collections yet. Create a new one to start building your
-                  event.
+                  You do not have any collections yet. Go to services and add an item to create
+                  one.
                 </Typography>
               </Box>
             ) : null}
 
-            <Stack spacing={1.5}>
-              <TextField
-                size="small"
-                label="Collection name"
-                value={newCollectionName}
-                onChange={(event) => setNewCollectionName(event.target.value)}
-              />
-              <CreateCollectionCard onClick={handleCreateCollection} />
-            </Stack>
+            <CreateCollectionCard onClick={() => navigate('/services')} />
           </Box>
         </Stack>
       </Container>
+
+      <Dialog open={Boolean(collectionToDelete)} onClose={handleCancelDelete} fullWidth maxWidth="xs">
+        <DialogTitle sx={{ color: COLORS.primary, fontWeight: 800 }}>
+          Delete collection?
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ color: COLORS.textLight }}>
+            Are you sure you want to delete this collection?
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button
+            onClick={handleCancelDelete}
+            disabled={isDeletingCollection}
+            sx={{ color: COLORS.primary, textTransform: 'none', fontWeight: 700 }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleConfirmDelete}
+            disabled={isDeletingCollection}
+            sx={{
+              backgroundColor: '#f44336',
+              textTransform: 'none',
+              fontWeight: 700,
+              '&:hover': { backgroundColor: '#da362a' },
+            }}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

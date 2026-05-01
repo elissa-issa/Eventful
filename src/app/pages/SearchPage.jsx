@@ -104,7 +104,7 @@ function SearchPage() {
     })
   }
 
-  const handleAddToCart = (item, serviceType) => {
+  const handleAddToCart = (event, item, serviceType) => {
     const payload = getServicePayload(item, serviceType)
 
     if (!payload.serviceId) {
@@ -112,7 +112,7 @@ function SearchPage() {
     }
 
     handleProtectedAction(async () => {
-      openCollectionPicker(item, serviceType)
+      openCollectionPicker(event, item, serviceType)
     })
   }
 
@@ -187,7 +187,7 @@ function SearchPage() {
                     primaryButtonLabel={item.primaryButtonLabel}
                     onPrimaryButtonClick={() => navigate(`/services/bundles/${item.id}`)}
                     secondaryButtonLabel={item.secondaryButtonLabel}
-                    onSecondaryButtonClick={() => handleAddToCart(item, item.resultSection)}
+                    onSecondaryButtonClick={(event) => handleAddToCart(event, item, item.resultSection)}
                     maxWidth={400}
                     imageHeight={312}
                     cardBorderRadius={2}
@@ -213,7 +213,7 @@ function SearchPage() {
                   isFavorite={Boolean(favoriteItems[favoriteKey])}
                   onFavoriteToggle={() => handleFavoriteToggle(item, item.resultSection)}
                   onViewButtonClick={() => navigate(`/services/${item.resultSection}/${item.id}`)}
-                  onCartButtonClick={() => handleAddToCart(item, item.resultSection)}
+                  onCartButtonClick={(event) => handleAddToCart(event, item, item.resultSection)}
                 />
               )
             })}

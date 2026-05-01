@@ -1,49 +1,6 @@
-import { useMemo } from 'react'
 import { Box, Button, Stack, Typography } from '@mui/material'
 import { COLORS } from '../../constants/colors'
-
-function CollectionPreviewTile({ item, extraCount = 0 }) {
-  return (
-    <Box
-      sx={{
-        position: 'relative',
-        aspectRatio: '1 / 1',
-        borderRadius: 1,
-        overflow: 'hidden',
-        backgroundColor: COLORS.border,
-      }}
-    >
-      <Box
-        component="img"
-        src={item.imageSrc}
-        alt={item.imageAlt}
-        sx={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          display: 'block',
-          filter: extraCount > 0 ? 'brightness(0.58)' : 'none',
-        }}
-      />
-
-      {extraCount > 0 ? (
-        <Box
-          sx={{
-            position: 'absolute',
-            inset: 0,
-            display: 'grid',
-            placeItems: 'center',
-            color: COLORS.surface,
-            fontWeight: 900,
-            fontSize: { xs: '1.85rem', sm: '2.1rem' },
-          }}
-        >
-          +{extraCount}
-        </Box>
-      ) : null}
-    </Box>
-  )
-}
+import CollectionPreviewGrid from './CollectionPreviewGrid'
 
 function CollectionCard({
   collection,
@@ -52,50 +9,42 @@ function CollectionCard({
   titleSuffix,
   viewLabel = 'View collection',
   selected = false,
-  spacing = 1.65,
+  spacing = 1.35,
 }) {
-  const extraCount = Math.max(collection.totalItems - collection.previewItems.length, 0)
-  const previewItems = useMemo(
-    () =>
-      collection.previewItems.slice(0, 4).map((item, index, array) => ({
-        ...item,
-        extraCount: index === array.length - 1 ? extraCount : 0,
-      })),
-    [collection.previewItems, extraCount],
-  )
+  const previewItems = collection.items || collection.previewItems || []
+  const itemCount = collection.items?.length ?? collection.totalItems ?? 0
+  const itemCountText = itemCount === 1 ? '1 item' : `${itemCount} items`
+  const title = collection.name || collection.title || 'Untitled Collection'
 
   return (
     <Stack
       spacing={spacing}
       sx={{
+        height: '100%',
         outline: selected ? '3px solid #1496ff' : '3px solid transparent',
         outlineOffset: 5,
       }}
     >
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-          gap: 1.75,
-        }}
-      >
-        {previewItems.map((item) => (
-          <CollectionPreviewTile key={item.id} item={item} extraCount={item.extraCount} />
-        ))}
+      <CollectionPreviewGrid items={previewItems} height={260} />
+
+      <Box sx={{ minHeight: 52 }}>
+        <Typography
+          sx={{
+            color: COLORS.primary,
+            fontWeight: 800,
+            fontSize: { xs: '1rem', sm: '1.05rem' },
+            textTransform: 'uppercase',
+            lineHeight: 1.15,
+          }}
+        >
+          {titleSuffix ? title.replace(/Collection$/i, titleSuffix) : title}
+        </Typography>
+        <Typography sx={{ mt: 0.45, color: COLORS.textLight, fontSize: '0.9rem', fontWeight: 600 }}>
+          {itemCountText}
+        </Typography>
       </Box>
 
-      <Typography
-        sx={{
-          color: COLORS.primary,
-          fontWeight: 800,
-          fontSize: { xs: '1rem', sm: '1.05rem' },
-          textTransform: 'uppercase',
-        }}
-      >
-        {titleSuffix ? collection.title.replace(/Collection$/i, titleSuffix) : collection.title}
-      </Typography>
-
-      <Stack direction="row" spacing={2}>
+      <Stack direction="row" spacing={2} sx={{ mt: 'auto' }}>
         <Button
           variant="contained"
           onClick={onView}
@@ -158,6 +107,7 @@ function CollectionsList({
             sm: 'repeat(2, minmax(0, 1fr))',
           },
           gap: { xs: 3, sm: 4 },
+          alignItems: 'stretch',
         },
         ...(Array.isArray(sx) ? sx : [sx]),
       ]}

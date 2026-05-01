@@ -64,9 +64,10 @@ function FavoritesPage() {
     }
   }
 
-  const handleAddToCart = async (item) => {
+  const handleAddToCart = async (event, item) => {
     try {
       openCollectionPicker(
+        event,
         {
           ...item.service,
           id: item.service?.id || item.serviceId,
@@ -115,7 +116,7 @@ function FavoritesPage() {
           priceText={item.service?.priceText || `$${item.service?.priceValue || 0}`}
           onDelete={() => handleRemoveFavorite(item)}
           onView={() => navigate(`/services/${item.serviceType}/${item.service?.id || item.serviceId}`)}
-          onAddToCart={() => handleAddToCart(item)}
+          onAddToCart={(event) => handleAddToCart(event, item)}
         />
       ))}
       {collectionPickerDialog}

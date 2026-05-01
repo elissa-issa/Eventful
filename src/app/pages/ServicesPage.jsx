@@ -153,7 +153,7 @@ function ServicesPage() {
     })
   }
 
-  const handleAddToCart = (item, serviceType) => {
+  const handleAddToCart = (event, item, serviceType) => {
     const payload = getServicePayload(item, serviceType)
 
     if (!payload.serviceId) {
@@ -161,7 +161,7 @@ function ServicesPage() {
     }
 
     handleProtectedAction(async () => {
-      openCollectionPicker(item, serviceType)
+      openCollectionPicker(event, item, serviceType)
     })
   }
 
@@ -503,7 +503,7 @@ function ServicesPage() {
                       primaryButtonLabel={item.primaryButtonLabel}
                       onPrimaryButtonClick={() => navigate(`/services/bundles/${item.id}`)}
                       secondaryButtonLabel={item.secondaryButtonLabel}
-                      onSecondaryButtonClick={() => handleAddToCart(item, itemSection)}
+                      onSecondaryButtonClick={(event) => handleAddToCart(event, item, itemSection)}
                       maxWidth={400}
                       imageHeight={312}
                       cardBorderRadius={2}
@@ -529,7 +529,7 @@ function ServicesPage() {
                     isFavorite={Boolean(favoriteItems[backendFavoriteKey])}
                     onFavoriteToggle={() => handleFavoriteToggle(item, itemSection)}
                     onViewButtonClick={() => navigate(`/services/${itemSection}/${item.id}`)}
-                    onCartButtonClick={() => handleAddToCart(item, itemSection)}
+                    onCartButtonClick={(event) => handleAddToCart(event, item, itemSection)}
                   />
                 )
               })}

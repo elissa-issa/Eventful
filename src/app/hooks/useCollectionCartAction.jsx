@@ -1,37 +1,37 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useToast } from '../toast/useToast'
 import { getCollectionItemPayload } from '../utils/servicePayload'
 import CollectionPickerDialog from '../shared/components/CollectionPickerDialog'
 
 export function useCollectionCartAction() {
-  const navigate = useNavigate()
   const { showToast } = useToast()
   const [pendingItemPayload, setPendingItemPayload] = useState(null)
+  const [anchorEl, setAnchorEl] = useState(null)
 
-  const openCollectionPicker = (item, section, options = {}) => {
+  const openCollectionPicker = (event, item, section, options = {}) => {
     const payload = getCollectionItemPayload(item, section, options)
 
     if (!payload.itemId) {
       return
     }
 
+    setAnchorEl(event?.currentTarget || null)
     setPendingItemPayload(payload)
   }
 
   const closeCollectionPicker = () => {
+    setAnchorEl(null)
     setPendingItemPayload(null)
   }
 
   const collectionPickerDialog = (
     <CollectionPickerDialog
-      open={Boolean(pendingItemPayload)}
+      anchorEl={anchorEl}
       itemPayload={pendingItemPayload}
       onClose={closeCollectionPicker}
-      onAdded={(collectionId) => {
+      onAdded={() => {
         closeCollectionPicker()
-        showToast('Added to collection')
-        navigate(`/cart?collectionId=${collectionId}`)
+        showToast('Added successfully to collection', 'success')
       }}
     />
   )

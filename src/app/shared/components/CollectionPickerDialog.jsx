@@ -3,10 +3,7 @@ import {
   Box,
   Button,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
+  Popover,
   Stack,
   TextField,
   Typography,
@@ -18,11 +15,13 @@ import {
   getCollections,
 } from '../../services/collections'
 
-function CollectionPickerDialog({ open, itemPayload, onClose, onAdded }) {
+function CollectionPickerDialog({ anchorEl, itemPayload, onClose, onAdded }) {
+  const open = Boolean(anchorEl)
   const [collections, setCollections] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [isCreating, setIsCreating] = useState(false)
   const [newCollectionName, setNewCollectionName] = useState('')
 
   useEffect(() => {
@@ -33,6 +32,8 @@ function CollectionPickerDialog({ open, itemPayload, onClose, onAdded }) {
     let isMounted = true
     setIsLoading(true)
     setErrorMessage('')
+    setIsCreating(false)
+    setNewCollectionName('')
 
     getCollections()
       .then((result) => {
@@ -72,6 +73,8 @@ function CollectionPickerDialog({ open, itemPayload, onClose, onAdded }) {
       const collection = result.data
       setCollections((current) => [collection, ...current])
       setNewCollectionName('')
+      setIsCreating(false)
+      await handleSelectCollection(collection.id)
     } catch (error) {
       setErrorMessage(error.message || 'Could not create collection')
     } finally {
@@ -98,73 +101,117 @@ function CollectionPickerDialog({ open, itemPayload, onClose, onAdded }) {
   }
 
   return (
-    <Dialog open={open} onClose={isSaving ? undefined : onClose} fullWidth maxWidth="sm">
-      <DialogTitle sx={{ color: COLORS.primary, fontWeight: 800 }}>
-        Choose a collection
-      </DialogTitle>
-      <DialogContent>
-        <Stack spacing={2}>
-          {isLoading ? (
-            <Stack direction="row" spacing={1.5} alignItems="center">
-              <CircularProgress size={20} />
-              <Typography sx={{ color: COLORS.primary, fontWeight: 700 }}>
-                Loading collections...
-              </Typography>
-            </Stack>
-          ) : null}
-
-          {errorMessage ? (
-            <Typography sx={{ color: '#d32f2f', fontWeight: 700 }}>{errorMessage}</Typography>
-          ) : null}
-
-          {!isLoading && collections.length === 0 ? (
-            <Typography sx={{ color: COLORS.textLight }}>
-              Create a collection first, then choose it to add this item.
+    <Popover
+      open={open}
+      anchorEl={anchorEl}
+      onClose={isSaving ? undefined : onClose}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+      slotProps={{
+        paper: {
+          sx: {
+            mt: 1.2,
+            width: 240,
+            maxWidth: 'calc(100vw - 24px)',
+            borderRadius: 1.2,
+            boxShadow: '0 6px 14px rgba(0, 0, 0, 0.24)',
+            border: `1px solid ${COLORS.border}`,
+            overflow: 'hidden',
+          },
+        },
+      }}
+    >
+      <Stack spacing={0.25} sx={{ px: 1.6, py: 1.2, backgroundColor: COLORS.surface }}>
+        {isLoading ? (
+          <Stack direction="row" spacing={1.2} alignItems="center" sx={{ py: 0.8 }}>
+            <CircularProgress size={16} />
+            <Typography sx={{ color: COLORS.primary, fontSize: '0.9rem', fontWeight: 700 }}>
+              Loading collections...
             </Typography>
-          ) : null}
+          </Stack>
+        ) : null}
 
-          {!isLoading && collections.length > 0 ? (
-            <Stack spacing={1}>
-              {collections.map((collection) => (
-                <Button
-                  key={collection.id}
-                  variant="outlined"
-                  disabled={isSaving}
-                  onClick={() => handleSelectCollection(collection.id)}
-                  sx={{
-                    justifyContent: 'space-between',
-                    minHeight: 48,
-                    borderRadius: 1,
-                    textTransform: 'none',
-                    color: COLORS.primary,
-                    borderColor: COLORS.borderStrong,
-                    fontWeight: 700,
-                  }}
-                >
-                  <span>{collection.name || collection.title}</span>
-                  <span>{collection.totalItems || 0} items</span>
-                </Button>
-              ))}
-            </Stack>
-          ) : null}
+        {errorMessage ? (
+          <Typography sx={{ color: '#d32f2f', fontSize: '0.82rem', fontWeight: 700, py: 0.4 }}>
+            {errorMessage}
+          </Typography>
+        ) : null}
 
-          <Box sx={{ display: 'flex', gap: 1 }}>
+        {!isLoading && collections.map((collection) => (
+          <Button
+            key={collection.id}
+            disabled={isSaving}
+            onClick={() => handleSelectCollection(collection.id)}
+            sx={{
+              justifyContent: 'flex-start',
+              minHeight: 32,
+              px: 0,
+              py: 0.35,
+              color: '#2b78cc',
+              textTransform: 'none',
+              fontSize: '0.95rem',
+              fontWeight: 500,
+              lineHeight: 1.2,
+              '&:hover': { backgroundColor: 'transparent', textDecoration: 'underline' },
+            }}
+          >
+            {collection.name || collection.title}
+          </Button>
+        ))}
+
+        {!isLoading && !isCreating ? (
+          <Button
+            disabled={isSaving}
+            onClick={() => setIsCreating(true)}
+            sx={{
+              justifyContent: 'flex-start',
+              minHeight: 32,
+              px: 0,
+              py: 0.35,
+              color: COLORS.textLight,
+              textTransform: 'none',
+              fontSize: '0.95rem',
+              fontWeight: 600,
+              lineHeight: 1.2,
+              '&:hover': { backgroundColor: 'transparent', color: COLORS.primary },
+            }}
+          >
+            + add new collection
+          </Button>
+        ) : null}
+
+        {isCreating ? (
+          <Box sx={{ display: 'flex', gap: 0.8, pt: 0.8 }}>
             <TextField
-              fullWidth
+              autoFocus
               size="small"
-              label="New collection name"
+              placeholder="Collection name"
               value={newCollectionName}
               disabled={isSaving}
               onChange={(event) => setNewCollectionName(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  handleCreateCollection()
+                }
+              }}
+              sx={{
+                flex: 1,
+                '& .MuiInputBase-input': {
+                  py: 0.75,
+                  fontSize: '0.95rem',
+                },
+              }}
             />
             <Button
               variant="contained"
               disabled={isSaving}
               onClick={handleCreateCollection}
               sx={{
+                minWidth: 68,
                 borderRadius: 1,
                 textTransform: 'none',
-                fontWeight: 800,
+                fontSize: '0.9rem',
+                fontWeight: 700,
                 backgroundColor: COLORS.primary,
                 '&:hover': { backgroundColor: COLORS.primaryHover },
               }}
@@ -172,14 +219,9 @@ function CollectionPickerDialog({ open, itemPayload, onClose, onAdded }) {
               Create
             </Button>
           </Box>
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={isSaving} sx={{ color: COLORS.primary }}>
-          Cancel
-        </Button>
-      </DialogActions>
-    </Dialog>
+        ) : null}
+      </Stack>
+    </Popover>
   )
 }
 
