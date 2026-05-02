@@ -3,15 +3,18 @@ import WorkspacePremiumRoundedIcon from '@mui/icons-material/WorkspacePremiumRou
 import { Box, Button, InputAdornment, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../auth/useAuth'
 import AlertDialog from '../shared/components/AlertDialog'
 import { COLORS } from '../constants/colors'
 import { useCollectionCartAction } from '../hooks/useCollectionCartAction'
 import { useFavoriteActions, getFavoriteKey } from '../hooks/useFavoriteActions'
 import { useServicesData } from '../hooks/useServicesData'
 import { getServicePayload } from '../utils/servicePayload'
+import { isPremiumUser as getIsPremiumUser } from '../utils/premium'
 import BundleCard from '../shared/components/BundleCard'
 import PremiumPlansDialog from '../shared/components/PremiumPlansDialog'
 import ServiceCard from '../shared/components/ServiceCard'
+import VendorContactDialog from '../shared/components/VendorContactDialog'
 import VendorDirectoryCard from '../shared/components/VendorDirectoryCard'
 import VendorFeatureCard from '../shared/components/VendorFeatureCard'
 
@@ -30,6 +33,37 @@ const normalizeItemValue = (value) =>
     .trim()
     .toLowerCase()
     .replace(/\s+/g, ' ')
+
+const VENDOR_CONTACTS = {
+  'albergo gardens': { phone: '+961 1 339 797', email: 'events@albergogardens.com' },
+  'batroun loft': { phone: '+961 70 145 882', email: 'hello@batrounloft.com' },
+  'dj rodge': { phone: '+961 3 304 044', email: 'booking@djrodge.com' },
+  lakkis: { phone: '+961 1 489 900', email: 'events@lakkis.com' },
+  'phoenicia hotel': { phone: '+961 1 369 100', email: 'events@phoeniciabeirut.com' },
+  'royal hotel': { phone: '+961 4 555 555', email: 'events@royalhotel.com' },
+  'sugar studio': { phone: '+961 70 123 456', email: 'events@sugarstudio.com' },
+  'the wedding shop': { phone: '+961 71 245 890', email: 'hello@theweddingshop.com' },
+}
+
+const createFallbackContact = (vendorName) => {
+  const normalizedName = normalizeVendorKey(vendorName) || 'vendor'
+  const slug = normalizedName.replace(/[^a-z0-9]+/g, '.').replace(/(^\.|\.$)/g, '')
+  const digitSeed = normalizedName
+    .split('')
+    .reduce((total, character) => total + character.charCodeAt(0), 0)
+  const phoneSuffix = String(100000 + (digitSeed % 899999)).padStart(6, '0')
+
+  return {
+    phone: `+961 70 ${phoneSuffix.slice(0, 3)} ${phoneSuffix.slice(3)}`,
+    email: `${slug || 'vendor'}@eventful-vendors.com`,
+  }
+}
+
+const getVendorContact = (vendorName) => {
+  const contact = VENDOR_CONTACTS[normalizeVendorKey(vendorName)]
+
+  return contact || createFallbackContact(vendorName)
+}
 
 const getVendorItemKeys = (item, section) => {
   const titleKey = normalizeItemValue(item.title)
@@ -98,14 +132,26 @@ const buildVendorDirectory = (itemsBySection) => {
           existingVendor.logoAlt = item.vendorLogoAlt
         }
 
+        if (!existingVendor.phone && item.vendorPhone) {
+          existingVendor.phone = item.vendorPhone
+        }
+
+        if (!existingVendor.email && item.vendorEmail) {
+          existingVendor.email = item.vendorEmail
+        }
+
         return
       }
+
+      const vendorContact = getVendorContact(item.vendorName)
 
       vendorsByName.set(key, {
         id: key.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
         name: item.vendorName,
         title: item.vendorName,
         location: item.vendorLocation || item.location || '',
+        phone: item.vendorPhone || vendorContact.phone,
+        email: item.vendorEmail || vendorContact.email,
         logoSrc: item.vendorLogoSrc,
         logoAlt: item.vendorLogoAlt,
         imageSrc: item.imageSrc,
@@ -129,6 +175,7 @@ const buildVendorDirectory = (itemsBySection) => {
 
 function VendorsPage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const { itemsBySection } = useServicesData()
   const { collectionPickerDialog, openCollectionPicker } = useCollectionCartAction()
   const { favoriteItems, toggleFavoriteItem } = useFavoriteActions()
@@ -138,6 +185,8 @@ function VendorsPage() {
   const [activeVendorId, setActiveVendorId] = useState('')
   const [isPremiumDialogOpen, setIsPremiumDialogOpen] = useState(false)
   const [isPlansDialogOpen, setIsPlansDialogOpen] = useState(false)
+  const [contactVendor, setContactVendor] = useState(null)
+  const isPremiumUser = getIsPremiumUser(user)
   const vendors = useMemo(() => buildVendorDirectory(itemsBySection), [itemsBySection])
   const activeVendor = useMemo(
     () => vendors.find((vendor) => vendor.id === activeVendorId) || null,
@@ -194,6 +243,15 @@ function VendorsPage() {
 
   const handleClosePremiumDialog = () => {
     setIsPremiumDialogOpen(false)
+  }
+
+  const handleContactVendor = (vendor) => {
+    if (!isPremiumUser) {
+      handleOpenPremiumDialog()
+      return
+    }
+
+    setContactVendor(vendor)
   }
 
   const handleViewVendorItems = (vendor) => {
@@ -510,7 +568,7 @@ function VendorsPage() {
               serviceType={vendor.serviceType}
               vendorLogoSrc={vendor.logoSrc}
               vendorLogoAlt={vendor.logoAlt}
-              onContactButtonClick={handleOpenPremiumDialog}
+              onContactButtonClick={() => handleContactVendor(vendor)}
               onItemsButtonClick={() => handleViewVendorItems(vendor)}
             />
           ))}
@@ -539,6 +597,11 @@ function VendorsPage() {
       <PremiumPlansDialog
         open={isPlansDialogOpen}
         onClose={() => setIsPlansDialogOpen(false)}
+      />
+      <VendorContactDialog
+        open={Boolean(contactVendor)}
+        vendor={contactVendor}
+        onClose={() => setContactVendor(null)}
       />
       {collectionPickerDialog}
     </Stack>

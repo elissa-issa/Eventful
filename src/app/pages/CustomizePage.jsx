@@ -14,9 +14,11 @@ import {
   Typography,
 } from '@mui/material'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useAuth } from '../auth/useAuth'
 import { COLORS } from '../constants/colors'
 import { useTopPicks } from '../hooks/useTopPicks'
 import { useToast } from '../toast/useToast'
+import { isPremiumUser as getIsPremiumUser } from '../utils/premium'
 import { addFavorite } from '../services/favorites'
 import {
   createCustomizedPlan,
@@ -233,6 +235,7 @@ function TopPickTile({ item, onClick }) {
 
 function CreatePlanView({ plan, onChooseTemplate, onBackToPlans, onRefreshPlan, onRenamePlan }) {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const { showToast } = useToast()
   const [collapsedSections, setCollapsedSections] = useState({})
   const [isRenaming, setIsRenaming] = useState(false)
@@ -242,6 +245,7 @@ function CreatePlanView({ plan, onChooseTemplate, onBackToPlans, onRefreshPlan, 
   const [isRemovingItem, setIsRemovingItem] = useState(false)
   const [isPremiumDialogOpen, setIsPremiumDialogOpen] = useState(false)
   const [isPlansDialogOpen, setIsPlansDialogOpen] = useState(false)
+  const isPremiumUser = getIsPremiumUser(user)
   const {
     maxTopPicksIndex,
     rightArrowClickCount,
@@ -249,7 +253,7 @@ function CreatePlanView({ plan, onChooseTemplate, onBackToPlans, onRefreshPlan, 
     topPicksToRender,
     handleTopPicksNext,
     handleTopPicksPrevious,
-  } = useTopPicks(4)
+  } = useTopPicks(4, !isPremiumUser)
 
   const sections = useMemo(
     () =>

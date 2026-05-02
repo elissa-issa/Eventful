@@ -24,8 +24,10 @@ import { useAuth } from '../auth/useAuth'
 import { COLORS } from '../constants/colors'
 import { getOrders } from '../services/orders'
 import { deleteAccount, updateProfile } from '../services/auth'
+import { isPremiumUser as getIsPremiumUser } from '../utils/premium'
 import AddLocationDialog from '../shared/components/AddLocationDialog'
 import AlertDialog from '../shared/components/AlertDialog'
+import PremiumPlansDialog from '../shared/components/PremiumPlansDialog'
 import {
   emptyLocationValues,
   getLocationValidationError,
@@ -303,6 +305,7 @@ function ProfilePage() {
   const [isAddLocationDialogOpen, setIsAddLocationDialogOpen] = useState(false)
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [isOrderHistoryOpen, setIsOrderHistoryOpen] = useState(false)
+  const [isPlansDialogOpen, setIsPlansDialogOpen] = useState(false)
   const [profileFormValues, setProfileFormValues] = useState(() => getProfileFormValues(user))
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileError, setProfileError] = useState('')
@@ -321,7 +324,7 @@ function ProfilePage() {
   const [locationDeleting, setLocationDeleting] = useState(false)
   const [accountDeleting, setAccountDeleting] = useState(false)
   const [accountDeleteError, setAccountDeleteError] = useState('')
-  const isPremiumUser = Boolean(user?.isPremium)
+  const isPremiumUser = getIsPremiumUser(user)
   const displayName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'User'
   const avatarLabel =
     `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`.trim() || 'U'
@@ -645,17 +648,22 @@ function ProfilePage() {
                 </Typography>
 
                 <Stack
+                  component="button"
+                  type="button"
                   direction="row"
                   spacing={0.75}
                   alignItems="center"
+                  onClick={() => setIsPlansDialogOpen(true)}
                   sx={{
                     mt: 1,
                     borderRadius: 999,
                     px: 1.4,
                     py: 0.55,
+                    cursor: 'pointer',
                     backgroundColor: isPremiumUser ? '#fff8f3' : COLORS.primarySoft,
                     color: isPremiumUser ? COLORS.accent : COLORS.primary,
                     border: `1px solid ${isPremiumUser ? 'rgba(234, 122, 36, 0.35)' : COLORS.borderStrong}`,
+                    font: 'inherit',
                   }}
                 >
                   {isPremiumUser ? <WorkspacePremiumRoundedIcon sx={{ fontSize: 18 }} /> : null}
@@ -1202,6 +1210,11 @@ function ProfilePage() {
         open={isOrderHistoryOpen}
         onClose={() => setIsOrderHistoryOpen(false)}
         orders={orderHistoryItems}
+      />
+
+      <PremiumPlansDialog
+        open={isPlansDialogOpen}
+        onClose={() => setIsPlansDialogOpen(false)}
       />
 
       <AlertDialog

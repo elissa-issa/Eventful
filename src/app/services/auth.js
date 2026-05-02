@@ -22,9 +22,16 @@ export function updateProfile(payload) {
   })
 }
 
-export function upgradeToPremium() {
-  return apiRequest('/auth/premium', {
-    method: 'PATCH',
+export function upgradeToPremium(payload) {
+  return apiRequest('/auth/upgrade-premium', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function cancelPremium() {
+  return apiRequest('/auth/cancel-premium', {
+    method: 'POST',
   })
 }
 
