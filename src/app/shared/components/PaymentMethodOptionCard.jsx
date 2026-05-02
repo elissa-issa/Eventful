@@ -117,6 +117,7 @@ function PaymentMethodOptionCard({
 
                 <TextField
                   fullWidth
+                  required
                   size="small"
                   placeholder={field.placeholder}
                   value={values[field.id] ?? ''}

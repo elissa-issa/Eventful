@@ -7,13 +7,16 @@ import { COLORS } from '../../constants/colors'
 
 const footerLinks = [
   { label: 'Services', path: '/services' },
+  { label: 'Home', path: '/home' },
+  { label: 'Bundles', path: '/services#bundles' },
   { label: 'Customize', path: '/customize' },
+  { label: 'Venues', path: '/services#venues' },
   { label: 'Contact Us', path: '/contact-us' },
-  { label: 'Bundles', path: '/home' },
-  { label: 'Venues', path: '/vendors' },
-  { label: 'Menus', path: '/home' },
-  { label: 'Decorations', path: '/home' },
-  { label: 'Entertainment', path: '/home' },
+  { label: 'Menus', path: '/services#menus' },
+  { label: 'Vendors', path: '/vendors' },
+  { label: 'Decorations', path: '/services#decorations' },
+  { label: 'Inspiration', path: '/inspiration' },
+  { label: 'Entertainment', path: '/services#entertainment' },
 ]
 
 function Footer() {

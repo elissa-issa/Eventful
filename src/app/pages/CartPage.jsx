@@ -26,6 +26,7 @@ import SavedLocationsDialog from '../shared/components/SavedLocationsDialog'
 import {
   emptyLocationValues,
   getLocationValidationError,
+  getLocationValidationErrors,
   normalizeLocationValues,
 } from '../shared/utils/locationForm'
 
@@ -184,55 +185,37 @@ function CartPage() {
   }
 
   const validateDeliveryAddress = () => {
-    const errors = {}
-
-    if (!deliveryAddress.locationName?.trim()) {
-      errors.locationName = 'Location name is required'
-    }
-
-    if (!deliveryAddress.city?.trim()) {
-      errors.city = 'City is required'
-    }
-
-    if (!deliveryAddress.streetAddress?.trim()) {
-      errors.streetAddress = 'Street address is required'
-    }
-
-    if (!deliveryAddress.mobileNumber?.trim()) {
-      errors.mobileNumber = 'Mobile number is required'
-    }
-
-    if (!deliveryAddress.zipPostalCode?.trim()) {
-      errors.zipPostalCode = 'ZIP / Postal code is required'
-    }
+    const errors = getLocationValidationErrors(deliveryAddress)
 
     setDeliveryAddressErrors(errors)
-    return Object.keys(errors).length === 0
+    const isValid = Object.keys(errors).length === 0
+
+    if (!isValid) {
+      showToast('Please complete the required delivery address fields', 'error')
+    }
+
+    return isValid
   }
 
   const validatePaymentMethod = () => {
     const errors = {}
 
     if (paymentMethod === 'card') {
-      if (!cardPaymentValues.cardHolderName?.trim()) {
-        errors.cardHolderName = 'Card holder name is required'
-      }
-
-      if (!cardPaymentValues.cardNumber?.trim()) {
-        errors.cardNumber = 'Card number is required'
-      }
-
-      if (!cardPaymentValues.expiryDate?.trim()) {
-        errors.expiryDate = 'Expiry date is required'
-      }
-
-      if (!cardPaymentValues.cvc?.trim()) {
-        errors.cvc = 'CVC is required'
-      }
+      CARD_PAYMENT_FIELDS.forEach((field) => {
+        if (!cardPaymentValues[field.id]?.trim()) {
+          errors[field.id] = `${field.label} is required`
+        }
+      })
     }
 
     setPaymentErrors(errors)
-    return Object.keys(errors).length === 0
+    const isValid = Object.keys(errors).length === 0
+
+    if (!isValid) {
+      showToast('Please complete the required card payment fields', 'error')
+    }
+
+    return isValid
   }
 
   const handleItemCheckChange = (item) => (_, isChecked) => {
@@ -310,6 +293,11 @@ function CartPage() {
   }
 
   const handleCheckout = async () => {
+    if (!validateDeliveryAddress()) {
+      setCheckoutStep(1)
+      return
+    }
+
     if (!validatePaymentMethod()) {
       return
     }
@@ -590,7 +578,9 @@ function CartPage() {
                       fields={CARD_PAYMENT_FIELDS}
                       values={cardPaymentValues}
                       errors={paymentErrors}
-                      onSelect={() => setPaymentMethod('card')}
+                      onSelect={() => {
+                        setPaymentMethod('card')
+                      }}
                       onFieldChange={handleCardPaymentChange}
                     />
 

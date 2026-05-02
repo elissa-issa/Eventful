@@ -21,7 +21,6 @@ import { getFavoriteKey, useFavoriteActions } from '../hooks/useFavoriteActions'
 import { useToast } from '../toast/useToast'
 import { createCartFromPlan } from '../services/cart'
 import { isPremiumUser as getIsPremiumUser } from '../utils/premium'
-import { addFavorite } from '../services/favorites'
 import {
   createCustomizedPlan,
   deleteCustomizedPlan,
@@ -615,7 +614,9 @@ function CreatePlanView({ plan, onChooseTemplate, onBackToPlans, onRefreshPlan, 
                     }
 
                     if (item.targetPath) {
-                      navigate(`${item.targetPath}?planId=${plan.id}`)
+                      const params = new URLSearchParams({ planId: plan.id })
+
+                      navigate(`${item.targetPath}?${params.toString()}`)
                     }
                   }}
                 />

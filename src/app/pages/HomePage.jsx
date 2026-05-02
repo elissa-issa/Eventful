@@ -231,6 +231,12 @@ function HomePage() {
     })
   }
 
+  const handlePartnerClick = (vendorName) => {
+    const params = new URLSearchParams({ vendor: vendorName })
+
+    navigate(`/vendors?${params.toString()}`)
+  }
+
   useEffect(() => {
     updateScrollState()
     updateCategoryScrollState()
@@ -553,6 +559,7 @@ function HomePage() {
                 imageSrc={vendor.logoSrc}
                 imageAlt={`${vendor.name} logo`}
                 imageSx={FEATURED_PARTNER_LOGO_STYLES[vendor.name?.trim().toLowerCase()]}
+                onClick={() => handlePartnerClick(vendor.name)}
               />
             </Box>
           ))}

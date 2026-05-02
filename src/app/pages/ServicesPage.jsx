@@ -112,8 +112,11 @@ function ServicesPage() {
   const normalizedSearchQuery = searchQuery.toLowerCase()
   const isSearchMode = normalizedSearchQuery.length > 0
 
-  const getDetailPath = (serviceType, id) =>
-    `/services/${serviceType}/${id}${isPlanMode ? `?planId=${planId}` : ''}`
+  const getDetailPath = (serviceType, item) => {
+    const routeId = item.routeId || item.itemId || item.id
+
+    return `/services/${serviceType}/${routeId}${isPlanMode ? `?planId=${planId}` : ''}`
+  }
 
   const handleCloseSignInDialog = () => {
     setIsSignInDialogOpen(false)
@@ -167,7 +170,7 @@ function ServicesPage() {
 
     handleProtectedAction(async () => {
       if (isPlanMode) {
-        navigate(getDetailPath(serviceType, item.id))
+        navigate(getDetailPath(serviceType, item))
         return
       }
 
@@ -511,7 +514,7 @@ function ServicesPage() {
                       leftText={item.leftText}
                       rightText={item.rightText}
                       primaryButtonLabel={isPlanMode ? 'Choose Template' : item.primaryButtonLabel}
-                      onPrimaryButtonClick={() => navigate(getDetailPath('bundles', item.id))}
+                      onPrimaryButtonClick={() => navigate(getDetailPath('bundles', item))}
                       secondaryButtonLabel={isPlanMode ? 'Add to Plan' : item.secondaryButtonLabel}
                       onSecondaryButtonClick={(event) =>
                         handleAddToCart(event, item, itemSection)
@@ -540,7 +543,7 @@ function ServicesPage() {
                     vendorLogoAlt={item.vendorLogoAlt}
                     isFavorite={Boolean(favoriteItems[backendFavoriteKey])}
                     onFavoriteToggle={() => handleFavoriteToggle(item, itemSection)}
-                    onViewButtonClick={() => navigate(getDetailPath(itemSection, item.id))}
+                    onViewButtonClick={() => navigate(getDetailPath(itemSection, item))}
                     cartButtonLabel={isPlanMode ? 'Add to Plan' : 'Add to Cart'}
                     onCartButtonClick={(event) => handleAddToCart(event, item, itemSection)}
                   />

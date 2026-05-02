@@ -11,6 +11,8 @@ export const PREMIUM_PLAN = {
   isUpgrade: true,
 }
 
+const getRouteId = (item) => item?.routeId || item?.itemId || item?.id
+
 export function useTopPicks(visibleTopPicks, showPremiumGate = true) {
   const { itemsBySection } = useServicesData()
   const [topPicksIndex, setTopPicksIndex] = useState(0)
@@ -24,20 +26,20 @@ export function useTopPicks(visibleTopPicks, showPremiumGate = true) {
     const bundles = itemsBySection.bundles || BUNDLE_CARDS
 
     return [
-      { ...menus[1], section: 'menus', targetPath: `/services/menus/${menus[1]?.id}` },
-      { ...venues[0], section: 'venues', targetPath: `/services/venues/${venues[0]?.id}` },
-      { ...menus[0], section: 'menus', targetPath: `/services/menus/${menus[0]?.id}` },
+      { ...menus[1], section: 'menus', targetPath: `/services/menus/${getRouteId(menus[1])}` },
+      { ...venues[0], section: 'venues', targetPath: `/services/venues/${getRouteId(venues[0])}` },
+      { ...menus[0], section: 'menus', targetPath: `/services/menus/${getRouteId(menus[0])}` },
       {
         ...entertainment[1],
         section: 'entertainment',
-        targetPath: `/services/entertainment/${entertainment[1]?.id}`,
+        targetPath: `/services/entertainment/${getRouteId(entertainment[1])}`,
       },
       {
         ...decorations[1],
         section: 'decorations',
-        targetPath: `/services/decorations/${decorations[1]?.id}`,
+        targetPath: `/services/decorations/${getRouteId(decorations[1])}`,
       },
-      { ...bundles[1], section: 'bundles', targetPath: `/services/bundles/${bundles[1]?.id}` },
+      { ...bundles[1], section: 'bundles', targetPath: `/services/bundles/${getRouteId(bundles[1])}` },
     ].filter((item) => item.id)
   }, [itemsBySection])
 

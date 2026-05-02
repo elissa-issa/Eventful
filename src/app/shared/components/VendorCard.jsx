@@ -1,10 +1,19 @@
 import { Box, Card } from '@mui/material'
 import { COLORS } from '../../constants/colors'
 
-function VendorCard({ imageSrc, imageAlt, imageSx }) {
+function VendorCard({ imageSrc, imageAlt, imageSx, onClick }) {
   return (
     <Card
       elevation={0}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={(event) => {
+        if (onClick && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault()
+          onClick()
+        }
+      }}
       sx={{
         width: '100%',
         minWidth: 280,
@@ -17,6 +26,14 @@ function VendorCard({ imageSrc, imageAlt, imageSx }) {
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: COLORS.surface,
+        cursor: onClick ? 'pointer' : 'default',
+        transition: 'border-color 160ms ease, transform 160ms ease',
+        '&:hover': onClick
+          ? {
+              borderColor: COLORS.primary,
+              transform: 'translateY(-2px)',
+            }
+          : undefined,
       }}
     >
       <Box

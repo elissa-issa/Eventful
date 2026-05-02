@@ -14,15 +14,79 @@ const STATIC_ITEMS_BY_SECTION = {
   entertainment: ENTERTAINMENT_ITEMS,
 }
 
+let cachedApiItemsBySection = null
+let servicesRequest = null
+
+function getServiceIdentity(item) {
+  return item?.id || item?.itemId
+}
+
+function mergeStaticWithApiItems(staticItems, apiItems = []) {
+  const apiItemsById = new Map(
+    apiItems
+      .map((item) => [getServiceIdentity(item), item])
+      .filter(([id]) => Boolean(id)),
+  )
+
+  const mergedStaticItems = staticItems.map((staticItem) => {
+    const apiItem = apiItemsById.get(getServiceIdentity(staticItem))
+
+    if (!apiItem) {
+      return staticItem
+    }
+
+    return {
+      ...staticItem,
+      routeId: getServiceIdentity(staticItem),
+      mongoId: apiItem.mongoId || apiItem._id || staticItem.mongoId,
+      serviceId: apiItem.serviceId || apiItem.mongoId || apiItem._id || staticItem.serviceId,
+      discountLabel: apiItem.discountLabel ?? staticItem.discountLabel,
+    }
+  })
+  const staticIds = new Set(staticItems.map(getServiceIdentity))
+  const apiOnlyItems = apiItems.filter((item) => !staticIds.has(getServiceIdentity(item)))
+
+  return [...mergedStaticItems, ...apiOnlyItems]
+}
+
+function mergeServicesData(apiItemsBySection) {
+  if (!apiItemsBySection) {
+    return STATIC_ITEMS_BY_SECTION
+  }
+
+  return Object.fromEntries(
+    Object.entries(STATIC_ITEMS_BY_SECTION).map(([section, staticItems]) => [
+      section,
+      mergeStaticWithApiItems(staticItems, apiItemsBySection[section]),
+    ]),
+  )
+}
+
+function loadServicesOnce() {
+  if (!servicesRequest) {
+    servicesRequest = getAllServices()
+      .then((itemsBySection) => {
+        cachedApiItemsBySection = itemsBySection
+        return itemsBySection
+      })
+      .catch((error) => {
+        servicesRequest = null
+        throw error
+      })
+  }
+
+  return servicesRequest
+}
+
 export function useServicesData() {
-  const [apiItemsBySection, setApiItemsBySection] = useState(null)
-  const [isLoadingServices, setIsLoadingServices] = useState(false)
+  const [apiItemsBySection, setApiItemsBySection] = useState(cachedApiItemsBySection)
+  const [isLoadingServices, setIsLoadingServices] = useState(!cachedApiItemsBySection)
   const [servicesError, setServicesError] = useState('')
 
   useEffect(() => {
     let isMounted = true
 
-    getAllServices()
+    loadServicesOnce()
       .then((itemsBySection) => {
         if (isMounted) {
           setApiItemsBySection(itemsBySection)
@@ -46,10 +110,7 @@ export function useServicesData() {
   }, [])
 
   const itemsBySection = useMemo(
-    () => ({
-      ...STATIC_ITEMS_BY_SECTION,
-      ...(apiItemsBySection || {}),
-    }),
+    () => mergeServicesData(apiItemsBySection),
     [apiItemsBySection]
   )
 

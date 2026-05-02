@@ -2,7 +2,7 @@ import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import WorkspacePremiumRoundedIcon from '@mui/icons-material/WorkspacePremiumRounded'
 import { Box, Button, InputAdornment, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import AlertDialog from '../shared/components/AlertDialog'
 import { COLORS } from '../constants/colors'
@@ -175,6 +175,7 @@ const buildVendorDirectory = (itemsBySection) => {
 
 function VendorsPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuth()
   const { itemsBySection } = useServicesData()
   const { collectionPickerDialog, openCollectionPicker } = useCollectionCartAction()
@@ -188,31 +189,47 @@ function VendorsPage() {
   const [contactVendor, setContactVendor] = useState(null)
   const isPremiumUser = getIsPremiumUser(user)
   const vendors = useMemo(() => buildVendorDirectory(itemsBySection), [itemsBySection])
+  const vendorQuery = searchParams.get('vendor') || ''
+  const queryMatchedVendor = useMemo(
+    () =>
+      vendorQuery
+        ? vendors.find(
+            (vendor) => normalizeVendorKey(vendor.name) === normalizeVendorKey(vendorQuery),
+          ) || null
+        : null,
+    [vendorQuery, vendors],
+  )
+  const effectiveSearchValue = vendorQuery && !queryMatchedVendor ? vendorQuery : searchValue
+  const effectiveSelectedServiceType = queryMatchedVendor ? 'All' : selectedServiceType
+  const effectiveSelectedVendor = queryMatchedVendor ? queryMatchedVendor.name : selectedVendor
+  const effectiveActiveVendorId = queryMatchedVendor?.id || activeVendorId
   const activeVendor = useMemo(
-    () => vendors.find((vendor) => vendor.id === activeVendorId) || null,
-    [activeVendorId, vendors]
+    () => vendors.find((vendor) => vendor.id === effectiveActiveVendorId) || null,
+    [effectiveActiveVendorId, vendors]
   )
 
   const vendorOptions = useMemo(() => {
     const filteredByService =
-      selectedServiceType === 'All'
+      effectiveSelectedServiceType === 'All'
         ? vendors
-        : vendors.filter((vendor) => vendor.serviceTypes.includes(selectedServiceType))
+        : vendors.filter((vendor) => vendor.serviceTypes.includes(effectiveSelectedServiceType))
 
     const names = [...new Set(filteredByService.map((vendor) => vendor.name))].sort((a, b) =>
       a.localeCompare(b)
     )
 
     return ['All Vendors', ...names]
-  }, [selectedServiceType, vendors])
+  }, [effectiveSelectedServiceType, vendors])
 
   const filteredVendors = useMemo(() => {
-    const normalizedSearch = searchValue.trim().toLowerCase()
+    const normalizedSearch = effectiveSearchValue.trim().toLowerCase()
 
     return vendors.filter((vendor) => {
       const serviceMatches =
-        selectedServiceType === 'All' || vendor.serviceTypes.includes(selectedServiceType)
-      const vendorMatches = selectedVendor === 'All Vendors' || vendor.name === selectedVendor
+        effectiveSelectedServiceType === 'All' ||
+        vendor.serviceTypes.includes(effectiveSelectedServiceType)
+      const vendorMatches =
+        effectiveSelectedVendor === 'All Vendors' || vendor.name === effectiveSelectedVendor
       const searchMatches =
         normalizedSearch.length === 0 ||
         [
@@ -230,13 +247,12 @@ function VendorsPage() {
 
       return serviceMatches && vendorMatches && searchMatches
     })
-  }, [searchValue, selectedServiceType, selectedVendor, vendors])
+  }, [effectiveSearchValue, effectiveSelectedServiceType, effectiveSelectedVendor, vendors])
 
   const featuredVendor = filteredVendors[0] || null
   const secondaryVendor = filteredVendors[1] || null
   const additionalVendors = activeVendor ? [] : filteredVendors.slice(2)
   const vendorItems = activeVendor?.items || []
-
   const handleOpenPremiumDialog = () => {
     setIsPremiumDialogOpen(true)
   }
@@ -270,7 +286,15 @@ function VendorsPage() {
     openCollectionPicker(event, item, section)
   }
 
-  const getDetailPath = (section, itemId) => `/services/${section}/${itemId}`
+  const getDetailPath = (section, item) => `/services/${section}/${item.routeId || item.itemId || item.id}`
+  const clearVendorQuery = () => {
+    if (vendorQuery) {
+      const nextParams = new URLSearchParams(searchParams)
+
+      nextParams.delete('vendor')
+      setSearchParams(nextParams, { replace: true })
+    }
+  }
 
   return (
     <Stack spacing={4.5} sx={{ pt: 3.5, pb: 2 }}>
@@ -311,8 +335,9 @@ function VendorsPage() {
           <TextField
             fullWidth
             placeholder="Search vendors, services, or location"
-            value={searchValue}
+            value={effectiveSearchValue}
             onChange={(event) => {
+              clearVendorQuery()
               setSearchValue(event.target.value)
               setActiveVendorId('')
             }}
@@ -339,8 +364,9 @@ function VendorsPage() {
 
           <TextField
             select
-            value={selectedServiceType}
+            value={effectiveSelectedServiceType}
             onChange={(event) => {
+              clearVendorQuery()
               setSelectedServiceType(event.target.value)
               setSelectedVendor('All Vendors')
               setActiveVendorId('')
@@ -367,8 +393,9 @@ function VendorsPage() {
 
           <TextField
             select
-            value={selectedVendor}
+            value={effectiveSelectedVendor}
             onChange={(event) => {
+              clearVendorQuery()
               setSelectedVendor(event.target.value)
               setActiveVendorId('')
             }}
@@ -511,7 +538,7 @@ function VendorsPage() {
                     leftText={item.leftText}
                     rightText={item.rightText}
                     primaryButtonLabel={item.primaryButtonLabel}
-                    onPrimaryButtonClick={() => navigate(getDetailPath(itemSection, item.id))}
+                    onPrimaryButtonClick={() => navigate(getDetailPath(itemSection, item))}
                     secondaryButtonLabel={item.secondaryButtonLabel}
                     onSecondaryButtonClick={(event) => handleAddToCart(event, item, itemSection)}
                     maxWidth={400}
@@ -538,7 +565,7 @@ function VendorsPage() {
                   vendorLogoAlt={item.vendorLogoAlt}
                   isFavorite={Boolean(favoriteItems[backendFavoriteKey])}
                   onFavoriteToggle={() => handleFavoriteToggle(item, itemSection)}
-                  onViewButtonClick={() => navigate(getDetailPath(itemSection, item.id))}
+                  onViewButtonClick={() => navigate(getDetailPath(itemSection, item))}
                   onCartButtonClick={(event) => handleAddToCart(event, item, itemSection)}
                 />
               )

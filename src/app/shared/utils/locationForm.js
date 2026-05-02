@@ -18,20 +18,31 @@ export function normalizeLocationValues(values = {}) {
 }
 
 export function getLocationValidationError(values) {
+  const errors = getLocationValidationErrors(values)
+  const firstError = addLocationFields
+    .map((field) => errors[field.id])
+    .find(Boolean)
+
+  return firstError || ''
+}
+
+export function getLocationValidationErrors(values) {
+  const errors = {}
   const requiredFields = addLocationFields.filter((field) => field.required !== false)
-  const missingField = requiredFields.find((field) => !values[field.id]?.trim())
 
-  if (missingField) {
-    return `${missingField.label} is required`
+  requiredFields.forEach((field) => {
+    if (!values[field.id]?.trim()) {
+      errors[field.id] = `${field.label} is required`
+    }
+  })
+
+  if (!errors.mobileNumber && !/^\d{8}$/.test(values.mobileNumber.trim())) {
+    errors.mobileNumber = 'Mobile Number must be exactly 8 digits'
   }
 
-  if (!/^\d{8}$/.test(values.mobileNumber.trim())) {
-    return 'Mobile Number must be exactly 8 digits'
+  if (!errors.zipPostalCode && !/^\d+$/.test(values.zipPostalCode.trim())) {
+    errors.zipPostalCode = 'ZIP / Postal Code must contain numbers only'
   }
 
-  if (!/^\d+$/.test(values.zipPostalCode.trim())) {
-    return 'ZIP / Postal Code must contain numbers only'
-  }
-
-  return ''
+  return errors
 }
