@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
+const aiRoutes = require('./routes/aiRoutes');
 const cartRoutes = require('./routes/cartRoutes');
 const collectionRoutes = require('./routes/collectionRoutes');
 const customizedPlanRoutes = require('./routes/customizedPlanRoutes');
@@ -30,6 +31,7 @@ app.get('/api/health', (_request, response) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/ai', aiRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/collections', collectionRoutes);
