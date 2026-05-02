@@ -3,7 +3,17 @@ import ArrowBackIosNewRoundedIcon from '@mui/icons-material/ArrowBackIosNewRound
 import ArrowForwardIosRoundedIcon from '@mui/icons-material/ArrowForwardIosRounded'
 import ArrowOutwardRoundedIcon from '@mui/icons-material/ArrowOutwardRounded'
 import WorkspacePremiumRoundedIcon from '@mui/icons-material/WorkspacePremiumRounded'
-import { Box, Button, IconButton, Stack, Typography, useMediaQuery, useTheme } from '@mui/material'
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogContent,
+  IconButton,
+  Stack,
+  Typography,
+  useMediaQuery,
+  useTheme,
+} from '@mui/material'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { COLORS } from '../constants/colors'
@@ -19,6 +29,7 @@ import { useFavoriteActions, getFavoriteKey } from '../hooks/useFavoriteActions'
 import { useCollectionCartAction } from '../hooks/useCollectionCartAction'
 import { useTopPicks } from '../hooks/useTopPicks'
 import { useToast } from '../toast/useToast'
+import { isPremiumUser as getIsPremiumUser } from '../utils/premium'
 import { getServicePayload } from '../utils/servicePayload'
 
 function PremiumUpgradeCard({ onUpgradeClick }) {
@@ -104,7 +115,7 @@ function InspirationPage() {
   const theme = useTheme()
   const location = useLocation()
   const navigate = useNavigate()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
   const { showToast } = useToast()
   const { favoriteItems, toggleFavoriteItem } = useFavoriteActions()
   const { collectionPickerDialog, openCollectionPicker } = useCollectionCartAction()
@@ -117,6 +128,8 @@ function InspirationPage() {
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const [isPremiumDialogOpen, setIsPremiumDialogOpen] = useState(false)
   const [isPlansDialogOpen, setIsPlansDialogOpen] = useState(false)
+  const [selectedTheme, setSelectedTheme] = useState(null)
+  const isPremiumUser = getIsPremiumUser(user)
   const visibleTopPicks = isLargeUp ? 3 : isSmallUp ? 2 : 1
   const {
     maxTopPicksIndex,
@@ -125,7 +138,7 @@ function InspirationPage() {
     topPicksToRender,
     handleTopPicksNext,
     handleTopPicksPrevious,
-  } = useTopPicks(visibleTopPicks)
+  } = useTopPicks(visibleTopPicks, !isPremiumUser)
 
   const handleHeroSlideChange = (direction) => {
     setActiveHeroSlideIndex((current) => {
@@ -156,6 +169,15 @@ function InspirationPage() {
 
   const handleClosePremiumDialog = () => {
     setIsPremiumDialogOpen(false)
+  }
+
+  const handleExploreTheme = (theme) => {
+    if (!isPremiumUser) {
+      handleOpenPremiumDialog()
+      return
+    }
+
+    setSelectedTheme(theme)
   }
 
   const handleProtectedAction = async (action) => {
@@ -299,7 +321,7 @@ function InspirationPage() {
             imageSrc={featureTheme.imageSrc}
             imageAlt={featureTheme.imageAlt}
             large
-            onCtaClick={handleOpenPremiumDialog}
+            onCtaClick={() => handleExploreTheme(featureTheme)}
           />
         ) : null}
 
@@ -309,7 +331,7 @@ function InspirationPage() {
             ctaLabel={sideTheme.ctaLabel}
             imageSrc={sideTheme.imageSrc}
             imageAlt={sideTheme.imageAlt}
-            onCtaClick={handleOpenPremiumDialog}
+            onCtaClick={() => handleExploreTheme(sideTheme)}
           />
         ) : null}
       </Box>
@@ -332,7 +354,7 @@ function InspirationPage() {
             ctaLabel={theme.ctaLabel}
             imageSrc={theme.imageSrc}
             imageAlt={theme.imageAlt}
-            onCtaClick={handleOpenPremiumDialog}
+            onCtaClick={() => handleExploreTheme(theme)}
           />
         ))}
       </Box>
@@ -474,6 +496,59 @@ function InspirationPage() {
         open={isPlansDialogOpen}
         onClose={() => setIsPlansDialogOpen(false)}
       />
+
+      <Dialog
+        open={Boolean(selectedTheme)}
+        onClose={() => setSelectedTheme(null)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            overflow: 'hidden',
+            boxShadow: '0 24px 60px rgba(15, 45, 75, 0.22)',
+          },
+        }}
+      >
+        {selectedTheme ? (
+          <DialogContent sx={{ p: 0 }}>
+            <Box
+              component="img"
+              src={selectedTheme.imageSrc}
+              alt={selectedTheme.imageAlt}
+              sx={{ width: '100%', height: 260, objectFit: 'cover', display: 'block' }}
+            />
+            <Stack spacing={1.2} sx={{ p: { xs: 2.5, sm: 3 } }}>
+              <Typography sx={{ color: COLORS.primaryDark, fontWeight: 800, fontSize: '1.55rem' }}>
+                {selectedTheme.title}
+              </Typography>
+              <Typography sx={{ color: COLORS.textMuted, fontWeight: 600, lineHeight: 1.5 }}>
+                Premium inspiration board unlocked. Use this theme as a starting point for your
+                next Eventful plan.
+              </Typography>
+              <Button
+                variant="contained"
+                onClick={() => {
+                  setSelectedTheme(null)
+                  navigate('/customize')
+                }}
+                sx={{
+                  alignSelf: 'flex-start',
+                  mt: 0.8,
+                  borderRadius: 999,
+                  px: 2.25,
+                  textTransform: 'none',
+                  fontWeight: 800,
+                  backgroundColor: COLORS.accent,
+                  '&:hover': { backgroundColor: COLORS.accentHover },
+                }}
+              >
+                Start Planning
+              </Button>
+            </Stack>
+          </DialogContent>
+        ) : null}
+      </Dialog>
 
       <NewsletterCTA
         fullBleed

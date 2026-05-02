@@ -11,7 +11,7 @@ export const PREMIUM_PLAN = {
   isUpgrade: true,
 }
 
-export function useTopPicks(visibleTopPicks) {
+export function useTopPicks(visibleTopPicks, showPremiumGate = true) {
   const { itemsBySection } = useServicesData()
   const [topPicksIndex, setTopPicksIndex] = useState(0)
   const [rightArrowClickCount, setRightArrowClickCount] = useState(0)
@@ -42,8 +42,11 @@ export function useTopPicks(visibleTopPicks) {
   }, [itemsBySection])
 
   const topPickItems = useMemo(
-    () => (rightArrowClickCount > 2 ? [...topPickBaseItems, PREMIUM_PLAN] : topPickBaseItems),
-    [rightArrowClickCount, topPickBaseItems],
+    () =>
+      showPremiumGate && rightArrowClickCount > 2
+        ? [...topPickBaseItems, PREMIUM_PLAN]
+        : topPickBaseItems,
+    [rightArrowClickCount, showPremiumGate, topPickBaseItems],
   )
 
   const maxTopPicksIndex = Math.max(topPickItems.length - visibleTopPicks, 0)
@@ -55,7 +58,10 @@ export function useTopPicks(visibleTopPicks) {
 
   const handleTopPicksNext = () => {
     const nextClickCount = rightArrowClickCount + 1
-    const nextItems = nextClickCount > 2 ? [...topPickBaseItems, PREMIUM_PLAN] : topPickBaseItems
+    const nextItems =
+      showPremiumGate && nextClickCount > 2
+        ? [...topPickBaseItems, PREMIUM_PLAN]
+        : topPickBaseItems
     const nextMaxIndex = Math.max(nextItems.length - visibleTopPicks, 0)
 
     setRightArrowClickCount(nextClickCount)

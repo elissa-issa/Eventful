@@ -2,7 +2,6 @@ export const INSPIRATION_THEMES = [
   {
     id: 'high-end-wedding',
     title: 'High-End Wedding',
-    subtitle: 'Premium',
     ctaLabel: 'Explore',
     imageSrc:
       'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=80',

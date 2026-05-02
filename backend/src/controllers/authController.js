@@ -9,6 +9,41 @@ const { asyncHandler } = require('../helpers/asyncHandler');
 const { hashPassword, verifyPassword } = require('../helpers/passwordHelper');
 const { generateAuthToken } = require('../helpers/tokenHelper');
 
+const CARD_PAYMENT_FIELDS = [
+  'cardHolderName',
+  'cardNumber',
+  'expiryDate',
+  'cvc',
+];
+const PREMIUM_PAYMENT_METHODS = ['card', 'omt', 'wish-money'];
+
+function validatePremiumPayment(payload = {}) {
+  const paymentMethod = String(payload.paymentMethod || '').trim();
+
+  if (!paymentMethod) {
+    throw new ApiError(400, 'paymentMethod is required');
+  }
+
+  if (!PREMIUM_PAYMENT_METHODS.includes(paymentMethod)) {
+    throw new ApiError(400, 'paymentMethod is not supported for premium upgrades');
+  }
+
+  if (paymentMethod !== 'card') {
+    return paymentMethod;
+  }
+
+  const cardDetails = payload.cardDetails || payload;
+  const missingField = CARD_PAYMENT_FIELDS.find(
+    (field) => !String(cardDetails[field] || '').trim(),
+  );
+
+  if (missingField) {
+    throw new ApiError(400, `${missingField} is required`);
+  }
+
+  return paymentMethod;
+}
+
 function buildAuthResponse(user) {
   return {
     token: generateAuthToken({
@@ -127,6 +162,8 @@ const updateProfile = asyncHandler(async (request, response) => {
 });
 
 const upgradeToPremium = asyncHandler(async (request, response) => {
+  validatePremiumPayment(request.body);
+
   const updatedUser = await userRepository.updateUserById(request.user.id, {
     subscriptionPlan: 'premium',
     isPremium: true,
@@ -139,6 +176,23 @@ const upgradeToPremium = asyncHandler(async (request, response) => {
 
   response.status(200).json({
     message: 'Premium plan activated successfully',
+    data: buildAuthResponse(updatedUser),
+  });
+});
+
+const cancelPremium = asyncHandler(async (request, response) => {
+  const updatedUser = await userRepository.updateUserById(request.user.id, {
+    subscriptionPlan: 'free',
+    isPremium: false,
+    premiumSince: null,
+  });
+
+  if (!updatedUser) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  response.status(200).json({
+    message: 'Premium plan cancelled successfully',
     data: buildAuthResponse(updatedUser),
   });
 });
@@ -162,5 +216,6 @@ module.exports = {
   login,
   updateProfile,
   upgradeToPremium,
+  cancelPremium,
   deleteAccount,
 };
