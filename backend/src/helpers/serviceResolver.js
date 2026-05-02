@@ -72,6 +72,7 @@ function getServiceSummary(service) {
     title: service.title,
     priceValue: service.priceValue,
     priceText: service.priceText,
+    discountLabel: service.discountLabel,
     imageSrc: service.imageSrc,
     imageAlt: service.imageAlt,
     vendorName: service.vendorName,

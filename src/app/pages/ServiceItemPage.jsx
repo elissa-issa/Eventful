@@ -6,6 +6,7 @@ import { COLORS } from '../constants/colors'
 import { useFavoriteActions, getFavoriteKey } from '../hooks/useFavoriteActions'
 import { useServicesData } from '../hooks/useServicesData'
 import { addItemToCustomizedPlan } from '../services/customizedPlans'
+import { updateCartItemById } from '../services/cart'
 import {
   checkReviewEligibility,
   createServiceReview,
@@ -32,7 +33,13 @@ function ServiceItemPage() {
    const { collectionPickerDialog, openCollectionPicker } = useCollectionCartAction()
   const { section, itemId } = useParams()
   const planId = searchParams.get('planId')
+  const cartItemId = searchParams.get('cartItemId')
+  const cartReturnPath = searchParams.get('returnTo') || '/cart'
+  const cartInitialQuantity = Number(searchParams.get('quantity') || 1)
+  const cartInitialDate = searchParams.get('selectedDate') || ''
+  const cartInitialTime = searchParams.get('selectedTime') || ''
   const isPlanMode = Boolean(planId)
+  const isCartEditMode = Boolean(cartItemId)
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const [isAddReviewDrawerOpen, setIsAddReviewDrawerOpen] = useState(false)
   const [isReviewsDrawerOpen, setIsReviewsDrawerOpen] = useState(false)
@@ -328,6 +335,22 @@ function ServiceItemPage() {
     }
 
     handleProtectedAction(async () => {
+      if (isCartEditMode) {
+        if (!selectedDate || !customOptions?.selectedTime) {
+          showToast('Please select a date and time before saving changes', 'error')
+          return
+        }
+
+        await updateCartItemById(cartItemId, {
+          quantity,
+          selectedDate,
+          customOptions: customOptions || {},
+        })
+        showToast('Cart item updated')
+        navigate(cartReturnPath)
+        return
+      }
+
       if (isPlanMode) {
         await handleAddToPlan({ quantity, selectedDate, customOptions })
         return
@@ -429,7 +452,14 @@ function ServiceItemPage() {
           peopleLabel={selectedItem.peopleLabel}
           datePlaceholder={selectedItem.datePlaceholder}
           timePlaceholder={selectedItem.timePlaceholder}
-          actionButtonText={isPlanMode ? 'Add to Plan' : selectedItem.actionButtonText}
+          actionButtonText={
+            isCartEditMode ? 'Save Changes' : isPlanMode ? 'Add to Plan' : selectedItem.actionButtonText
+          }
+          initialQuantity={
+            isCartEditMode && Number.isFinite(cartInitialQuantity) ? cartInitialQuantity : undefined
+          }
+          initialDate={isCartEditMode ? cartInitialDate : undefined}
+          initialTime={isCartEditMode ? cartInitialTime : undefined}
           pricing={pricingConfig}
           selectedImageSrc={activeBundleImageSrc}
           onSelectedImageChange={isBundleSection ? setSelectedBundleImageSrc : undefined}
@@ -439,6 +469,8 @@ function ServiceItemPage() {
             navigate(
               isPlanMode
                 ? `/services?planId=${planId}#${section}`
+                : isCartEditMode
+                  ? cartReturnPath
                 : `/services#${section}`
             )
           }

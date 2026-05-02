@@ -13,6 +13,12 @@ export function createCartFromCollection(collectionId) {
   })
 }
 
+export function createCartFromPlan(planId) {
+  return apiRequest(`/cart/from-plan/${planId}`, {
+    method: 'POST',
+  })
+}
+
 export function addCartItem({ serviceId, serviceType, quantity = 1, selectedDate, customOptions }) {
   return apiRequest('/cart/add', {
     method: 'POST',

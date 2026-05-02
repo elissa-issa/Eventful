@@ -23,6 +23,20 @@ import { renderTimeViewClock } from '@mui/x-date-pickers/timeViewRenderers'
 import dayjs from 'dayjs'
 import { COLORS } from '../../constants/colors'
 
+function parseInitialTime(value) {
+  if (!value) {
+    return null
+  }
+
+  const [hours, minutes] = String(value).split(':').map(Number)
+
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) {
+    return null
+  }
+
+  return dayjs().hour(hours).minute(minutes).second(0).millisecond(0)
+}
+
 function ServiceItemGalleryDialog({
   title,
   images = [],
@@ -44,6 +58,9 @@ function ServiceItemGalleryDialog({
   datePlaceholder = 'Select Delivery Date',
   timePlaceholder = 'Select Delivery Time',
   actionButtonText = 'Add to Cart',
+  initialQuantity,
+  initialDate,
+  initialTime,
   pricing,
   selectedImageSrc,
   onSelectedImageChange,
@@ -53,9 +70,11 @@ function ServiceItemGalleryDialog({
   leftBottomContent,
 }) {
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [peopleCount, setPeopleCount] = useState(() => pricing?.defaultQuantity ?? 1)
-  const [deliveryDate, setDeliveryDate] = useState(null)
-  const [deliveryTime, setDeliveryTime] = useState(null)
+  const [peopleCount, setPeopleCount] = useState(() => initialQuantity ?? pricing?.defaultQuantity ?? 1)
+  const [deliveryDate, setDeliveryDate] = useState(() =>
+    initialDate && dayjs(initialDate).isValid() ? dayjs(initialDate) : null
+  )
+  const [deliveryTime, setDeliveryTime] = useState(() => parseInitialTime(initialTime))
 
   const activeIndex = useMemo(() => {
     if (selectedImageSrc) {
@@ -114,7 +133,7 @@ function ServiceItemGalleryDialog({
 
   const handlePeopleChange = (direction) => {
     setPeopleCount((current) =>
-      direction === 'increase' ? current + 1 : Math.max(0, current - 1)
+      direction === 'increase' ? current + 1 : Math.max(1, current - 1)
     )
   }
 
@@ -122,11 +141,11 @@ function ServiceItemGalleryDialog({
     const nextValue = event.target.value.replace(/\D/g, '')
 
     if (nextValue === '') {
-      setPeopleCount(0)
+      setPeopleCount(1)
       return
     }
 
-    setPeopleCount(Number(nextValue))
+    setPeopleCount(Math.max(1, Number(nextValue)))
   }
 
   const shouldDisableDate = (value) => {
@@ -589,6 +608,7 @@ function ServiceItemGalleryDialog({
                     <IconButton
                       aria-label="Decrease people count"
                       onClick={() => handlePeopleChange('decrease')}
+                      disabled={peopleCount <= 1}
                       sx={{
                         width: 34,
                         height: 34,
@@ -597,6 +617,10 @@ function ServiceItemGalleryDialog({
                         color: COLORS.surface,
                         '&:hover': {
                           backgroundColor: COLORS.primary,
+                        },
+                        '&.Mui-disabled': {
+                          backgroundColor: COLORS.border,
+                          color: COLORS.textLight,
                         },
                       }}
                     >

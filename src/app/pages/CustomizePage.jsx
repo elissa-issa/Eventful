@@ -16,8 +16,9 @@ import {
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { COLORS } from '../constants/colors'
 import { useTopPicks } from '../hooks/useTopPicks'
+import { getFavoriteKey, useFavoriteActions } from '../hooks/useFavoriteActions'
 import { useToast } from '../toast/useToast'
-import { addFavorite } from '../services/favorites'
+import { createCartFromPlan } from '../services/cart'
 import {
   createCustomizedPlan,
   deleteCustomizedPlan,
@@ -75,6 +76,7 @@ function PlanSection({
   onModify,
   onFavorite,
   onDelete,
+  isItemFavorite,
 }) {
   return (
     <Stack spacing={1.05}>
@@ -144,6 +146,7 @@ function PlanSection({
               details={formatPlanItemDetails(item)}
               price={getPlanItemPrice(item)}
               modifyLabel="Modify"
+              isFavorite={isItemFavorite(item)}
               onModify={() => onModify(item)}
               onFavorite={() => onFavorite(item)}
               onDelete={() => onDelete(item)}
@@ -234,12 +237,14 @@ function TopPickTile({ item, onClick }) {
 function CreatePlanView({ plan, onChooseTemplate, onBackToPlans, onRefreshPlan, onRenamePlan }) {
   const navigate = useNavigate()
   const { showToast } = useToast()
+  const { favoriteItems, toggleFavoriteItem } = useFavoriteActions()
   const [collapsedSections, setCollapsedSections] = useState({})
   const [isRenaming, setIsRenaming] = useState(false)
   const [planName, setPlanName] = useState(plan?.name || '')
   const [isSavingName, setIsSavingName] = useState(false)
   const [pendingRemoveItem, setPendingRemoveItem] = useState(null)
   const [isRemovingItem, setIsRemovingItem] = useState(false)
+  const [isCreatingCart, setIsCreatingCart] = useState(false)
   const [isPremiumDialogOpen, setIsPremiumDialogOpen] = useState(false)
   const [isPlansDialogOpen, setIsPlansDialogOpen] = useState(false)
   const {
@@ -268,19 +273,25 @@ function CreatePlanView({ plan, onChooseTemplate, onBackToPlans, onRefreshPlan, 
     const serviceId = item.service?.mongoId
 
     if (!serviceId) {
-      showToast('Could not add this item to favorites', 'error')
+      showToast('Could not update this favorite', 'error')
       return
     }
 
     try {
-      await addFavorite({
+      const isFavorite = await toggleFavoriteItem({
         serviceId,
         serviceType: item.section,
       })
-      showToast('Added to favorites')
+      showToast(isFavorite ? 'Added to favorites' : 'Removed from favorites')
     } catch (error) {
-      showToast(error.message || 'Could not add favorite', 'error')
+      showToast(error.message || 'Could not update favorite', 'error')
     }
+  }
+
+  const isPlanItemFavorite = (item) => {
+    const serviceId = item.service?.mongoId
+
+    return serviceId ? Boolean(favoriteItems[getFavoriteKey(item.section, serviceId)]) : false
   }
 
   const handleConfirmRemoveItem = async () => {
@@ -323,6 +334,23 @@ function CreatePlanView({ plan, onChooseTemplate, onBackToPlans, onRefreshPlan, 
       setIsRenaming(false)
     } finally {
       setIsSavingName(false)
+    }
+  }
+
+  const handleGoToCheckout = async () => {
+    if (!plan?.items?.length || isCreatingCart) {
+      return
+    }
+
+    setIsCreatingCart(true)
+    try {
+      await createCartFromPlan(plan.id)
+      showToast('Plan copied to cart')
+      navigate('/cart')
+    } catch (error) {
+      showToast(error.message || 'Could not prepare checkout', 'error')
+    } finally {
+      setIsCreatingCart(false)
     }
   }
 
@@ -439,34 +467,83 @@ function CreatePlanView({ plan, onChooseTemplate, onBackToPlans, onRefreshPlan, 
           alignItems: 'start',
         }}
       >
-        <Box
-          sx={{
-            border: `2px solid ${COLORS.primary}`,
-            borderRadius: 1,
-            px: { xs: 2, md: 4 },
-            py: { xs: 2.2, md: 2.8 },
-          }}
-        >
-          <Stack spacing={1.45}>
-            {sections.map((section) => (
-              <PlanSection
-                key={section.id}
-                section={section}
-                collapsed={Boolean(collapsedSections[section.id])}
-                onToggle={() =>
-                  setCollapsedSections((current) => ({
-                    ...current,
-                    [section.id]: !current[section.id],
-                  }))
-                }
-                onAddNew={() => navigate(`/services?planId=${plan.id}#${section.id}`)}
+        <Stack spacing={2}>
+          <Box
+            sx={{
+              border: `2px solid ${COLORS.primary}`,
+              borderRadius: 1,
+              px: { xs: 2, md: 4 },
+              py: { xs: 2.2, md: 2.8 },
+            }}
+          >
+            <Stack spacing={1.45}>
+              {sections.map((section) => (
+                <PlanSection
+                  key={section.id}
+                  section={section}
+                  collapsed={Boolean(collapsedSections[section.id])}
+                  onToggle={() =>
+                    setCollapsedSections((current) => ({
+                      ...current,
+                      [section.id]: !current[section.id],
+                    }))
+                  }
+                  onAddNew={() => navigate(`/services?planId=${plan.id}#${section.id}`)}
                 onModify={(item) => navigateToService(item.section, item.itemId)}
                 onFavorite={handleFavoriteItem}
                 onDelete={setPendingRemoveItem}
+                isItemFavorite={isPlanItemFavorite}
               />
-            ))}
+              ))}
+            </Stack>
+          </Box>
+
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1.5}
+            justifyContent={{ xs: 'stretch', md: 'center' }}
+          >
+            <Button
+              variant="contained"
+              onClick={onBackToPlans}
+              sx={{
+                minWidth: { sm: 210 },
+                borderRadius: 999,
+                backgroundColor: COLORS.accent,
+                boxShadow: 'none',
+                color: COLORS.surface,
+                fontSize: '1.05rem',
+                fontWeight: 900,
+                textTransform: 'uppercase',
+                '&:hover': { backgroundColor: COLORS.accentHover, boxShadow: 'none' },
+              }}
+            >
+              Save Plan
+            </Button>
+            <Button
+              variant="contained"
+              disabled={!plan?.items?.length || isCreatingCart}
+              onClick={handleGoToCheckout}
+              sx={{
+                minWidth: { sm: 210 },
+                borderRadius: 999,
+                backgroundColor: COLORS.primary,
+                boxShadow: 'none',
+                color: COLORS.surface,
+                fontSize: '1.05rem',
+                fontWeight: 900,
+                textTransform: 'uppercase',
+                '&:hover': { backgroundColor: COLORS.primaryHover, boxShadow: 'none' },
+                '&.Mui-disabled': {
+                  backgroundColor: COLORS.border,
+                  color: COLORS.textLight,
+                },
+              }}
+            >
+              {isCreatingCart ? 'Preparing...' : 'Go To Checkout'}
+            </Button>
           </Stack>
-        </Box>
+        </Stack>
 
         <Box
           sx={{
@@ -543,24 +620,6 @@ function CreatePlanView({ plan, onChooseTemplate, onBackToPlans, onRefreshPlan, 
         </Box>
       </Box>
 
-      <Button
-        variant="contained"
-        onClick={onBackToPlans}
-        sx={{
-          alignSelf: { xs: 'stretch', md: 'center' },
-          minWidth: { md: 236 },
-          borderRadius: 999,
-          backgroundColor: COLORS.accent,
-          boxShadow: 'none',
-          color: COLORS.surface,
-          fontSize: '1.25rem',
-          fontWeight: 900,
-          textTransform: 'uppercase',
-          '&:hover': { backgroundColor: COLORS.accentHover, boxShadow: 'none' },
-        }}
-      >
-        Save Plan
-      </Button>
     </Stack>
     <AlertDialog
       open={Boolean(pendingRemoveItem)}

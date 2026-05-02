@@ -9,6 +9,7 @@ router.use(requireAuth);
 
 router.get('/', cartController.getCart);
 router.post('/from-collection/:collectionId', cartController.createFromCollection);
+router.post('/from-plan/:planId', cartController.createFromPlan);
 router.post('/add', cartController.addItem);
 router.put('/update', cartController.updateItem);
 router.patch('/items/:cartItemId', cartController.updateItemById);

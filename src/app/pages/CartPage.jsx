@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Box, Button, Container, Stack, Typography } from '@mui/material'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { COLORS } from '../constants/colors'
-import { addFavorite } from '../services/favorites'
+import { getFavoriteKey, useFavoriteActions } from '../hooks/useFavoriteActions'
 import { checkoutCart, getCart, removeCartItemById, updateCartItemById } from '../services/cart'
 import { getCollections } from '../services/collections'
 import {
@@ -13,6 +13,7 @@ import {
   updateSavedLocation,
 } from '../services/savedLocations'
 import { useToast } from '../toast/useToast'
+import { getCartItemPricing, getCartPricing } from '../utils/cartPricing'
 import { formatCartItemDetails } from '../utils/servicePayload'
 import AlertDialog from '../shared/components/AlertDialog'
 import AddLocationDialog from '../shared/components/AddLocationDialog'
@@ -36,14 +37,26 @@ const CARD_PAYMENT_FIELDS = [
 ]
 
 function formatPrice(value) {
-  return `$${Number(value || 0).toFixed(2)}`
+  const numericValue = Number(value || 0)
+
+  return Math.abs(numericValue - Math.round(numericValue)) < 0.001
+    ? `$${Math.round(numericValue)}`
+    : `$${numericValue.toFixed(2)}`
+}
+
+function hasScheduledDateAndTime(item) {
+  const customOptions = item.customOptions || item.selectedOptions || {}
+
+  return Boolean(item.selectedDate || customOptions.selectedDate) && Boolean(customOptions.selectedTime)
 }
 
 function CartPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
   const { token } = useAuth()
   const { showToast } = useToast()
+  const { favoriteItems, toggleFavoriteItem } = useFavoriteActions()
   const collectionId = searchParams.get('collectionId') || searchParams.get('collection')
   const [cart, setCart] = useState(null)
   const [collections, setCollections] = useState([])
@@ -75,26 +88,22 @@ function CartPage() {
   const [paymentErrors, setPaymentErrors] = useState({})
 
   const cartItems = cart?.items || []
-  const collectionTitle = cart?.collection?.name || cart?.collection?.title || 'Selected Collection'
+  const collectionTitle = cart?.collection?.name || cart?.collection?.title || 'Selected Services'
   const isDeliveryStep = checkoutStep === 1
   const isPaymentStep = checkoutStep === 2
   const selectedCartItems = cartItems.filter(
     (item) => selectedItems[item._id || `${item.serviceType}:${item.serviceId}`] !== false,
   )
   const totalPrice = useMemo(
-    () =>
-      selectedCartItems.reduce(
-        (total, item) => total + (item.service?.priceValue || 0) * item.quantity,
-        0,
-      ),
+    () => getCartPricing(selectedCartItems),
     [selectedCartItems],
   )
   const summary = {
-    retailPrice: formatPrice(totalPrice),
-    promotions: formatPrice(0),
-    totalPrice: formatPrice(totalPrice),
-    savedText: totalPrice > 0 ? 'Backend cart total' : '',
-    rewardedText: collectionId ? `Collection ${collectionId}` : '',
+    retailPrice: formatPrice(totalPrice.retailTotal),
+    promotions: formatPrice(totalPrice.promotionTotal),
+    totalPrice: formatPrice(totalPrice.total),
+    savedText: totalPrice.promotionTotal > 0 ? `saved ${formatPrice(totalPrice.promotionTotal)}` : '',
+    // rewardedText: totalPrice.total > 0 ? `Rewarded ${Math.floor(totalPrice.total / 62.5)} points` : '',
   }
 
   const loadCart = useCallback(async () => {
@@ -102,13 +111,6 @@ function CartPage() {
     setErrorMessage('')
 
     try {
-      if (!collectionId) {
-        const result = await getCollections()
-        setCollections(result.data || [])
-        setCart(null)
-        return
-      }
-
       const result = await getCart(collectionId)
       const nextCart = result.data
       setCart(nextCart)
@@ -125,6 +127,11 @@ function CartPage() {
 
         return nextSelectedItems
       })
+
+      if (!collectionId && !(nextCart.items || []).length) {
+        const collectionsResult = await getCollections()
+        setCollections(collectionsResult.data || [])
+      }
     } catch (error) {
       setErrorMessage(error.message)
     } finally {
@@ -247,20 +254,24 @@ function CartPage() {
 
   const handleFavoriteItem = async (item) => {
     try {
-      await addFavorite({
+      const isFavorite = await toggleFavoriteItem({
         serviceId: item.serviceId,
         serviceType: item.serviceType,
       })
-      showToast('Added to favorites')
+      showToast(isFavorite ? 'Added to favorites' : 'Removed from favorites')
     } catch (error) {
       showToast(error.message, 'error')
     }
   }
 
-  const handleIncreaseQuantity = async (item) => {
+  const handleQuantityChange = async (item, nextQuantity) => {
+    if (nextQuantity < 1) {
+      return
+    }
+
     try {
       await updateCartItemById(item._id, {
-        quantity: item.quantity + 1,
+        quantity: nextQuantity,
         selectedDate: item.selectedDate,
         customOptions: item.customOptions,
       })
@@ -269,6 +280,33 @@ function CartPage() {
     } catch (error) {
       showToast(error.message, 'error')
     }
+  }
+
+  const handleEditCartItem = (item) => {
+    const serviceItemId = item.service?.itemId || item.service?.id || item.itemId || item.serviceId
+
+    if (!item.serviceType || !serviceItemId) {
+      showToast('Could not open this item', 'error')
+      return
+    }
+
+    const customOptions = item.customOptions || {}
+    const params = new URLSearchParams({
+      cartItemId: item._id,
+      quantity: String(item.quantity || 1),
+      returnTo: `${location.pathname}${location.search}`,
+    })
+    const selectedDate = item.selectedDate || customOptions.selectedDate
+
+    if (selectedDate) {
+      params.set('selectedDate', selectedDate)
+    }
+
+    if (customOptions.selectedTime) {
+      params.set('selectedTime', customOptions.selectedTime)
+    }
+
+    navigate(`/services/${item.serviceType}/${serviceItemId}?${params.toString()}`)
   }
 
   const handleCheckout = async () => {
@@ -362,6 +400,16 @@ function CartPage() {
       return
     }
 
+    if (checkoutStep === 0) {
+      const missingScheduleItem = selectedCartItems.find((item) => !hasScheduledDateAndTime(item))
+
+      if (missingScheduleItem) {
+        const itemTitle = missingScheduleItem.service?.title || 'Every selected item'
+        showToast(`${itemTitle} needs a date and time before checkout`, 'error')
+        return
+      }
+    }
+
     if (isDeliveryStep && !validateDeliveryAddress()) {
       return
     }
@@ -369,7 +417,7 @@ function CartPage() {
     setCheckoutStep((current) => (current < 2 ? current + 1 : current))
   }
 
-  const canContinue = collectionId && cartItems.length > 0 && selectedCartItems.length > 0
+  const canContinue = cartItems.length > 0 && selectedCartItems.length > 0
 
   return (
     <Box
@@ -387,7 +435,7 @@ function CartPage() {
             <Typography sx={{ color: '#d32f2f', fontWeight: 700 }}>{errorMessage}</Typography>
           ) : null}
 
-          {!collectionId && !isLoadingCart ? (
+          {!collectionId && !isLoadingCart && cartItems.length === 0 ? (
             <Stack spacing={2}>
               <Typography sx={{ color: COLORS.primary, fontWeight: 800, fontSize: '1.3rem' }}>
                 Choose a collection to view your cart
@@ -416,7 +464,7 @@ function CartPage() {
             </Stack>
           ) : null}
 
-          {collectionId ? (
+          {collectionId || cartItems.length > 0 ? (
             !isPaymentStep ? (
               <Box
                 sx={{
@@ -453,7 +501,8 @@ function CartPage() {
                       <Stack spacing={2.5}>
                         {cartItems.map((item) => {
                           const key = item._id || `${item.serviceType}:${item.serviceId}`
-                          const itemTotal = (item.service?.priceValue || 0) * item.quantity
+                          const itemPricing = getCartItemPricing(item)
+                          const favoriteKey = getFavoriteKey(item.serviceType, item.serviceId)
 
                           return (
                             <CartItemRow
@@ -463,10 +512,15 @@ function CartPage() {
                               imageAlt={item.service?.imageAlt}
                               title={item.service?.title || 'Service'}
                               details={formatCartItemDetails(item)}
-                              price={formatPrice(itemTotal)}
-                              modifyLabel="+ Qty"
+                              price={formatPrice(itemPricing.total)}
+                              showQuantityStepper
+                              isFavorite={Boolean(favoriteItems[favoriteKey])}
+                              quantity={item.quantity}
                               onCheckedChange={handleItemCheckChange(item)}
-                              onModify={() => handleIncreaseQuantity(item)}
+                              onItemClick={() => handleEditCartItem(item)}
+                              onQuantityDecrease={() => handleQuantityChange(item, item.quantity - 1)}
+                              onQuantityIncrease={() => handleQuantityChange(item, item.quantity + 1)}
+                              onQuantityChange={(nextQuantity) => handleQuantityChange(item, nextQuantity)}
                               onFavorite={() => handleFavoriteItem(item)}
                               onDelete={() => handleRemoveItem(item)}
                             />

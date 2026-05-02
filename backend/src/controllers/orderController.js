@@ -24,24 +24,103 @@ async function buildOrderResponse(order) {
   };
 }
 
+function getCartItemSchedule(cartItem) {
+  const customOptions = cartItem.customOptions || {};
+  const selectedDate = cartItem.selectedDate || customOptions.selectedDate;
+  const selectedTime = customOptions.selectedTime;
+
+  return { selectedDate, selectedTime };
+}
+
+const WEEKDAYS = [
+  'sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+];
+
+function getPromotionAmount(cartItem, service, selectedDate) {
+  const discountLabel = String(service.discountLabel || '').trim();
+  const quantity = cartItem.quantity;
+  const unitPrice = service.priceValue || 0;
+  const lineTotal = unitPrice * quantity;
+
+  if (!discountLabel || lineTotal <= 0) {
+    return 0;
+  }
+
+  const quantityMatch = discountLabel.match(/(\d+)%\s*off\s*for\s*(\d+)\+/i);
+
+  if (quantityMatch) {
+    const percentage = Number(quantityMatch[1]);
+    const minQuantity = Number(quantityMatch[2]);
+
+    return quantity >= minQuantity ? lineTotal * (percentage / 100) : 0;
+  }
+
+  const weekdayMatch = discountLabel.match(/(\d+)%\s*off\s*on\s*([a-z]+)/i);
+
+  if (weekdayMatch) {
+    const date = new Date(selectedDate);
+    const percentage = Number(weekdayMatch[1]);
+    const weekday = weekdayMatch[2].toLowerCase();
+
+    if (!Number.isNaN(date.getTime()) && WEEKDAYS[date.getDay()] === weekday) {
+      return lineTotal * (percentage / 100);
+    }
+
+    return 0;
+  }
+
+  const freeUnitsMatch = discountLabel.match(/buy\s*(\d+)\s*get\s*(\d+)\s*for\s*free/i);
+
+  if (freeUnitsMatch) {
+    const buyQuantity = Number(freeUnitsMatch[1]);
+    const freeQuantity = Number(freeUnitsMatch[2]);
+    const bundleSize = buyQuantity + freeQuantity;
+
+    if (bundleSize <= 0 || quantity < bundleSize) {
+      return 0;
+    }
+
+    return Math.floor(quantity / bundleSize) * freeQuantity * unitPrice;
+  }
+
+  return 0;
+}
+
 async function buildOrderItems(cartItems) {
   const orderItems = [];
   let totalPrice = 0;
 
   for (const cartItem of cartItems) {
+    const { selectedDate, selectedTime } = getCartItemSchedule(cartItem);
+
+    if (!selectedDate || !selectedTime) {
+      throw new ApiError(400, 'Each cart item must have a selected date and time before checkout');
+    }
+
     const service = await getServiceByType(
       cartItem.serviceType,
       cartItem.serviceId,
     );
     const quantity = cartItem.quantity;
     const unitPrice = service.priceValue || 0;
-    const lineTotal = unitPrice * quantity;
+    const retailLineTotal = unitPrice * quantity;
+    const promotionAmount = Math.min(
+      getPromotionAmount(cartItem, service, selectedDate),
+      retailLineTotal,
+    );
+    const lineTotal = retailLineTotal - promotionAmount;
 
     orderItems.push({
       serviceId: cartItem.serviceId,
       serviceType: cartItem.serviceType,
       quantity,
-      selectedDate: cartItem.selectedDate,
+      selectedDate,
       customOptions: cartItem.customOptions || {},
       unitPrice,
       lineTotal,
@@ -83,7 +162,7 @@ const checkout = asyncHandler(async (request, response) => {
           serviceId: service._id,
           serviceType: item.section,
           quantity: item.quantity,
-          selectedDate: null,
+          selectedDate: item.selectedOptions?.selectedDate || null,
           customOptions: item.selectedOptions || {},
         };
       }),

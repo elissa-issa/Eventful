@@ -1,4 +1,5 @@
 const Cart = require('../models/Cart');
+const CustomizedPlan = require('../models/CustomizedPlan');
 const { ApiError } = require('../helpers/apiError');
 const { asyncHandler } = require('../helpers/asyncHandler');
 const {
@@ -31,7 +32,7 @@ async function copyCollectionToCart(userId, collectionId) {
       serviceId: service._id,
       serviceType: item.section,
       quantity: item.quantity,
-      selectedDate: null,
+      selectedDate: parseSelectedDate(item.selectedOptions?.selectedDate),
       customOptions: item.selectedOptions || {},
     });
   }
@@ -42,6 +43,35 @@ async function copyCollectionToCart(userId, collectionId) {
   await cart.save();
 
   return { cart, collection };
+}
+
+async function copyPlanToCart(userId, planId) {
+  validateObjectId(planId, 'planId');
+  const plan = await CustomizedPlan.findOne({ _id: planId, user: userId });
+
+  if (!plan) {
+    throw new ApiError(404, 'Customized plan not found');
+  }
+
+  const cartItems = [];
+
+  for (const item of plan.items) {
+    const service = await getServiceByType(item.section, item.itemId);
+    cartItems.push({
+      serviceId: service._id,
+      serviceType: item.section,
+      quantity: item.quantity,
+      selectedDate: parseSelectedDate(item.selectedOptions?.selectedDate),
+      customOptions: item.selectedOptions || {},
+    });
+  }
+
+  const cart = await findOrCreateCart(userId);
+  cart.selectedCollection = null;
+  cart.items = cartItems;
+  await cart.save();
+
+  return { cart, plan };
 }
 
 function normalizeQuantity(value, fallback = 1) {
@@ -66,6 +96,20 @@ function parseSelectedDate(value) {
   }
 
   return selectedDate;
+}
+
+function buildSelectedOptionsWithDate(customOptions = {}, selectedDate) {
+  const selectedOptions = {
+    ...(customOptions || {}),
+  };
+
+  if (selectedDate) {
+    selectedOptions.selectedDate = selectedDate;
+  } else {
+    delete selectedOptions.selectedDate;
+  }
+
+  return selectedOptions;
 }
 
 async function buildCartResponse(cart) {
@@ -107,6 +151,21 @@ const createFromCollection = asyncHandler(async (request, response) => {
     data: {
       ...(await buildCartResponse(cart)),
       collection: await buildCollectionResponse(collection),
+    },
+  });
+});
+
+const createFromPlan = asyncHandler(async (request, response) => {
+  const { cart, plan } = await copyPlanToCart(request.user.id, request.params.planId);
+
+  response.status(200).json({
+    message: 'Cart created from customized plan successfully',
+    data: {
+      ...(await buildCartResponse(cart)),
+      plan: {
+        id: plan.id,
+        name: plan.name,
+      },
     },
   });
 });
@@ -203,7 +262,10 @@ const updateItem = asyncHandler(async (request, response) => {
 
     if (syncedItem) {
       syncedItem.quantity = quantity;
-      syncedItem.selectedOptions = customOptions || syncedItem.selectedOptions || {};
+      syncedItem.selectedOptions = buildSelectedOptionsWithDate(
+        customOptions || syncedItem.selectedOptions || {},
+        item.selectedDate,
+      );
       await collection.save();
     }
   }
@@ -247,7 +309,10 @@ const updateItemById = asyncHandler(async (request, response) => {
 
     if (syncedItem) {
       syncedItem.quantity = quantity;
-      syncedItem.selectedOptions = item.customOptions || {};
+      syncedItem.selectedOptions = buildSelectedOptionsWithDate(
+        item.customOptions || {},
+        item.selectedDate,
+      );
       await collection.save();
     }
   }
@@ -342,6 +407,7 @@ module.exports = {
   addItem,
   clearCart,
   createFromCollection,
+  createFromPlan,
   getCart,
   removeItem,
   removeItemById,

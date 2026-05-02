@@ -10,12 +10,18 @@ export function getServicePayload(item, serviceType) {
 }
 
 export function getCollectionItemPayload(item, section, options = {}) {
+  const selectedOptions = {
+    ...(options.customOptions || {}),
+    ...(options.selectedOptions || {}),
+    ...(options.selectedDate ? { selectedDate: options.selectedDate } : {}),
+  }
+
   return {
     section,
     itemId: item?.id || item?.itemId || getServiceMongoId(item),
     serviceId: getServiceMongoId(item),
     quantity: options.quantity || 1,
-    selectedOptions: options.customOptions || options.selectedOptions || {},
+    selectedOptions,
     pricingSnapshot: {
       priceValue: item?.priceValue,
       priceText: item?.priceText,
@@ -29,16 +35,18 @@ export function getCollectionItemPayload(item, section, options = {}) {
 
 export function formatCartItemDetails(item) {
   const details = []
+  const customOptions = item.customOptions || item.selectedOptions || {}
+  const selectedDate = item.selectedDate || customOptions.selectedDate
 
-  if (item.selectedDate) {
-    details.push(`Date: ${new Date(item.selectedDate).toLocaleDateString()}`)
+  if (selectedDate) {
+    details.push(`Date: ${new Date(selectedDate).toLocaleDateString()}`)
+  }
+
+  if (customOptions.selectedTime) {
+    details.push(`Time: ${customOptions.selectedTime}`)
   }
 
   details.push(`Quantity: ${item.quantity}`)
-
-  if (item.serviceType) {
-    details.push(`Type: ${item.serviceType}`)
-  }
 
   return details
 }

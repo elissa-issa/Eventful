@@ -17,19 +17,19 @@ function OrderSummaryCard({
     <Stack spacing={1.9}>
       <Box
         sx={{
-          borderRadius: 1.5,
-          border: `1px solid ${COLORS.primary}`,
+          borderRadius: 1,
+          border: `2px solid ${COLORS.primary}`,
           backgroundColor: COLORS.surface,
-          px: { xs: 2, sm: 2.2 },
-          py: { xs: 2.1, sm: 2.3 },
+          px: { xs: 2.2, sm: 2.5 },
+          py: { xs: 2.4, sm: 2.7 },
         }}
       >
         <Stack spacing={2.1}>
           <Typography
             sx={{
               color: COLORS.primary,
-              fontSize: { xs: '1.2rem', sm: '1.38rem' },
-              fontWeight: 700,
+              fontSize: { xs: '1.35rem', sm: '1.48rem' },
+              fontWeight: 800,
               lineHeight: 1.1,
               textTransform: 'uppercase',
               whiteSpace: 'nowrap',
@@ -41,8 +41,8 @@ function OrderSummaryCard({
           <Typography
             sx={{
               color: '#2d2d2d',
-              fontSize: '1.02rem',
-              fontWeight: 600,
+              fontSize: '1.08rem',
+              fontWeight: 700,
             }}
           >
             Order Summary
@@ -50,19 +50,19 @@ function OrderSummaryCard({
 
           <Stack spacing={1.25}>
             <Stack direction="row" justifyContent="space-between" spacing={2}>
-              <Typography sx={{ color: '#3b3b3b', fontSize: '0.88rem', fontWeight: 500 }}>
+              <Typography sx={{ color: '#3b3b3b', fontSize: '0.92rem', fontWeight: 700 }}>
                 Retail Price:
               </Typography>
-              <Typography sx={{ color: '#3b3b3b', fontSize: '0.88rem', fontWeight: 500 }}>
+              <Typography sx={{ color: '#3b3b3b', fontSize: '0.92rem', fontWeight: 700 }}>
                 {retailPrice}
               </Typography>
             </Stack>
 
             <Stack direction="row" justifyContent="space-between" spacing={2}>
-              <Typography sx={{ color: '#3b3b3b', fontSize: '0.88rem', fontWeight: 500 }}>
+              <Typography sx={{ color: '#3b3b3b', fontSize: '0.92rem', fontWeight: 700 }}>
                 Promotions:
               </Typography>
-              <Typography sx={{ color: '#3b3b3b', fontSize: '0.88rem', fontWeight: 500 }}>
+              <Typography sx={{ color: '#3b3b3b', fontSize: '0.92rem', fontWeight: 700 }}>
                 {promotions}
               </Typography>
             </Stack>
@@ -72,14 +72,14 @@ function OrderSummaryCard({
 
           <Stack spacing={0.6}>
             <Stack direction="row" justifyContent="space-between" spacing={2} alignItems="center">
-              <Typography sx={{ color: '#3b3b3b', fontSize: '0.96rem', fontWeight: 600 }}>
+              <Typography sx={{ color: '#3b3b3b', fontSize: '1rem', fontWeight: 700 }}>
                 Total Price:
               </Typography>
               <Typography
                 sx={{
                   color: COLORS.accent,
-                  fontSize: '1.28rem',
-                  fontWeight: 600,
+                  fontSize: '1.32rem',
+                  fontWeight: 700,
                   lineHeight: 1,
                 }}
               >
