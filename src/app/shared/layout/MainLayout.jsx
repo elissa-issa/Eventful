@@ -1,6 +1,7 @@
 import { Box, Container } from '@mui/material'
 import { Outlet, useLocation } from 'react-router-dom'
 import { COLORS } from '../../constants/colors'
+import FloatingAiPlannerButton from '../components/FloatingAiPlannerButton'
 import Footer from './Footer'
 import Navbar from '../navigation/Navbar'
 
@@ -23,6 +24,7 @@ function MainLayout() {
       <Container maxWidth="lg" sx={{ pt: 0, pb: isAuthPage || isHomePage ? 0 : 5, flexGrow: 1 }}>
         <Outlet />
       </Container>
+      <FloatingAiPlannerButton />
       <Footer />
     </Box>
   )

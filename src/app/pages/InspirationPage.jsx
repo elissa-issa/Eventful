@@ -10,6 +10,7 @@ import {
   DialogContent,
   IconButton,
   Stack,
+  TextField,
   Typography,
   useMediaQuery,
   useTheme,
@@ -28,6 +29,9 @@ import { INSPIRATION_HERO_SLIDES } from '../constants/inspirationHeroSlides'
 import { useFavoriteActions, getFavoriteKey } from '../hooks/useFavoriteActions'
 import { useCollectionCartAction } from '../hooks/useCollectionCartAction'
 import { useTopPicks } from '../hooks/useTopPicks'
+import { generateInspirationPlan } from '../services/aiPlanner'
+import { addItemToCollection, createCollection } from '../services/collections'
+import { addItemToCustomizedPlan, createCustomizedPlan } from '../services/customizedPlans'
 import { useToast } from '../toast/useToast'
 import { isPremiumUser as getIsPremiumUser } from '../utils/premium'
 import { getServicePayload } from '../utils/servicePayload'
@@ -129,6 +133,13 @@ function InspirationPage() {
   const [isPremiumDialogOpen, setIsPremiumDialogOpen] = useState(false)
   const [isPlansDialogOpen, setIsPlansDialogOpen] = useState(false)
   const [selectedTheme, setSelectedTheme] = useState(null)
+  const [aiMessage, setAiMessage] = useState('')
+  const [aiMessageError, setAiMessageError] = useState('')
+  const [aiPlan, setAiPlan] = useState(null)
+  const [aiPlanError, setAiPlanError] = useState('')
+  const [isGeneratingAiPlan, setIsGeneratingAiPlan] = useState(false)
+  const [isSavingAiPlan, setIsSavingAiPlan] = useState(false)
+  const [isAddingAiCollection, setIsAddingAiCollection] = useState(false)
   const isPremiumUser = getIsPremiumUser(user)
   const visibleTopPicks = isLargeUp ? 3 : isSmallUp ? 2 : 1
   const {
@@ -222,6 +233,105 @@ function InspirationPage() {
     })
   }
 
+  const getAiItemPayload = (item) => ({
+    section: item.serviceType,
+    itemId: item.itemId,
+    quantity: 1,
+  })
+
+  const handleGenerateAiPlan = async () => {
+    const trimmedMessage = aiMessage.trim()
+
+    if (!trimmedMessage) {
+      setAiMessageError('Tell us what you want for your event.')
+      return
+    }
+
+    setAiMessageError('')
+    setAiPlanError('')
+    setIsGeneratingAiPlan(true)
+
+    try {
+      const result = await generateInspirationPlan(trimmedMessage)
+      const plan = result.data
+
+      if (!plan?.recommendedItems?.length) {
+        setAiPlan(null)
+        setAiPlanError("We couldn't find enough matching services. Try adding more details.")
+        return
+      }
+
+      setAiPlan(plan)
+    } catch (error) {
+      const message = error.message || ''
+      setAiPlanError(
+        message.includes('No matching') || message.includes('not found')
+          ? "We couldn't find enough matching services. Try adding more details."
+          : message || 'Could not create an AI plan right now.',
+      )
+    } finally {
+      setIsGeneratingAiPlan(false)
+    }
+  }
+
+  const handleSaveAiPlan = async () => {
+    if (!aiPlan?.recommendedItems?.length) {
+      return
+    }
+
+    setIsSavingAiPlan(true)
+
+    try {
+      const createdPlan = await createCustomizedPlan({
+        name: aiPlan.title,
+        description: aiPlan.summary,
+      })
+      const planId = createdPlan.data?.id
+
+      await Promise.all(
+        aiPlan.recommendedItems.map((item) =>
+          addItemToCustomizedPlan(planId, getAiItemPayload(item)),
+        ),
+      )
+
+      showToast('AI plan saved as a customized plan')
+      navigate(`/customize?planId=${planId}`)
+    } catch (error) {
+      showToast(error.message || 'Could not save AI plan', 'error')
+    } finally {
+      setIsSavingAiPlan(false)
+    }
+  }
+
+  const handleAddAiItemsToCollection = async () => {
+    if (!aiPlan?.recommendedItems?.length) {
+      return
+    }
+
+    setIsAddingAiCollection(true)
+
+    try {
+      const createdCollection = await createCollection({
+        name: aiPlan.title,
+        description: aiPlan.summary,
+      })
+      const collectionId = createdCollection.data?.id
+
+      await Promise.all(
+        aiPlan.recommendedItems.map((item) =>
+          addItemToCollection(collectionId, getAiItemPayload(item)),
+        ),
+      )
+
+      showToast('AI plan items added to a collection')
+      navigate('/collections')
+    } catch (error) {
+      showToast(error.message || 'Could not add AI items to a collection', 'error')
+    } finally {
+      setIsAddingAiCollection(false)
+    }
+  }
+
   const activeHeroSlide = INSPIRATION_HERO_SLIDES[activeHeroSlideIndex]
 
   useEffect(() => {
@@ -235,6 +345,19 @@ function InspirationPage() {
       window.clearInterval(intervalId)
     }
   }, [])
+
+  useEffect(() => {
+    if (location.hash !== '#ai-planner') {
+      return
+    }
+
+    window.setTimeout(() => {
+      document.getElementById('ai-planner')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      })
+    }, 0)
+  }, [location.hash])
 
   return (
     <Stack spacing={6} sx={{ pt: 0, pb: 2 }}>
@@ -357,6 +480,211 @@ function InspirationPage() {
             onCtaClick={() => handleExploreTheme(theme)}
           />
         ))}
+      </Box>
+
+      <Box
+        id="ai-planner"
+        sx={{
+          borderRadius: 3,
+          border: `1px solid ${COLORS.borderStrong}`,
+          backgroundColor: COLORS.surface,
+          p: { xs: 2.2, md: 3 },
+          boxShadow: '0 18px 34px rgba(15, 45, 75, 0.06)',
+        }}
+      >
+        {isPremiumUser ? (
+          <Stack spacing={2.2}>
+            <Stack spacing={0.65}>
+              <Typography sx={{ color: COLORS.primary, fontWeight: 800, fontSize: '1.8rem' }}>
+                AI Event Planner
+              </Typography>
+              <Typography sx={{ color: COLORS.textLight, fontSize: '1rem' }}>
+                Tell us what you want, and we&apos;ll build a plan using Eventful services.
+              </Typography>
+            </Stack>
+
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.4} alignItems="flex-start">
+              <Box sx={{ flex: 1, width: '100%' }}>
+                <TextField
+                  fullWidth
+                  multiline
+                  minRows={3}
+                  value={aiMessage}
+                  onChange={(event) => {
+                    setAiMessage(event.target.value)
+                    if (event.target.value.trim()) {
+                      setAiMessageError('')
+                    }
+                  }}
+                  placeholder="Example: I want a birthday with floral decorations, beach venue, burgers, and live music."
+                  error={Boolean(aiMessageError)}
+                  helperText={aiMessageError}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      backgroundColor: '#f8fafc',
+                    },
+                  }}
+                />
+              </Box>
+
+              <Button
+                variant="contained"
+                onClick={handleGenerateAiPlan}
+                disabled={isGeneratingAiPlan}
+                sx={{
+                  minWidth: { xs: '100%', md: 170 },
+                  borderRadius: 999,
+                  py: 1.15,
+                  textTransform: 'none',
+                  fontWeight: 800,
+                  backgroundColor: COLORS.accent,
+                  '&:hover': { backgroundColor: COLORS.accentHover },
+                }}
+              >
+                {isGeneratingAiPlan ? 'Creating your plan...' : 'Generate Plan'}
+              </Button>
+            </Stack>
+
+            {aiPlanError ? (
+              <Typography sx={{ color: '#d32f2f', fontWeight: 700 }}>{aiPlanError}</Typography>
+            ) : null}
+
+            {aiPlan ? (
+              <Stack spacing={2}>
+                <Box>
+                  <Typography sx={{ color: COLORS.primaryDark, fontWeight: 800, fontSize: '1.35rem' }}>
+                    {aiPlan.title}
+                  </Typography>
+                  <Typography sx={{ color: COLORS.textMuted, lineHeight: 1.5, mt: 0.4 }}>
+                    {aiPlan.summary}
+                  </Typography>
+                </Box>
+
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: {
+                      xs: '1fr',
+                      md: 'repeat(2, minmax(0, 1fr))',
+                    },
+                    gap: 1.5,
+                  }}
+                >
+                  {aiPlan.recommendedItems.map((item) => (
+                    <Box
+                      key={`${item.serviceType}:${item.itemId}`}
+                      sx={{
+                        borderRadius: 2,
+                        border: `1px solid ${COLORS.border}`,
+                        overflow: 'hidden',
+                        backgroundColor: '#fff',
+                      }}
+                    >
+                      {item.service?.imageSrc ? (
+                        <Box
+                          component="img"
+                          src={item.service.imageSrc}
+                          alt={item.service.imageAlt || item.service.title}
+                          sx={{ width: '100%', height: 150, objectFit: 'cover', display: 'block' }}
+                        />
+                      ) : null}
+                      <Stack spacing={0.6} sx={{ p: 1.5 }}>
+                        <Typography sx={{ color: COLORS.primaryDark, fontWeight: 800 }}>
+                          {item.service?.title || item.itemId}
+                        </Typography>
+                        <Typography sx={{ color: COLORS.primary, fontWeight: 700, fontSize: '0.86rem' }}>
+                          {item.serviceType}
+                        </Typography>
+                        <Typography sx={{ color: COLORS.textMuted, lineHeight: 1.45 }}>
+                          {item.reason}
+                        </Typography>
+                        <Typography sx={{ color: COLORS.accent, fontWeight: 800 }}>
+                          {item.service?.priceText || `$${Number(item.service?.priceValue || 0).toFixed(2)}`}
+                        </Typography>
+                      </Stack>
+                    </Box>
+                  ))}
+                </Box>
+
+                <Stack spacing={0.8}>
+                  <Typography sx={{ color: COLORS.primaryDark, fontWeight: 800 }}>
+                    Estimated total: ${Number(aiPlan.estimatedTotal || 0).toFixed(2)}
+                  </Typography>
+                  {aiPlan.planningTips?.length ? (
+                    <Stack spacing={0.45}>
+                      <Typography sx={{ color: COLORS.primaryDark, fontWeight: 800 }}>
+                        Planning tips
+                      </Typography>
+                      {aiPlan.planningTips.map((tip) => (
+                        <Typography key={tip} sx={{ color: COLORS.textMuted }}>
+                          - {tip}
+                        </Typography>
+                      ))}
+                    </Stack>
+                  ) : null}
+                </Stack>
+
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.2}>
+                  <Button
+                    variant="contained"
+                    onClick={handleSaveAiPlan}
+                    disabled={isSavingAiPlan || isAddingAiCollection}
+                    sx={{
+                      borderRadius: 999,
+                      textTransform: 'none',
+                      fontWeight: 800,
+                      backgroundColor: COLORS.accent,
+                      '&:hover': { backgroundColor: COLORS.accentHover },
+                    }}
+                  >
+                    {isSavingAiPlan ? 'Saving...' : 'Save as Customized Plan'}
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={handleAddAiItemsToCollection}
+                    disabled={isSavingAiPlan || isAddingAiCollection}
+                    sx={{
+                      borderRadius: 999,
+                      textTransform: 'none',
+                      fontWeight: 800,
+                      backgroundColor: COLORS.primary,
+                      '&:hover': { backgroundColor: COLORS.primaryHover },
+                    }}
+                  >
+                    {isAddingAiCollection ? 'Adding...' : 'Add Items to Collection'}
+                  </Button>
+                </Stack>
+              </Stack>
+            ) : null}
+          </Stack>
+        ) : (
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ xs: 'stretch', md: 'center' }}>
+            <Stack spacing={0.6} sx={{ flex: 1 }}>
+              <Typography sx={{ color: COLORS.primary, fontWeight: 800, fontSize: '1.8rem' }}>
+                AI Event Planner
+              </Typography>
+              <Typography sx={{ color: COLORS.textLight }}>
+                Upgrade to Premium to generate plans from Eventful services with AI.
+              </Typography>
+            </Stack>
+            <Button
+              variant="contained"
+              onClick={handleOpenPremiumDialog}
+              sx={{
+                borderRadius: 999,
+                px: 2.4,
+                py: 1.05,
+                textTransform: 'none',
+                fontWeight: 800,
+                backgroundColor: COLORS.accent,
+                '&:hover': { backgroundColor: COLORS.accentHover },
+              }}
+            >
+              Upgrade to Premium
+            </Button>
+          </Stack>
+        )}
       </Box>
 
       <Stack spacing={2.25} sx={{ pt: 3 }}>
