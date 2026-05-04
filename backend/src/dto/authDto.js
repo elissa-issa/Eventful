@@ -18,6 +18,24 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function validatePasswordStrength(password) {
+  if (password.length < 8) {
+    throw new ApiError(400, 'password must be at least 8 characters long');
+  }
+
+  if (!/[A-Z]/.test(password)) {
+    throw new ApiError(400, 'password must contain at least one uppercase letter');
+  }
+
+  if (!/\d/.test(password)) {
+    throw new ApiError(400, 'password must contain at least one number');
+  }
+
+  if (!/[^A-Za-z0-9]/.test(password)) {
+    throw new ApiError(400, 'password must contain at least one special character');
+  }
+}
+
 function parseBirthday(value) {
   if (!value) {
     return null;
@@ -50,9 +68,7 @@ function createUserDto(payload = {}) {
     throw new ApiError(400, 'email must be valid');
   }
 
-  if (password.length < 8) {
-    throw new ApiError(400, 'password must be at least 8 characters long');
-  }
+  validatePasswordStrength(password);
 
   if (password !== confirmPassword) {
     throw new ApiError(400, 'password and confirmPassword must match');
@@ -84,6 +100,27 @@ function createLoginDto(payload = {}) {
   };
 }
 
+function createPasswordChangeDto(payload = {}) {
+  const currentPassword = normalizeString(payload.currentPassword);
+  const newPassword = normalizeString(payload.newPassword);
+  const confirmNewPassword = normalizeString(payload.confirmNewPassword);
+
+  ensureRequired(currentPassword, 'currentPassword');
+  ensureRequired(newPassword, 'newPassword');
+  ensureRequired(confirmNewPassword, 'confirmNewPassword');
+
+  validatePasswordStrength(newPassword);
+
+  if (newPassword !== confirmNewPassword) {
+    throw new ApiError(400, 'newPassword and confirmNewPassword must match');
+  }
+
+  return {
+    currentPassword,
+    newPassword,
+  };
+}
+
 function createProfileUpdateDto(payload = {}) {
   const firstName = normalizeString(payload.firstName);
   const lastName = normalizeString(payload.lastName);
@@ -112,5 +149,6 @@ function createProfileUpdateDto(payload = {}) {
 module.exports = {
   createUserDto,
   createLoginDto,
+  createPasswordChangeDto,
   createProfileUpdateDto,
 };

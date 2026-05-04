@@ -22,7 +22,6 @@ import { INSPIRATION_THEMES } from '../constants/inspirationThemes'
 import AlertDialog from '../shared/components/AlertDialog'
 import HeroCarousel from '../shared/components/HeroCarousel'
 import InspirationThemeCard from '../shared/components/InspirationThemeCard'
-import NewsletterCTA from '../shared/components/NewsletterCTA'
 import PremiumPlansDialog from '../shared/components/PremiumPlansDialog'
 import ServiceCard from '../shared/components/ServiceCard'
 import { INSPIRATION_HERO_SLIDES } from '../constants/inspirationHeroSlides'
@@ -878,10 +877,6 @@ function InspirationPage() {
         ) : null}
       </Dialog>
 
-      <NewsletterCTA
-        fullBleed
-        backgroundImage="https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=1800&q=80"
-      />
       {collectionPickerDialog}
     </Stack>
   )

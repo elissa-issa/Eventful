@@ -7,6 +7,7 @@ const router = express.Router();
 router.post('/signup', authController.signup);
 router.post('/login', authController.login);
 router.patch('/profile', requireAuth, authController.updateProfile);
+router.patch('/password', requireAuth, authController.changePassword);
 router.post('/upgrade-premium', requireAuth, authController.upgradeToPremium);
 router.post('/cancel-premium', requireAuth, authController.cancelPremium);
 router.patch('/premium', requireAuth, authController.upgradeToPremium);

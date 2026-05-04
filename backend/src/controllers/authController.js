@@ -1,6 +1,7 @@
 const {
   createUserDto,
   createLoginDto,
+  createPasswordChangeDto,
   createProfileUpdateDto,
 } = require('../dto/authDto');
 const userRepository = require('../repository/userRepository');
@@ -161,6 +162,31 @@ const updateProfile = asyncHandler(async (request, response) => {
   });
 });
 
+const changePassword = asyncHandler(async (request, response) => {
+  const passwordDto = createPasswordChangeDto(request.body);
+  const passwordMatches = await verifyPassword(
+    passwordDto.currentPassword,
+    request.user.passwordHash,
+  );
+
+  if (!passwordMatches) {
+    throw new ApiError(401, 'Current password is incorrect');
+  }
+
+  const passwordHash = await hashPassword(passwordDto.newPassword);
+  const updatedUser = await userRepository.updateUserById(request.user.id, {
+    passwordHash,
+  });
+
+  if (!updatedUser) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  response.status(200).json({
+    message: 'Password updated successfully',
+  });
+});
+
 const upgradeToPremium = asyncHandler(async (request, response) => {
   validatePremiumPayment(request.body);
 
@@ -215,6 +241,7 @@ module.exports = {
   signup,
   login,
   updateProfile,
+  changePassword,
   upgradeToPremium,
   cancelPremium,
   deleteAccount,

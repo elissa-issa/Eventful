@@ -28,6 +28,18 @@ import {
 } from '../constants/signUpPage'
 import { signupUser } from '../services/auth'
 
+const passwordRequirementMessage =
+  'Password must be at least 8 characters and include an uppercase letter, a number, and a special character.'
+
+function isStrongPassword(password) {
+  return (
+    password.length >= 8 &&
+    /[A-Z]/.test(password) &&
+    /\d/.test(password) &&
+    /[^A-Za-z0-9]/.test(password)
+  )
+}
+
 function SignUpPage() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -86,6 +98,11 @@ function SignUpPage() {
   const handleSubmit = async (event) => {
     event.preventDefault()
     setErrorMessage('')
+
+    if (!isStrongPassword(formValues.password)) {
+      setErrorMessage(passwordRequirementMessage)
+      return
+    }
 
     if (formValues.password !== formValues.confirmPassword) {
       setErrorMessage('Passwords do not match')
