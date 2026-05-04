@@ -12,6 +12,7 @@ import {
   createServiceReview,
   getServiceReviews,
 } from '../services/reviews'
+import { getVenueBookedDates } from '../services/services'
 import { useToast } from '../toast/useToast'
 import { getCollectionItemPayload, getServicePayload } from '../utils/servicePayload'
 import AddReviewDrawer from '../shared/components/AddReviewDrawer'
@@ -40,6 +41,7 @@ function ServiceItemPage() {
   const cartInitialTime = searchParams.get('selectedTime') || ''
   const isPlanMode = Boolean(planId)
   const isCartEditMode = Boolean(cartItemId)
+  const [venueBookedDates, setVenueBookedDates] = useState([])
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const [isAddReviewDrawerOpen, setIsAddReviewDrawerOpen] = useState(false)
   const [isReviewsDrawerOpen, setIsReviewsDrawerOpen] = useState(false)
@@ -107,11 +109,14 @@ function ServiceItemPage() {
     const freeUnitsDiscountMatch = selectedItem.discountLabel?.match(/buy (\d+) get (\d+) for free/i)
 
     if (section === 'menus') {
+      const minQ = selectedItem.minGuests ?? 1
       return {
         baseAmount: selectedItem.priceValue ?? 0,
         calculationType: 'per_unit',
         unitLabel: 'people',
-        defaultQuantity: 1,
+        defaultQuantity: minQ,
+        minQuantity: minQ,
+        maxQuantity: selectedItem.maxGuests ?? null,
         discount: percentDiscountMatch
           ? {
               type: 'percentage',
@@ -124,11 +129,14 @@ function ServiceItemPage() {
     }
 
     if (section === 'decorations') {
+      const minQ = selectedItem.minQuantity ?? 1
       return {
         baseAmount: selectedItem.priceValue ?? 0,
         calculationType: 'per_unit',
         unitLabel: 'items',
-        defaultQuantity: 1,
+        defaultQuantity: minQ,
+        minQuantity: minQ,
+        maxQuantity: selectedItem.maxQuantity ?? null,
         discount: freeUnitsDiscountMatch
           ? {
               type: 'free_units',
@@ -143,11 +151,14 @@ function ServiceItemPage() {
     }
 
     if (section === 'venues') {
+      const minQ = selectedItem.minGuests ?? 1
       return {
         baseAmount: selectedItem.priceValue ?? 0,
         calculationType: 'flat',
         unitLabel: 'booking',
-        defaultQuantity: 1,
+        defaultQuantity: minQ,
+        minQuantity: minQ,
+        maxQuantity: selectedItem.maxGuests ?? null,
       }
     }
 
@@ -241,6 +252,21 @@ function ServiceItemPage() {
   useEffect(() => {
     loadReviewEligibility()
   }, [loadReviewEligibility])
+
+  useEffect(() => {
+    if (section !== 'venues' || !selectedItem) {
+      setVenueBookedDates([])
+      return
+    }
+
+    const { serviceId } = getServicePayload(selectedItem, section)
+
+    if (!serviceId) return
+
+    getVenueBookedDates(serviceId)
+      .then((dates) => setVenueBookedDates(dates))
+      .catch(() => setVenueBookedDates([]))
+  }, [section, selectedItem])
 
   const displayAverageRating = reviewCount > 0
     ? averageRating
@@ -448,6 +474,7 @@ function ServiceItemPage() {
           priceText={selectedItem.priceText}
           detailBadgeText={selectedItem.detailBadgeText}
           supportingInfoText={selectedItem.supportingInfoText || selectedItem.guestText}
+          disabledDates={venueBookedDates}
           showPeopleSelector={selectedItem.showPeopleSelector}
           peopleLabel={selectedItem.peopleLabel}
           datePlaceholder={selectedItem.datePlaceholder}

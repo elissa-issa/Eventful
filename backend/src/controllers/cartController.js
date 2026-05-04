@@ -2,6 +2,7 @@ const Cart = require('../models/Cart');
 const CustomizedPlan = require('../models/CustomizedPlan');
 const { ApiError } = require('../helpers/apiError');
 const { asyncHandler } = require('../helpers/asyncHandler');
+const { assertVenueNotDoubleBooked } = require('../helpers/venueAvailability');
 const {
   buildCollectionResponse,
   findOwnedCollection,
@@ -12,6 +13,7 @@ const {
   validateObjectId,
   validateServiceType,
 } = require('../helpers/serviceResolver');
+
 
 async function findOrCreateCart(userId) {
   return Cart.findOneAndUpdate(
@@ -82,6 +84,27 @@ function normalizeQuantity(value, fallback = 1) {
   }
 
   return quantity;
+}
+
+function validateQuantityBounds(quantity, service, serviceType) {
+  let min = null;
+  let max = null;
+
+  if (serviceType === 'menus' || serviceType === 'venues') {
+    min = service.minGuests ?? null;
+    max = service.maxGuests ?? null;
+  } else if (serviceType === 'decorations') {
+    min = service.minQuantity ?? null;
+    max = service.maxQuantity ?? null;
+  }
+
+  if (min !== null && quantity < min) {
+    throw new ApiError(400, `Minimum quantity for this item is ${min}`);
+  }
+
+  if (max !== null && quantity > max) {
+    throw new ApiError(400, `Maximum quantity for this item is ${max}`);
+  }
 }
 
 function parseSelectedDate(value) {
@@ -181,7 +204,13 @@ const addItem = asyncHandler(async (request, response) => {
 
   validateServiceType(serviceType);
   validateObjectId(serviceId);
-  await getServiceByType(serviceType, serviceId);
+  const service = await getServiceByType(serviceType, serviceId);
+
+  validateQuantityBounds(quantity, service, serviceType);
+
+  if (serviceType === 'venues' && selectedDate) {
+    await assertVenueNotDoubleBooked(service._id, parseSelectedDate(selectedDate));
+  }
 
   const cart = await findOrCreateCart(request.user.id);
   const existingItem = cart.items.find(
@@ -240,6 +269,17 @@ const updateItem = asyncHandler(async (request, response) => {
     throw new ApiError(404, 'Cart item not found');
   }
 
+  let service = null;
+
+  if (['menus', 'decorations', 'venues'].includes(serviceType)) {
+    service = await getServiceByType(serviceType, serviceId);
+    validateQuantityBounds(quantity, service, serviceType);
+
+    if (serviceType === 'venues' && selectedDate) {
+      await assertVenueNotDoubleBooked(service._id, parseSelectedDate(selectedDate));
+    }
+  }
+
   item.quantity = quantity;
 
   if (selectedDate !== undefined) {
@@ -253,7 +293,9 @@ const updateItem = asyncHandler(async (request, response) => {
   await cart.save();
 
   if (cart.selectedCollection) {
-    const service = await getServiceByType(serviceType, serviceId);
+    if (!service) {
+      service = await getServiceByType(serviceType, serviceId);
+    }
     const itemId = service.itemId || service.id;
     const collection = await findOwnedCollection(request.user.id, cart.selectedCollection);
     const syncedItem = collection.items.find(
@@ -278,12 +320,24 @@ const updateItem = asyncHandler(async (request, response) => {
 
 const updateItemById = asyncHandler(async (request, response) => {
   validateObjectId(request.params.cartItemId, 'cartItemId');
-  const quantity = normalizeQuantity(request.body.quantity);
   const cart = await findOrCreateCart(request.user.id);
   const item = cart.items.id(request.params.cartItemId);
 
   if (!item) {
     throw new ApiError(404, 'Cart item not found');
+  }
+
+  const quantity = normalizeQuantity(request.body.quantity);
+
+  let service = null;
+
+  if (['menus', 'decorations', 'venues'].includes(item.serviceType)) {
+    service = await getServiceByType(item.serviceType, item.serviceId);
+    validateQuantityBounds(quantity, service, item.serviceType);
+
+    if (item.serviceType === 'venues' && request.body.selectedDate) {
+      await assertVenueNotDoubleBooked(service._id, parseSelectedDate(request.body.selectedDate));
+    }
   }
 
   item.quantity = quantity;
@@ -299,7 +353,9 @@ const updateItemById = asyncHandler(async (request, response) => {
   await cart.save();
 
   if (cart.selectedCollection) {
-    const service = await getServiceByType(item.serviceType, item.serviceId);
+    if (!service) {
+      service = await getServiceByType(item.serviceType, item.serviceId);
+    }
     const collection = await findOwnedCollection(request.user.id, cart.selectedCollection);
     const syncedItem = collection.items.find(
       (candidate) =>

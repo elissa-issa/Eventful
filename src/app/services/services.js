@@ -14,3 +14,8 @@ export async function getAllServices() {
 
   return Object.fromEntries(entries)
 }
+
+export async function getVenueBookedDates(serviceId) {
+  const result = await apiRequest(`/services/venues/${serviceId}/booked-dates`)
+  return result.data || []
+}

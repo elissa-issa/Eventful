@@ -23,6 +23,7 @@ import { renderTimeViewClock } from '@mui/x-date-pickers/timeViewRenderers'
 import dayjs from 'dayjs'
 import { COLORS } from '../../constants/colors'
 
+
 function parseInitialTime(value) {
   if (!value) {
     return null
@@ -58,6 +59,7 @@ function ServiceItemGalleryDialog({
   datePlaceholder = 'Select Delivery Date',
   timePlaceholder = 'Select Delivery Time',
   actionButtonText = 'Add to Cart',
+  disabledDates = [],
   initialQuantity,
   initialDate,
   initialTime,
@@ -69,8 +71,16 @@ function ServiceItemGalleryDialog({
   belowGalleryContent,
   leftBottomContent,
 }) {
+  const minQuantity = showPeopleSelector ? (pricing?.minQuantity ?? 1) : 1
+  const maxQuantity = showPeopleSelector ? (pricing?.maxQuantity ?? null) : null
+
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [peopleCount, setPeopleCount] = useState(() => initialQuantity ?? pricing?.defaultQuantity ?? 1)
+  const [peopleCount, setPeopleCount] = useState(() => {
+    const base = initialQuantity ?? pricing?.defaultQuantity ?? minQuantity
+    const num = Number(base) || minQuantity
+    if (maxQuantity !== null) return Math.min(maxQuantity, Math.max(minQuantity, num))
+    return Math.max(minQuantity, num)
+  })
   const [deliveryDate, setDeliveryDate] = useState(() =>
     initialDate && dayjs(initialDate).isValid() ? dayjs(initialDate) : null
   )
@@ -132,28 +142,33 @@ function ServiceItemGalleryDialog({
   }
 
   const handlePeopleChange = (direction) => {
-    setPeopleCount((current) =>
-      direction === 'increase' ? current + 1 : Math.max(1, current - 1)
-    )
+    setPeopleCount((current) => {
+      if (direction === 'increase') {
+        return maxQuantity !== null ? Math.min(maxQuantity, current + 1) : current + 1
+      }
+      return Math.max(minQuantity, current - 1)
+    })
   }
 
   const handlePeopleInputChange = (event) => {
     const nextValue = event.target.value.replace(/\D/g, '')
 
     if (nextValue === '') {
-      setPeopleCount(1)
+      setPeopleCount(minQuantity)
       return
     }
 
-    setPeopleCount(Math.max(1, Number(nextValue)))
+    const num = Math.max(minQuantity, Number(nextValue))
+    setPeopleCount(maxQuantity !== null ? Math.min(maxQuantity, num) : num)
   }
 
   const shouldDisableDate = (value) => {
-    if (!value) {
-      return false
+    if (!value) return false
+    if (dayjs(value).isBefore(today, 'day')) return true
+    if (disabledDates.length > 0) {
+      return disabledDates.includes(dayjs(value).format('YYYY-MM-DD'))
     }
-
-    return dayjs(value).isBefore(today, 'day')
+    return false
   }
 
   const shouldDisableTime = (value, view) => {
@@ -608,7 +623,7 @@ function ServiceItemGalleryDialog({
                     <IconButton
                       aria-label="Decrease people count"
                       onClick={() => handlePeopleChange('decrease')}
-                      disabled={peopleCount <= 1}
+                      disabled={peopleCount <= minQuantity}
                       sx={{
                         width: 34,
                         height: 34,
@@ -631,7 +646,8 @@ function ServiceItemGalleryDialog({
                       inputProps={{
                         inputMode: 'numeric',
                         pattern: '[0-9]*',
-                        min: 0,
+                        min: minQuantity,
+                        max: maxQuantity ?? undefined,
                         'aria-label': peopleLabel,
                       }}
                       value={peopleCount}
@@ -655,6 +671,7 @@ function ServiceItemGalleryDialog({
                     <IconButton
                       aria-label="Increase people count"
                       onClick={() => handlePeopleChange('increase')}
+                      disabled={maxQuantity !== null && peopleCount >= maxQuantity}
                       sx={{
                         width: 34,
                         height: 34,
@@ -663,6 +680,10 @@ function ServiceItemGalleryDialog({
                         color: COLORS.surface,
                         '&:hover': {
                           backgroundColor: COLORS.primaryHover,
+                        },
+                        '&.Mui-disabled': {
+                          backgroundColor: COLORS.border,
+                          color: COLORS.textLight,
                         },
                       }}
                     >

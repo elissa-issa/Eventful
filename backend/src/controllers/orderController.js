@@ -2,6 +2,7 @@ const Cart = require('../models/Cart');
 const Order = require('../models/Order');
 const { ApiError } = require('../helpers/apiError');
 const { asyncHandler } = require('../helpers/asyncHandler');
+const { assertVenueNotDoubleBooked } = require('../helpers/venueAvailability');
 const { findOwnedCollection } = require('./collectionController');
 const {
   attachServiceDetails,
@@ -103,11 +104,27 @@ async function buildOrderItems(cartItems) {
       throw new ApiError(400, 'Each cart item must have a selected date and time before checkout');
     }
 
+    if (cartItem.serviceType === 'venues' && selectedDate) {
+      await assertVenueNotDoubleBooked(cartItem.serviceId, selectedDate);
+    }
+
     const service = await getServiceByType(
       cartItem.serviceType,
       cartItem.serviceId,
     );
     const quantity = cartItem.quantity;
+
+    if (cartItem.serviceType === 'menus' || cartItem.serviceType === 'venues') {
+      const min = service.minGuests ?? null;
+      const max = service.maxGuests ?? null;
+      if (min !== null && quantity < min) throw new ApiError(400, `Minimum quantity for this item is ${min}`);
+      if (max !== null && quantity > max) throw new ApiError(400, `Maximum quantity for this item is ${max}`);
+    } else if (cartItem.serviceType === 'decorations') {
+      const min = service.minQuantity ?? null;
+      const max = service.maxQuantity ?? null;
+      if (min !== null && quantity < min) throw new ApiError(400, `Minimum quantity for this item is ${min}`);
+      if (max !== null && quantity > max) throw new ApiError(400, `Maximum quantity for this item is ${max}`);
+    }
     const unitPrice = service.priceValue || 0;
     const retailLineTotal = unitPrice * quantity;
     const promotionAmount = Math.min(
