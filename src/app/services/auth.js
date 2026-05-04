@@ -22,6 +22,13 @@ export function updateProfile(payload) {
   })
 }
 
+export function changePassword(payload) {
+  return apiRequest('/auth/password', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
 export function upgradeToPremium(payload) {
   return apiRequest('/auth/upgrade-premium', {
     method: 'POST',

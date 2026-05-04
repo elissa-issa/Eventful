@@ -5,6 +5,8 @@ import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
+import Visibility from '@mui/icons-material/Visibility'
+import VisibilityOff from '@mui/icons-material/VisibilityOff'
 import WorkspacePremiumRoundedIcon from '@mui/icons-material/WorkspacePremiumRounded'
 import {
   Avatar,
@@ -15,6 +17,7 @@ import {
   Divider,
   Grid,
   IconButton,
+  InputAdornment,
   Stack,
   TextField,
   Typography,
@@ -23,7 +26,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { COLORS } from '../constants/colors'
 import { getOrders } from '../services/orders'
-import { deleteAccount, updateProfile } from '../services/auth'
+import { changePassword, deleteAccount, updateProfile } from '../services/auth'
 import { isPremiumUser as getIsPremiumUser } from '../utils/premium'
 import AddLocationDialog from '../shared/components/AddLocationDialog'
 import AlertDialog from '../shared/components/AlertDialog'
@@ -71,6 +74,30 @@ function getProfileFormValues(user) {
     password: '..............',
     birthday: formatBirthdayInputValue(user?.birthday),
   }
+}
+
+const passwordRequirementMessage =
+  'Password must be at least 8 characters and include an uppercase letter, a number, and a special character.'
+
+const emptyPasswordValues = {
+  currentPassword: '',
+  newPassword: '',
+  confirmNewPassword: '',
+}
+
+const emptyPasswordVisibility = {
+  currentPassword: false,
+  newPassword: false,
+  confirmNewPassword: false,
+}
+
+function isStrongPassword(password) {
+  return (
+    password.length >= 8 &&
+    /[A-Z]/.test(password) &&
+    /\d/.test(password) &&
+    /[^A-Za-z0-9]/.test(password)
+  )
 }
 
 function formatCurrency(value) {
@@ -309,6 +336,11 @@ function ProfilePage() {
   const [profileFormValues, setProfileFormValues] = useState(() => getProfileFormValues(user))
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileError, setProfileError] = useState('')
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false)
+  const [passwordFormValues, setPasswordFormValues] = useState(emptyPasswordValues)
+  const [passwordVisibility, setPasswordVisibility] = useState(emptyPasswordVisibility)
+  const [passwordSaving, setPasswordSaving] = useState(false)
+  const [passwordError, setPasswordError] = useState('')
   const [savedLocations, setSavedLocations] = useState([])
   const [locationsLoading, setLocationsLoading] = useState(false)
   const [locationsError, setLocationsError] = useState('')
@@ -473,6 +505,66 @@ function ProfilePage() {
 
   const handleSaveProfile = () => {
     saveProfileUpdates()
+  }
+
+  const openPasswordDialog = () => {
+    setPasswordFormValues(emptyPasswordValues)
+    setPasswordVisibility(emptyPasswordVisibility)
+    setPasswordError('')
+    setIsPasswordDialogOpen(true)
+  }
+
+  const closePasswordDialog = () => {
+    if (passwordSaving) {
+      return
+    }
+
+    setIsPasswordDialogOpen(false)
+    setPasswordFormValues(emptyPasswordValues)
+    setPasswordVisibility(emptyPasswordVisibility)
+    setPasswordError('')
+  }
+
+  const handlePasswordFieldChange = (fieldId, value) => {
+    setPasswordFormValues((currentValues) => ({
+      ...currentValues,
+      [fieldId]: value,
+    }))
+  }
+
+  const togglePasswordVisibility = (fieldId) => {
+    setPasswordVisibility((currentVisibility) => ({
+      ...currentVisibility,
+      [fieldId]: !currentVisibility[fieldId],
+    }))
+  }
+
+  const handlePasswordSubmit = async (event) => {
+    event.preventDefault()
+
+    if (!isStrongPassword(passwordFormValues.newPassword)) {
+      setPasswordError(passwordRequirementMessage)
+      return
+    }
+
+    if (passwordFormValues.newPassword !== passwordFormValues.confirmNewPassword) {
+      setPasswordError('New passwords do not match')
+      return
+    }
+
+    setPasswordSaving(true)
+    setPasswordError('')
+
+    try {
+      await changePassword(passwordFormValues)
+      setIsPasswordDialogOpen(false)
+      setPasswordFormValues(emptyPasswordValues)
+      setPasswordVisibility(emptyPasswordVisibility)
+    } catch (error) {
+      setPasswordError(error.message || 'Could not update password')
+    } finally {
+      setPasswordSaving(false)
+    }
   }
 
   const handleUploadImageClick = () => {
@@ -834,13 +926,34 @@ function ProfilePage() {
                       <TextField
                         fullWidth
                         size="small"
-                        disabled={!isEditingProfile}
+                        disabled={!isEditingProfile || field.id === 'password'}
                         type={field.type || 'text'}
                         value={profileFormValues[field.id] || ''}
                         onChange={(event) => handleProfileFieldChange(field.id, event.target.value)}
                         inputProps={field.type === 'date' ? { max: '9999-12-31' } : undefined}
                         sx={profileFieldStyles}
                       />
+                      {isEditingProfile && field.id === 'password' ? (
+                        <Button
+                          variant="text"
+                          size="small"
+                          onClick={openPasswordDialog}
+                          sx={{
+                            mt: 0.75,
+                            minWidth: 0,
+                            p: 0,
+                            color: COLORS.primary,
+                            textTransform: 'none',
+                            fontWeight: 800,
+                            '&:hover': {
+                              backgroundColor: 'transparent',
+                              textDecoration: 'underline',
+                            },
+                          }}
+                        >
+                          Change password
+                        </Button>
+                      ) : null}
                     </Grid>
                   ))}
                 </Grid>
@@ -1205,6 +1318,164 @@ function ProfilePage() {
         loading={locationSaving}
         error={locationFormError}
       />
+
+      <Dialog
+        fullWidth
+        maxWidth="xs"
+        open={isPasswordDialogOpen}
+        onClose={closePasswordDialog}
+        PaperProps={{
+          component: 'form',
+          onSubmit: handlePasswordSubmit,
+          sx: {
+            borderRadius: 2.5,
+            px: { xs: 2.25, sm: 3 },
+            py: 2.5,
+          },
+        }}
+      >
+        <Stack spacing={2}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+            <Typography
+              sx={{
+                color: COLORS.primary,
+                fontWeight: 800,
+                fontSize: '1.55rem',
+              }}
+            >
+              Change Password
+            </Typography>
+
+            <IconButton
+              aria-label="Close password dialog"
+              onClick={closePasswordDialog}
+              disabled={passwordSaving}
+              sx={{ color: COLORS.primary }}
+            >
+              <CloseRoundedIcon />
+            </IconButton>
+          </Stack>
+
+          {passwordError ? (
+            <Typography sx={{ color: '#d93a2e', fontWeight: 700 }}>
+              {passwordError}
+            </Typography>
+          ) : null}
+
+          <TextField
+            fullWidth
+            size="small"
+            label="Old Password"
+            type={passwordVisibility.currentPassword ? 'text' : 'password'}
+            value={passwordFormValues.currentPassword}
+            onChange={(event) => handlePasswordFieldChange('currentPassword', event.target.value)}
+            autoComplete="current-password"
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      edge="end"
+                      aria-label="Toggle old password visibility"
+                      onClick={() => togglePasswordVisibility('currentPassword')}
+                      sx={{ color: 'rgba(28, 53, 85, 0.7)' }}
+                    >
+                      {passwordVisibility.currentPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              },
+            }}
+            sx={profileFieldStyles}
+          />
+
+          <TextField
+            fullWidth
+            size="small"
+            label="New Password"
+            type={passwordVisibility.newPassword ? 'text' : 'password'}
+            value={passwordFormValues.newPassword}
+            onChange={(event) => handlePasswordFieldChange('newPassword', event.target.value)}
+            autoComplete="new-password"
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      edge="end"
+                      aria-label="Toggle new password visibility"
+                      onClick={() => togglePasswordVisibility('newPassword')}
+                      sx={{ color: 'rgba(28, 53, 85, 0.7)' }}
+                    >
+                      {passwordVisibility.newPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              },
+            }}
+            sx={profileFieldStyles}
+          />
+
+          <TextField
+            fullWidth
+            size="small"
+            label="Confirm New Password"
+            type={passwordVisibility.confirmNewPassword ? 'text' : 'password'}
+            value={passwordFormValues.confirmNewPassword}
+            onChange={(event) => handlePasswordFieldChange('confirmNewPassword', event.target.value)}
+            autoComplete="new-password"
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      edge="end"
+                      aria-label="Toggle confirm new password visibility"
+                      onClick={() => togglePasswordVisibility('confirmNewPassword')}
+                      sx={{ color: 'rgba(28, 53, 85, 0.7)' }}
+                    >
+                      {passwordVisibility.confirmNewPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              },
+            }}
+            sx={profileFieldStyles}
+          />
+
+          <Stack direction="row" justifyContent="flex-end" spacing={1.25} sx={{ pt: 0.5 }}>
+            <Button
+              type="button"
+              onClick={closePasswordDialog}
+              disabled={passwordSaving}
+              sx={{
+                color: COLORS.primary,
+                textTransform: 'none',
+                fontWeight: 800,
+              }}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={passwordSaving}
+              sx={{
+                borderRadius: '999px',
+                textTransform: 'none',
+                px: 2.1,
+                backgroundColor: COLORS.primary,
+                '&:hover': {
+                  backgroundColor: COLORS.primaryHover,
+                },
+              }}
+            >
+              {passwordSaving ? 'Saving...' : 'Save password'}
+            </Button>
+          </Stack>
+        </Stack>
+      </Dialog>
 
       <OrderHistoryDialog
         open={isOrderHistoryOpen}
