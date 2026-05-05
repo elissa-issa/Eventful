@@ -47,8 +47,12 @@ function formatPrice(value) {
 
 function hasScheduledDateAndTime(item) {
   const customOptions = item.customOptions || item.selectedOptions || {}
+  const usesDateRangeOnly = item.serviceType === 'venues' || item.serviceType === 'entertainment'
 
-  return Boolean(item.selectedDate || customOptions.selectedDate) && Boolean(customOptions.selectedTime)
+  return (
+    Boolean(item.selectedDate || customOptions.selectedDate) &&
+    (usesDateRangeOnly || Boolean(customOptions.selectedTime))
+  )
 }
 
 function CartPage() {
@@ -285,6 +289,10 @@ function CartPage() {
       params.set('selectedDate', selectedDate)
     }
 
+    if (customOptions.selectedEndDate) {
+      params.set('selectedEndDate', customOptions.selectedEndDate)
+    }
+
     if (customOptions.selectedTime) {
       params.set('selectedTime', customOptions.selectedTime)
     }
@@ -393,7 +401,15 @@ function CartPage() {
 
       if (missingScheduleItem) {
         const itemTitle = missingScheduleItem.service?.title || 'Every selected item'
-        showToast(`${itemTitle} needs a date and time before checkout`, 'error')
+        const usesDateRangeOnly =
+          missingScheduleItem.serviceType === 'venues' ||
+          missingScheduleItem.serviceType === 'entertainment'
+        showToast(
+          usesDateRangeOnly
+            ? `${itemTitle} needs a start date before checkout`
+            : `${itemTitle} needs a date and time before checkout`,
+          'error',
+        )
         return
       }
     }

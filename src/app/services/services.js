@@ -19,3 +19,8 @@ export async function getVenueBookedDates(serviceId) {
   const result = await apiRequest(`/services/venues/${serviceId}/booked-dates`)
   return result.data || []
 }
+
+export async function getServiceBookedDates(serviceType, serviceId) {
+  const result = await apiRequest(`/services/${serviceType}/${serviceId}/booked-dates`)
+  return result.data || []
+}

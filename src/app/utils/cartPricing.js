@@ -21,15 +21,56 @@ function getItemDate(item) {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
+function parseDateKey(value) {
+  if (!value) {
+    return null
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return null
+  }
+
+  return date.toISOString().slice(0, 10)
+}
+
+function getBookedDayCount(item) {
+  if (item.serviceType !== 'venues' && item.serviceType !== 'entertainment') {
+    return 1
+  }
+
+  const customOptions = item.customOptions || item.selectedOptions || {}
+  const startKey = parseDateKey(item.selectedDate || customOptions.selectedDate)
+  const endKey = parseDateKey(customOptions.selectedEndDate || startKey)
+
+  if (!startKey || !endKey) {
+    return 1
+  }
+
+  const start = new Date(`${startKey}T00:00:00Z`)
+  const end = new Date(`${endKey}T00:00:00Z`)
+
+  if (end < start) {
+    return 1
+  }
+
+  return Math.round((end - start) / (24 * 60 * 60 * 1000)) + 1
+}
+
 function getBaseLineTotal(item) {
-  return Number(item.service?.priceValue || 0) * Number(item.quantity || 1)
+  const unitPrice = Number(item.service?.priceValue || 0)
+  const quantity = item.serviceType === 'venues' ? 1 : Number(item.quantity || 1)
+
+  return unitPrice * quantity * getBookedDayCount(item)
 }
 
 function getPromotionAmount(item) {
   const discountLabel = String(item.service?.discountLabel || '').trim()
-  const quantity = Number(item.quantity || 1)
+  const quantity = item.serviceType === 'venues' ? 1 : Number(item.quantity || 1)
   const unitPrice = Number(item.service?.priceValue || 0)
-  const lineTotal = unitPrice * quantity
+  const dayCount = getBookedDayCount(item)
+  const lineTotal = unitPrice * quantity * dayCount
 
   if (!discountLabel || lineTotal <= 0) {
     return 0
@@ -72,7 +113,7 @@ function getPromotionAmount(item) {
     const fullBundles = Math.floor(quantity / bundleSize)
     const freeUnits = fullBundles * freeQuantity
 
-    return freeUnits * unitPrice
+    return freeUnits * unitPrice * dayCount
   }
 
   return 0

@@ -15,6 +15,7 @@ const { createServiceController } = require('../controllers/serviceController');
 const { createServiceRepository } = require('../repository/serviceRepository');
 const { asyncHandler } = require('../helpers/asyncHandler');
 const { ApiError } = require('../helpers/apiError');
+const { getBookingDateKeys } = require('../helpers/venueAvailability');
 
 const router = express.Router();
 
@@ -37,44 +38,46 @@ attachCrudRoutes('/venues', Venue, 'Venue');
 attachCrudRoutes('/decorations', Decoration, 'Decoration');
 attachCrudRoutes('/entertainment', Entertainment, 'Entertainment');
 
-router.get(
-  '/venues/:id/booked-dates',
-  asyncHandler(async (req, res) => {
-    const venue = await Venue.findById(req.params.id);
+function attachBookedDatesRoute(path, Model, serviceType, serviceName) {
+  router.get(
+    `${path}/:id/booked-dates`,
+    asyncHandler(async (req, res) => {
+      const service = await Model.findById(req.params.id);
 
-    if (!venue) {
-      throw new ApiError(404, 'Venue not found');
-    }
+      if (!service) {
+        throw new ApiError(404, `${serviceName} not found`);
+      }
 
-    const orders = await Order.find({
-      status: { $ne: 'cancelled' },
-      'items.serviceType': 'venues',
-      'items.serviceId': venue._id,
-    });
+      const orders = await Order.find({
+        status: { $ne: 'cancelled' },
+        'items.serviceType': serviceType,
+        'items.serviceId': service._id,
+      });
 
-    const bookedDates = new Set();
+      const bookedDates = new Set();
 
-    for (const order of orders) {
-      for (const item of order.items) {
-        if (
-          item.serviceType === 'venues' &&
-          item.serviceId.equals(venue._id) &&
-          item.selectedDate
-        ) {
-          const d = new Date(item.selectedDate);
-          const dateStr = [
-            d.getUTCFullYear(),
-            String(d.getUTCMonth() + 1).padStart(2, '0'),
-            String(d.getUTCDate()).padStart(2, '0'),
-          ].join('-');
-          bookedDates.add(dateStr);
+      for (const order of orders) {
+        for (const item of order.items) {
+          if (
+            item.serviceType === serviceType &&
+            item.serviceId.equals(service._id) &&
+            item.selectedDate
+          ) {
+            getBookingDateKeys(
+              item.selectedDate,
+              item.customOptions?.selectedEndDate,
+            ).forEach((dateKey) => bookedDates.add(dateKey));
+          }
         }
       }
-    }
 
-    res.json({ data: Array.from(bookedDates) });
-  }),
-);
+      res.json({ data: Array.from(bookedDates).filter(Boolean) });
+    }),
+  );
+}
+
+attachBookedDatesRoute('/venues', Venue, 'venues', 'Venue');
+attachBookedDatesRoute('/entertainment', Entertainment, 'entertainment', 'Entertainment');
 
 router.get('/bundles', listBundles);
 router.get('/bundles/:id', getBundleById);

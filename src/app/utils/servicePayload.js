@@ -14,6 +14,7 @@ export function getCollectionItemPayload(item, section, options = {}) {
     ...(options.customOptions || {}),
     ...(options.selectedOptions || {}),
     ...(options.selectedDate ? { selectedDate: options.selectedDate } : {}),
+    ...(options.selectedEndDate ? { selectedEndDate: options.selectedEndDate } : {}),
   }
 
   return {
@@ -37,9 +38,15 @@ export function formatCartItemDetails(item) {
   const details = []
   const customOptions = item.customOptions || item.selectedOptions || {}
   const selectedDate = item.selectedDate || customOptions.selectedDate
+  const selectedEndDate = customOptions.selectedEndDate
 
   if (selectedDate) {
-    details.push(`Date: ${new Date(selectedDate).toLocaleDateString()}`)
+    const startDateText = new Date(selectedDate).toLocaleDateString()
+    const endDateText = selectedEndDate
+      ? new Date(selectedEndDate).toLocaleDateString()
+      : ''
+
+    details.push(endDateText ? `Dates: ${startDateText} - ${endDateText}` : `Date: ${startDateText}`)
   }
 
   if (customOptions.selectedTime) {

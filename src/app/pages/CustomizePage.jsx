@@ -47,7 +47,12 @@ function formatPlanItemDetails(item) {
   const selectedOptions = item.selectedOptions || {}
 
   if (selectedOptions.selectedDate) {
-    details.push(`Date: ${new Date(selectedOptions.selectedDate).toLocaleDateString()}`)
+    const startDateText = new Date(selectedOptions.selectedDate).toLocaleDateString()
+    const endDateText = selectedOptions.selectedEndDate
+      ? new Date(selectedOptions.selectedEndDate).toLocaleDateString()
+      : ''
+
+    details.push(endDateText ? `Dates: ${startDateText} - ${endDateText}` : `Date: ${startDateText}`)
   }
 
   if (selectedOptions.selectedTime) {
@@ -61,10 +66,22 @@ function formatPlanItemDetails(item) {
 
 function getPlanItemPrice(item) {
   const priceValue = item.pricingSnapshot?.priceValue ?? item.service?.priceValue
-  const quantity = item.quantity || 1
+  const quantity = item.section === 'venues' ? 1 : item.quantity || 1
+  const selectedOptions = item.selectedOptions || {}
+  const startDate = selectedOptions.selectedDate ? new Date(selectedOptions.selectedDate) : null
+  const endDate = selectedOptions.selectedEndDate ? new Date(selectedOptions.selectedEndDate) : startDate
+  const dayCount =
+    (item.section === 'venues' || item.section === 'entertainment') &&
+    startDate &&
+    endDate &&
+    !Number.isNaN(startDate.getTime()) &&
+    !Number.isNaN(endDate.getTime()) &&
+    endDate >= startDate
+      ? Math.round((endDate - startDate) / (24 * 60 * 60 * 1000)) + 1
+      : 1
 
   if (Number.isFinite(Number(priceValue))) {
-    return `$${Number(priceValue) * quantity}`
+    return `$${Number(priceValue) * quantity * dayCount}`
   }
 
   return item.priceTextSnapshot || item.service?.priceText || ''

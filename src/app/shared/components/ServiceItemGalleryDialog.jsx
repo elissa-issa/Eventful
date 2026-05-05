@@ -38,6 +38,33 @@ function parseInitialTime(value) {
   return dayjs().hour(hours).minute(minutes).second(0).millisecond(0)
 }
 
+function formatDateKey(value) {
+  return dayjs(value).format('YYYY-MM-DD')
+}
+
+function getRangeDateKeys(startDate, endDate) {
+  if (!startDate) {
+    return []
+  }
+
+  const start = dayjs(startDate).startOf('day')
+  const end = endDate && dayjs(endDate).isValid() ? dayjs(endDate).startOf('day') : start
+
+  if (end.isBefore(start, 'day')) {
+    return []
+  }
+
+  const keys = []
+  let cursor = start
+
+  while (cursor.isSame(end, 'day') || cursor.isBefore(end, 'day')) {
+    keys.push(formatDateKey(cursor))
+    cursor = cursor.add(1, 'day')
+  }
+
+  return keys
+}
+
 function ServiceItemGalleryDialog({
   title,
   images = [],
@@ -62,8 +89,11 @@ function ServiceItemGalleryDialog({
   disabledDates = [],
   initialQuantity,
   initialDate,
+  initialEndDate,
   initialTime,
   pricing,
+  allowDateRange = false,
+  hideTimePicker = false,
   selectedImageSrc,
   onSelectedImageChange,
   onAddToCart,
@@ -84,6 +114,9 @@ function ServiceItemGalleryDialog({
   const [deliveryDate, setDeliveryDate] = useState(() =>
     initialDate && dayjs(initialDate).isValid() ? dayjs(initialDate) : null
   )
+  const [deliveryEndDate, setDeliveryEndDate] = useState(() =>
+    initialEndDate && dayjs(initialEndDate).isValid() ? dayjs(initialEndDate) : null
+  )
   const [deliveryTime, setDeliveryTime] = useState(() => parseInitialTime(initialTime))
 
   const activeIndex = useMemo(() => {
@@ -102,6 +135,23 @@ function ServiceItemGalleryDialog({
   const minimumAllowedTime = dayjs().add(2, 'hour').startOf('minute')
   const isTodaySelected =
     deliveryDate != null && dayjs(deliveryDate).isSame(dayjs(), 'day')
+  const selectedEndDateKey = deliveryEndDate ? formatDateKey(deliveryEndDate) : ''
+  const normalizedDisabledDates = useMemo(
+    () => new Set(disabledDates.map((date) => formatDateKey(date))),
+    [disabledDates]
+  )
+  const selectedRangeDateKeys = useMemo(
+    () => getRangeDateKeys(deliveryDate, allowDateRange ? deliveryEndDate : null),
+    [allowDateRange, deliveryDate, deliveryEndDate]
+  )
+  const bookedDayCount = Math.max(selectedRangeDateKeys.length, 1)
+  const isSelectedDateBooked =
+    selectedRangeDateKeys.some((dateKey) => normalizedDisabledDates.has(dateKey))
+  const isEndDateBeforeStart =
+    allowDateRange &&
+    deliveryDate &&
+    deliveryEndDate &&
+    dayjs(deliveryEndDate).isBefore(deliveryDate, 'day')
 
   const thumbnailImages = useMemo(
     () => images.filter((_, index) => index !== activeIndex).slice(0, 4),
@@ -165,10 +215,7 @@ function ServiceItemGalleryDialog({
   const shouldDisableDate = (value) => {
     if (!value) return false
     if (dayjs(value).isBefore(today, 'day')) return true
-    if (disabledDates.length > 0) {
-      return disabledDates.includes(dayjs(value).format('YYYY-MM-DD'))
-    }
-    return false
+    return normalizedDisabledDates.has(formatDateKey(value))
   }
 
   const shouldDisableTime = (value, view) => {
@@ -202,7 +249,9 @@ function ServiceItemGalleryDialog({
   const baseAmount = pricing?.baseAmount ?? 0
   const calculationType = pricing?.calculationType ?? 'flat'
   const rawTotal =
-    calculationType === 'per_unit' ? baseAmount * Math.max(quantityForPricing, 0) : baseAmount
+    calculationType === 'per_unit'
+      ? baseAmount * Math.max(quantityForPricing, 0)
+      : baseAmount * (pricing?.multipliesByDays ? bookedDayCount : 1)
 
   let discountedTotal = rawTotal
   let savingsAmount = 0
@@ -244,7 +293,9 @@ function ServiceItemGalleryDialog({
   const estimateLabel =
     calculationType === 'per_unit'
       ? `Estimated total for ${quantityForPricing} ${pricing?.unitLabel || 'units'}`
-      : `Estimated total`
+      : pricing?.multipliesByDays
+        ? `Estimated total for ${bookedDayCount} ${bookedDayCount === 1 ? 'day' : 'days'}`
+        : `Estimated total`
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -700,6 +751,15 @@ function ServiceItemGalleryDialog({
                   setDeliveryDate(nextDate)
 
                   if (
+                    allowDateRange &&
+                    deliveryEndDate &&
+                    nextDate &&
+                    dayjs(deliveryEndDate).isBefore(nextDate, 'day')
+                  ) {
+                    setDeliveryEndDate(null)
+                  }
+
+                  if (
                     nextDate &&
                     dayjs(nextDate).isSame(dayjs(), 'day') &&
                     deliveryTime &&
@@ -714,7 +774,7 @@ function ServiceItemGalleryDialog({
                 slotProps={{
                   textField: {
                     fullWidth: true,
-                    placeholder: datePlaceholder,
+                    placeholder: allowDateRange ? 'Start Date' : datePlaceholder,
                   },
                 }}
                 sx={{
@@ -725,51 +785,92 @@ function ServiceItemGalleryDialog({
                 }}
               />
 
-              <TimePicker
-                value={deliveryTime}
-                onChange={(value) => {
-                  const nextTime = value && dayjs(value).isValid() ? value : null
+              {allowDateRange ? (
+                <DatePicker
+                  value={deliveryEndDate}
+                  onChange={(value) => {
+                    const nextDate = value && dayjs(value).isValid() ? value : null
+                    setDeliveryEndDate(nextDate)
+                  }}
+                  format="DD/MM/YYYY"
+                  minDate={deliveryDate || today}
+                  shouldDisableDate={shouldDisableDate}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      placeholder: 'End Date',
+                    },
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      backgroundColor: COLORS.surface,
+                    },
+                  }}
+                />
+              ) : null}
 
-                  if (nextTime && isTodaySelected && nextTime.isBefore(minimumAllowedTime)) {
-                    setDeliveryTime(null)
-                    return
-                  }
+              {isSelectedDateBooked || isEndDateBeforeStart ? (
+                <Typography sx={{ color: '#d32f2f', fontSize: '0.86rem', fontWeight: 700 }}>
+                  {isEndDateBeforeStart
+                    ? 'End date must be on or after the start date.'
+                    : 'This item is already booked for one or more selected dates.'}
+                </Typography>
+              ) : null}
 
-                  setDeliveryTime(nextTime)
-                }}
-                viewRenderers={{
-                  hours: renderTimeViewClock,
-                  minutes: renderTimeViewClock,
-                }}
-                minTime={isTodaySelected ? minimumAllowedTime : undefined}
-                shouldDisableTime={shouldDisableTime}
-                slotProps={{
-                  textField: {
-                    fullWidth: true,
-                    placeholder: timePlaceholder,
-                  },
-                }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 1.5,
-                    backgroundColor: COLORS.surface,
-                  },
-                }}
-              />
+              {!hideTimePicker ? (
+                <TimePicker
+                  value={deliveryTime}
+                  onChange={(value) => {
+                    const nextTime = value && dayjs(value).isValid() ? value : null
+
+                    if (nextTime && isTodaySelected && nextTime.isBefore(minimumAllowedTime)) {
+                      setDeliveryTime(null)
+                      return
+                    }
+
+                    setDeliveryTime(nextTime)
+                  }}
+                  viewRenderers={{
+                    hours: renderTimeViewClock,
+                    minutes: renderTimeViewClock,
+                  }}
+                  minTime={isTodaySelected ? minimumAllowedTime : undefined}
+                  shouldDisableTime={shouldDisableTime}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      placeholder: timePlaceholder,
+                    },
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1.5,
+                      backgroundColor: COLORS.surface,
+                    },
+                  }}
+                />
+              ) : null}
             </Stack>
 
             <Button
               fullWidth
               disableElevation
               variant="contained"
+              disabled={isSelectedDateBooked || isEndDateBeforeStart}
               onClick={(event) =>
                 onAddToCart?.({
                   event,
                   quantity: Math.max(quantityForPricing || 1, 1),
-                  selectedDate: deliveryDate ? dayjs(deliveryDate).toISOString() : undefined,
-                  customOptions: deliveryTime
-                    ? { selectedTime: dayjs(deliveryTime).format('HH:mm') }
-                    : undefined,
+                  selectedDate: deliveryDate ? formatDateKey(deliveryDate) : undefined,
+                  customOptions: {
+                    ...(!hideTimePicker && deliveryTime
+                      ? { selectedTime: dayjs(deliveryTime).format('HH:mm') }
+                      : {}),
+                    ...(allowDateRange && deliveryEndDate
+                      ? { selectedEndDate: selectedEndDateKey }
+                      : {}),
+                  },
                 })
               }
               sx={{
@@ -783,6 +884,10 @@ function ServiceItemGalleryDialog({
                 '&:hover': {
                   backgroundColor: COLORS.accentHover,
                   boxShadow: 'none',
+                },
+                '&.Mui-disabled': {
+                  backgroundColor: COLORS.border,
+                  color: COLORS.textLight,
                 },
               }}
             >

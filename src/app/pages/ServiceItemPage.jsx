@@ -12,7 +12,7 @@ import {
   createServiceReview,
   getServiceReviews,
 } from '../services/reviews'
-import { getVenueBookedDates } from '../services/services'
+import { getServiceBookedDates } from '../services/services'
 import { useToast } from '../toast/useToast'
 import { getCollectionItemPayload, getServicePayload } from '../utils/servicePayload'
 import AddReviewDrawer from '../shared/components/AddReviewDrawer'
@@ -38,10 +38,11 @@ function ServiceItemPage() {
   const cartReturnPath = searchParams.get('returnTo') || '/cart'
   const cartInitialQuantity = Number(searchParams.get('quantity') || 1)
   const cartInitialDate = searchParams.get('selectedDate') || ''
+  const cartInitialEndDate = searchParams.get('selectedEndDate') || ''
   const cartInitialTime = searchParams.get('selectedTime') || ''
   const isPlanMode = Boolean(planId)
   const isCartEditMode = Boolean(cartItemId)
-  const [venueBookedDates, setVenueBookedDates] = useState([])
+  const [bookedDates, setBookedDates] = useState([])
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const [isAddReviewDrawerOpen, setIsAddReviewDrawerOpen] = useState(false)
   const [isReviewsDrawerOpen, setIsReviewsDrawerOpen] = useState(false)
@@ -63,6 +64,7 @@ function ServiceItemPage() {
     [itemsBySection, section]
   )
   const isBundleSection = section === 'bundles'
+  const usesDateRangeOnly = section === 'venues' || section === 'entertainment'
   const selectedItem = activeItems.find((item) => item.id === itemId)
 
   const galleryImages = useMemo(() => {
@@ -159,6 +161,7 @@ function ServiceItemPage() {
         defaultQuantity: minQ,
         minQuantity: minQ,
         maxQuantity: selectedItem.maxGuests ?? null,
+        multipliesByDays: true,
       }
     }
 
@@ -168,6 +171,7 @@ function ServiceItemPage() {
         calculationType: 'flat',
         unitLabel: 'booking',
         defaultQuantity: 1,
+        multipliesByDays: true,
       }
     }
 
@@ -254,8 +258,8 @@ function ServiceItemPage() {
   }, [loadReviewEligibility])
 
   useEffect(() => {
-    if (section !== 'venues' || !selectedItem) {
-      setVenueBookedDates([])
+    if (!usesDateRangeOnly || !selectedItem) {
+      setBookedDates([])
       return
     }
 
@@ -263,10 +267,10 @@ function ServiceItemPage() {
 
     if (!serviceId) return
 
-    getVenueBookedDates(serviceId)
-      .then((dates) => setVenueBookedDates(dates))
-      .catch(() => setVenueBookedDates([]))
-  }, [section, selectedItem])
+    getServiceBookedDates(section, serviceId)
+      .then((dates) => setBookedDates(dates))
+      .catch(() => setBookedDates([]))
+  }, [section, selectedItem, usesDateRangeOnly])
 
   const displayAverageRating = reviewCount > 0
     ? averageRating
@@ -362,8 +366,13 @@ function ServiceItemPage() {
 
     handleProtectedAction(async () => {
       if (isCartEditMode) {
-        if (!selectedDate || !customOptions?.selectedTime) {
-          showToast('Please select a date and time before saving changes', 'error')
+        if (!selectedDate || (!usesDateRangeOnly && !customOptions?.selectedTime)) {
+          showToast(
+            usesDateRangeOnly
+              ? 'Please select a start date before saving changes'
+              : 'Please select a date and time before saving changes',
+            'error',
+          )
           return
         }
 
@@ -474,7 +483,7 @@ function ServiceItemPage() {
           priceText={selectedItem.priceText}
           detailBadgeText={selectedItem.detailBadgeText}
           supportingInfoText={selectedItem.supportingInfoText || selectedItem.guestText}
-          disabledDates={venueBookedDates}
+          disabledDates={bookedDates}
           showPeopleSelector={selectedItem.showPeopleSelector}
           peopleLabel={selectedItem.peopleLabel}
           datePlaceholder={selectedItem.datePlaceholder}
@@ -486,8 +495,11 @@ function ServiceItemPage() {
             isCartEditMode && Number.isFinite(cartInitialQuantity) ? cartInitialQuantity : undefined
           }
           initialDate={isCartEditMode ? cartInitialDate : undefined}
+          initialEndDate={isCartEditMode ? cartInitialEndDate : undefined}
           initialTime={isCartEditMode ? cartInitialTime : undefined}
           pricing={pricingConfig}
+          allowDateRange={usesDateRangeOnly}
+          hideTimePicker={usesDateRangeOnly}
           selectedImageSrc={activeBundleImageSrc}
           onSelectedImageChange={isBundleSection ? setSelectedBundleImageSrc : undefined}
           onAddToCart={handleAddToCart}

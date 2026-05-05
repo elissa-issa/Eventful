@@ -2,7 +2,7 @@ const Cart = require('../models/Cart');
 const CustomizedPlan = require('../models/CustomizedPlan');
 const { ApiError } = require('../helpers/apiError');
 const { asyncHandler } = require('../helpers/asyncHandler');
-const { assertVenueNotDoubleBooked } = require('../helpers/venueAvailability');
+const { assertServiceNotDoubleBooked } = require('../helpers/venueAvailability');
 const {
   buildCollectionResponse,
   findOwnedCollection,
@@ -135,6 +135,16 @@ function buildSelectedOptionsWithDate(customOptions = {}, selectedDate) {
   return selectedOptions;
 }
 
+function normalizeCustomOptionsForService(serviceType, customOptions = {}) {
+  const nextOptions = { ...(customOptions || {}) };
+
+  if (serviceType === 'venues' || serviceType === 'entertainment') {
+    delete nextOptions.selectedTime;
+  }
+
+  return nextOptions;
+}
+
 async function buildCartResponse(cart) {
   const items = await attachServiceDetails(cart.items);
 
@@ -198,8 +208,8 @@ const addItem = asyncHandler(async (request, response) => {
     serviceId,
     serviceType,
     selectedDate,
-    customOptions = {},
   } = request.body;
+  const customOptions = normalizeCustomOptionsForService(serviceType, request.body.customOptions);
   const quantity = normalizeQuantity(request.body.quantity);
 
   validateServiceType(serviceType);
@@ -208,8 +218,13 @@ const addItem = asyncHandler(async (request, response) => {
 
   validateQuantityBounds(quantity, service, serviceType);
 
-  if (serviceType === 'venues' && selectedDate) {
-    await assertVenueNotDoubleBooked(service._id, parseSelectedDate(selectedDate));
+  if ((serviceType === 'venues' || serviceType === 'entertainment') && selectedDate) {
+    await assertServiceNotDoubleBooked(
+      serviceType,
+      service._id,
+      parseSelectedDate(selectedDate),
+      customOptions?.selectedEndDate,
+    );
   }
 
   const cart = await findOrCreateCart(request.user.id);
@@ -231,6 +246,10 @@ const addItem = asyncHandler(async (request, response) => {
         ...(existingItem.customOptions || {}),
         ...customOptions,
       };
+
+      if (serviceType === 'venues' || serviceType === 'entertainment') {
+        delete existingItem.customOptions.selectedTime;
+      }
     }
   } else {
     cart.items.push({
@@ -253,6 +272,7 @@ const addItem = asyncHandler(async (request, response) => {
 const updateItem = asyncHandler(async (request, response) => {
   const { serviceId, selectedDate, customOptions } = request.body;
   const serviceType = request.body.serviceType || request.body.section;
+  const normalizedCustomOptions = normalizeCustomOptionsForService(serviceType, customOptions);
   const quantity = normalizeQuantity(request.body.quantity);
 
   validateServiceType(serviceType);
@@ -271,12 +291,17 @@ const updateItem = asyncHandler(async (request, response) => {
 
   let service = null;
 
-  if (['menus', 'decorations', 'venues'].includes(serviceType)) {
+  if (['menus', 'decorations', 'venues', 'entertainment'].includes(serviceType)) {
     service = await getServiceByType(serviceType, serviceId);
     validateQuantityBounds(quantity, service, serviceType);
 
-    if (serviceType === 'venues' && selectedDate) {
-      await assertVenueNotDoubleBooked(service._id, parseSelectedDate(selectedDate));
+    if ((serviceType === 'venues' || serviceType === 'entertainment') && selectedDate) {
+      await assertServiceNotDoubleBooked(
+        serviceType,
+        service._id,
+        parseSelectedDate(selectedDate),
+        normalizedCustomOptions?.selectedEndDate,
+      );
     }
   }
 
@@ -287,7 +312,7 @@ const updateItem = asyncHandler(async (request, response) => {
   }
 
   if (customOptions !== undefined) {
-    item.customOptions = customOptions;
+    item.customOptions = normalizedCustomOptions;
   }
 
   await cart.save();
@@ -305,7 +330,9 @@ const updateItem = asyncHandler(async (request, response) => {
     if (syncedItem) {
       syncedItem.quantity = quantity;
       syncedItem.selectedOptions = buildSelectedOptionsWithDate(
-        customOptions || syncedItem.selectedOptions || {},
+        customOptions !== undefined
+          ? normalizedCustomOptions
+          : syncedItem.selectedOptions || {},
         item.selectedDate,
       );
       await collection.save();
@@ -328,15 +355,27 @@ const updateItemById = asyncHandler(async (request, response) => {
   }
 
   const quantity = normalizeQuantity(request.body.quantity);
+  const normalizedCustomOptions = normalizeCustomOptionsForService(
+    item.serviceType,
+    request.body.customOptions,
+  );
 
   let service = null;
 
-  if (['menus', 'decorations', 'venues'].includes(item.serviceType)) {
+  if (['menus', 'decorations', 'venues', 'entertainment'].includes(item.serviceType)) {
     service = await getServiceByType(item.serviceType, item.serviceId);
     validateQuantityBounds(quantity, service, item.serviceType);
 
-    if (item.serviceType === 'venues' && request.body.selectedDate) {
-      await assertVenueNotDoubleBooked(service._id, parseSelectedDate(request.body.selectedDate));
+    if (
+      (item.serviceType === 'venues' || item.serviceType === 'entertainment') &&
+      request.body.selectedDate
+    ) {
+      await assertServiceNotDoubleBooked(
+        item.serviceType,
+        service._id,
+        parseSelectedDate(request.body.selectedDate),
+        normalizedCustomOptions?.selectedEndDate,
+      );
     }
   }
 
@@ -347,7 +386,7 @@ const updateItemById = asyncHandler(async (request, response) => {
   }
 
   if (request.body.customOptions !== undefined) {
-    item.customOptions = request.body.customOptions;
+    item.customOptions = normalizedCustomOptions;
   }
 
   await cart.save();

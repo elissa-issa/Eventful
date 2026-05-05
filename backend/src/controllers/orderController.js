@@ -2,7 +2,10 @@ const Cart = require('../models/Cart');
 const Order = require('../models/Order');
 const { ApiError } = require('../helpers/apiError');
 const { asyncHandler } = require('../helpers/asyncHandler');
-const { assertVenueNotDoubleBooked } = require('../helpers/venueAvailability');
+const {
+  assertServiceNotDoubleBooked,
+  getBookingDateKeys,
+} = require('../helpers/venueAvailability');
 const { findOwnedCollection } = require('./collectionController');
 const {
   attachServiceDetails,
@@ -28,9 +31,10 @@ async function buildOrderResponse(order) {
 function getCartItemSchedule(cartItem) {
   const customOptions = cartItem.customOptions || {};
   const selectedDate = cartItem.selectedDate || customOptions.selectedDate;
+  const selectedEndDate = customOptions.selectedEndDate;
   const selectedTime = customOptions.selectedTime;
 
-  return { selectedDate, selectedTime };
+  return { selectedDate, selectedEndDate, selectedTime };
 }
 
 const WEEKDAYS = [
@@ -43,11 +47,11 @@ const WEEKDAYS = [
   'saturday',
 ];
 
-function getPromotionAmount(cartItem, service, selectedDate) {
+function getPromotionAmount(cartItem, service, selectedDate, dayCount = 1) {
   const discountLabel = String(service.discountLabel || '').trim();
-  const quantity = cartItem.quantity;
+  const quantity = cartItem.serviceType === 'venues' ? 1 : cartItem.quantity;
   const unitPrice = service.priceValue || 0;
-  const lineTotal = unitPrice * quantity;
+  const lineTotal = unitPrice * quantity * dayCount;
 
   if (!discountLabel || lineTotal <= 0) {
     return 0;
@@ -87,10 +91,18 @@ function getPromotionAmount(cartItem, service, selectedDate) {
       return 0;
     }
 
-    return Math.floor(quantity / bundleSize) * freeQuantity * unitPrice;
+    return Math.floor(quantity / bundleSize) * freeQuantity * unitPrice * dayCount;
   }
 
   return 0;
+}
+
+function getBookedDayCount(serviceType, selectedDate, selectedEndDate) {
+  if (serviceType !== 'venues' && serviceType !== 'entertainment') {
+    return 1;
+  }
+
+  return Math.max(getBookingDateKeys(selectedDate, selectedEndDate).length, 1);
 }
 
 async function buildOrderItems(cartItems) {
@@ -98,14 +110,27 @@ async function buildOrderItems(cartItems) {
   let totalPrice = 0;
 
   for (const cartItem of cartItems) {
-    const { selectedDate, selectedTime } = getCartItemSchedule(cartItem);
+    const { selectedDate, selectedEndDate, selectedTime } = getCartItemSchedule(cartItem);
 
-    if (!selectedDate || !selectedTime) {
-      throw new ApiError(400, 'Each cart item must have a selected date and time before checkout');
+    const usesDateRangeOnly =
+      cartItem.serviceType === 'venues' || cartItem.serviceType === 'entertainment';
+
+    if (!selectedDate || (!usesDateRangeOnly && !selectedTime)) {
+      throw new ApiError(
+        400,
+        usesDateRangeOnly
+          ? 'Each venue and entertainment item must have a start date before checkout'
+          : 'Each cart item must have a selected date and time before checkout',
+      );
     }
 
-    if (cartItem.serviceType === 'venues' && selectedDate) {
-      await assertVenueNotDoubleBooked(cartItem.serviceId, selectedDate);
+    if (usesDateRangeOnly && selectedDate) {
+      await assertServiceNotDoubleBooked(
+        cartItem.serviceType,
+        cartItem.serviceId,
+        selectedDate,
+        selectedEndDate,
+      );
     }
 
     const service = await getServiceByType(
@@ -113,6 +138,7 @@ async function buildOrderItems(cartItems) {
       cartItem.serviceId,
     );
     const quantity = cartItem.quantity;
+    const priceQuantity = cartItem.serviceType === 'venues' ? 1 : quantity;
 
     if (cartItem.serviceType === 'menus' || cartItem.serviceType === 'venues') {
       const min = service.minGuests ?? null;
@@ -126,9 +152,10 @@ async function buildOrderItems(cartItems) {
       if (max !== null && quantity > max) throw new ApiError(400, `Maximum quantity for this item is ${max}`);
     }
     const unitPrice = service.priceValue || 0;
-    const retailLineTotal = unitPrice * quantity;
+    const dayCount = getBookedDayCount(cartItem.serviceType, selectedDate, selectedEndDate);
+    const retailLineTotal = unitPrice * priceQuantity * dayCount;
     const promotionAmount = Math.min(
-      getPromotionAmount(cartItem, service, selectedDate),
+      getPromotionAmount(cartItem, service, selectedDate, dayCount),
       retailLineTotal,
     );
     const lineTotal = retailLineTotal - promotionAmount;
