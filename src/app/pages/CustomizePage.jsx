@@ -270,7 +270,6 @@ function CreatePlanView({ plan, onChooseTemplate, onBackToPlans, onRefreshPlan, 
   const isPremiumUser = getIsPremiumUser(user)
   const {
     maxTopPicksIndex,
-    rightArrowClickCount,
     topPicksIndex,
     topPicksToRender,
     handleTopPicksNext,
@@ -599,12 +598,9 @@ function CreatePlanView({ plan, onChooseTemplate, onBackToPlans, onRefreshPlan, 
                 <IconButton
                   aria-label="Show next top picks"
                   onClick={handleTopPicksNext}
-                  disabled={topPicksIndex >= maxTopPicksIndex && rightArrowClickCount > 2}
+                  disabled={topPicksIndex >= maxTopPicksIndex}
                   sx={{
-                    color:
-                      topPicksIndex >= maxTopPicksIndex && rightArrowClickCount > 2
-                        ? COLORS.textLight
-                        : COLORS.primary,
+                    color: topPicksIndex >= maxTopPicksIndex ? COLORS.textLight : COLORS.primary,
                     p: 0.4,
                   }}
                 >

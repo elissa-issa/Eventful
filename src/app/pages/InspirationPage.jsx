@@ -18,10 +18,8 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { COLORS } from '../constants/colors'
-import { INSPIRATION_THEMES } from '../constants/inspirationThemes'
 import AlertDialog from '../shared/components/AlertDialog'
 import HeroCarousel from '../shared/components/HeroCarousel'
-import InspirationThemeCard from '../shared/components/InspirationThemeCard'
 import PremiumPlansDialog from '../shared/components/PremiumPlansDialog'
 import ServiceCard from '../shared/components/ServiceCard'
 import { INSPIRATION_HERO_SLIDES } from '../constants/inspirationHeroSlides'
@@ -38,6 +36,9 @@ import { getServicePayload } from '../utils/servicePayload'
 function PremiumUpgradeCard({ onUpgradeClick }) {
   return (
     <Box
+      component="button"
+      type="button"
+      onClick={onUpgradeClick}
       sx={{
         display: 'flex',
         flexDirection: 'column',
@@ -51,6 +52,13 @@ function PremiumUpgradeCard({ onUpgradeClick }) {
           'linear-gradient(180deg, rgba(234, 122, 36, 0.08) 0%, rgba(43, 120, 204, 0.08) 100%)',
         border: '1px solid rgba(234, 122, 36, 0.35)',
         boxShadow: '0 18px 36px rgba(15, 45, 75, 0.08)',
+        cursor: 'pointer',
+        font: 'inherit',
+        textAlign: 'left',
+        '&:focus-visible': {
+          outline: `3px solid ${COLORS.accent}`,
+          outlineOffset: 3,
+        },
       }}
     >
       <Stack spacing={2} alignItems="flex-start">
@@ -91,7 +99,7 @@ function PremiumUpgradeCard({ onUpgradeClick }) {
         <Button
           variant="contained"
           endIcon={<ArrowOutwardRoundedIcon />}
-          onClick={onUpgradeClick}
+          component="span"
           sx={{
             alignSelf: 'flex-start',
             borderRadius: '999px',
@@ -124,9 +132,6 @@ function InspirationPage() {
   const { collectionPickerDialog, openCollectionPicker } = useCollectionCartAction()
   const isLargeUp = useMediaQuery(theme.breakpoints.up('lg'))
   const isSmallUp = useMediaQuery(theme.breakpoints.up('sm'))
-  const featureTheme = INSPIRATION_THEMES.find((theme) => theme.layout === 'feature')
-  const sideTheme = INSPIRATION_THEMES.find((theme) => theme.layout === 'side')
-  const standardThemes = INSPIRATION_THEMES.filter((theme) => theme.layout === 'standard')
   const [activeHeroSlideIndex, setActiveHeroSlideIndex] = useState(0)
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const [isPremiumDialogOpen, setIsPremiumDialogOpen] = useState(false)
@@ -143,7 +148,6 @@ function InspirationPage() {
   const visibleTopPicks = isLargeUp ? 3 : isSmallUp ? 2 : 1
   const {
     maxTopPicksIndex,
-    rightArrowClickCount,
     topPicksIndex,
     topPicksToRender,
     handleTopPicksNext,
@@ -179,15 +183,6 @@ function InspirationPage() {
 
   const handleClosePremiumDialog = () => {
     setIsPremiumDialogOpen(false)
-  }
-
-  const handleExploreTheme = (theme) => {
-    if (!isPremiumUser) {
-      handleOpenPremiumDialog()
-      return
-    }
-
-    setSelectedTheme(theme)
   }
 
   const handleProtectedAction = async (action) => {
@@ -629,7 +624,7 @@ function InspirationPage() {
               Top Picks For You
             </Typography>
             <Typography sx={{ color: COLORS.textLight, fontSize: '1rem' }}>
-              Curated standouts from each service section. After the third swipe, you will reach a premium upgrade card for more recommendations.
+              Personalized recommendations based on what you book most. Premium unlocks the full list.
             </Typography>
           </Stack>
 
@@ -649,12 +644,9 @@ function InspirationPage() {
             <IconButton
               aria-label="Show next top picks"
               onClick={handleTopPicksNext}
-              disabled={topPicksIndex >= maxTopPicksIndex && rightArrowClickCount > 2}
+              disabled={topPicksIndex >= maxTopPicksIndex}
               sx={{
-                color:
-                  topPicksIndex >= maxTopPicksIndex && rightArrowClickCount > 2
-                    ? COLORS.textLight
-                    : COLORS.primary,
+                color: topPicksIndex >= maxTopPicksIndex ? COLORS.textLight : COLORS.primary,
                 backgroundColor: COLORS.surface,
                 border: `1px solid ${COLORS.border}`,
               }}
