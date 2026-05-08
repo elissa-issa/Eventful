@@ -201,9 +201,37 @@ function toPlanItem(service, serviceType) {
       serviceObject.vendorLocation ||
       '',
     priceText: serviceObject.priceText,
+    priceValue: serviceObject.priceValue,
     imageSrc: serviceObject.imageSrc,
     imageAlt: serviceObject.imageAlt,
   };
+}
+
+function getPlanItemPriceValue(item) {
+  const numericPrice = Number(item?.priceValue);
+
+  if (Number.isFinite(numericPrice) && numericPrice > 0) {
+    return numericPrice;
+  }
+
+  const match = String(item?.priceText || '').match(/[\d,.]+/);
+
+  if (!match) {
+    return 0;
+  }
+
+  const parsedPrice = Number(match[0].replace(/,/g, ''));
+
+  return Number.isFinite(parsedPrice) ? parsedPrice : 0;
+}
+
+function getBundlePriceValue(bundleObject, planItems) {
+  const planItemsTotal = planItems.reduce(
+    (total, item) => total + getPlanItemPriceValue(item),
+    0,
+  );
+
+  return planItemsTotal > 0 ? planItemsTotal : bundleObject.priceValue || 0;
 }
 
 function presentBundle(bundle) {
@@ -229,17 +257,23 @@ function presentBundle(bundle) {
     ),
   ].filter(Boolean);
 
+  const planItems = derivedPlanItems.length
+    ? derivedPlanItems
+    : bundleObject.planItems || [];
+  const priceValue = getBundlePriceValue(bundleObject, planItems);
+
   return {
     ...bundleObject,
+    priceValue,
+    priceText: `Starting $${Math.round(priceValue).toLocaleString('en-US')}/Night`,
+    leftText: `Starting $${Math.round(priceValue).toLocaleString('en-US')}`,
     components: {
       venue,
       menus,
       entertainment,
       decorations,
     },
-    planItems: derivedPlanItems.length
-      ? derivedPlanItems
-      : bundleObject.planItems || [],
+    planItems,
   };
 }
 

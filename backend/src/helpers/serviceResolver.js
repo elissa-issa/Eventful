@@ -15,6 +15,13 @@ const MODELS_BY_SERVICE_TYPE = {
   bundles: Bundle,
 };
 
+const POPULATE_BUNDLE_COMPONENTS = [
+  { path: 'venue' },
+  { path: 'menus' },
+  { path: 'entertainment' },
+  { path: 'decorations' },
+];
+
 function buildServiceFilter(serviceId) {
   if (mongoose.Types.ObjectId.isValid(serviceId)) {
     return {
@@ -56,22 +63,77 @@ async function getServiceByType(serviceType, serviceId) {
   validateServiceId(String(serviceId || ''), 'serviceId');
 
   const Model = getServiceModel(serviceType);
-  const service = await Model.findOne(buildServiceFilter(String(serviceId)));
+  const query = Model.findOne(buildServiceFilter(String(serviceId)));
+  const service =
+    serviceType === 'bundles'
+      ? await query.populate(POPULATE_BUNDLE_COMPONENTS)
+      : await query;
 
   if (!service) {
     throw new ApiError(404, `${serviceType} service not found`);
   }
 
+  if (serviceType === 'bundles') {
+    const priceValue = getBundlePriceValue(service);
+    service.priceValue = priceValue;
+    service.priceText = `Starting ${formatPrice(priceValue)}/Night`;
+  }
+
   return service;
 }
 
+function getServicePriceValue(service) {
+  const numericPrice = Number(service?.priceValue);
+
+  if (Number.isFinite(numericPrice) && numericPrice > 0) {
+    return numericPrice;
+  }
+
+  const match = String(service?.priceText || '').match(/[\d,.]+/);
+
+  if (!match) {
+    return 0;
+  }
+
+  const parsedPrice = Number(match[0].replace(/,/g, ''));
+
+  return Number.isFinite(parsedPrice) ? parsedPrice : 0;
+}
+
+function getBundleComponentPrices(service) {
+  return [
+    service.venue,
+    ...(service.menus || []),
+    ...(service.entertainment || []),
+    ...(service.decorations || []),
+  ].filter(Boolean);
+}
+
+function getBundlePriceValue(service) {
+  const planItems = service.planItems || [];
+  const priceItems = planItems.length ? planItems : getBundleComponentPrices(service);
+  const total = priceItems.reduce(
+    (sum, item) => sum + getServicePriceValue(item),
+    0,
+  );
+
+  return total > 0 ? total : service.priceValue;
+}
+
+function formatPrice(value) {
+  return `$${Math.round(value || 0).toLocaleString('en-US')}`;
+}
+
 function getServiceSummary(service) {
+  const isBundle = service instanceof Bundle || service.constructor?.modelName === 'Bundle';
+  const priceValue = isBundle ? getBundlePriceValue(service) : service.priceValue;
+
   return {
     id: service.itemId || service.id,
     mongoId: service._id.toString(),
     title: service.title,
-    priceValue: service.priceValue,
-    priceText: service.priceText,
+    priceValue,
+    priceText: isBundle ? `Starting ${formatPrice(priceValue)}/Night` : service.priceText,
     discountLabel: service.discountLabel,
     imageSrc: service.imageSrc,
     imageAlt: service.imageAlt,

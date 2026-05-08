@@ -1,6 +1,4 @@
-import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
-import FavoriteBorderRoundedIcon from '@mui/icons-material/FavoriteBorderRounded'
-import { Box, Button, Stack, Typography } from '@mui/material'
+import { Box, Stack, Typography } from '@mui/material'
 import { COLORS } from '../../constants/colors'
 
 function BundlePlanItems({ items = [], selectedImageSrc, onItemSelect }) {
@@ -42,39 +40,16 @@ function BundlePlanItems({ items = [], selectedImageSrc, onItemSelect }) {
               />
 
               <Stack spacing={0.45} sx={{ flex: 1, minWidth: 0 }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-                  <Typography
-                    sx={{
-                      color: COLORS.primary,
-                      fontWeight: 700,
-                      fontSize: '0.96rem',
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    {item.title}
-                  </Typography>
-
-                  <Button
-                    size="small"
-                    disableElevation
-                    sx={{
-                      minWidth: 0,
-                      px: 1.1,
-                      py: 0.2,
-                      borderRadius: '999px',
-                      backgroundColor: COLORS.primary,
-                      color: COLORS.surface,
-                      textTransform: 'none',
-                      fontWeight: 700,
-                      fontSize: '0.7rem',
-                      '&:hover': {
-                        backgroundColor: COLORS.primaryHover,
-                      },
-                    }}
-                  >
-                    Modify
-                  </Button>
-                </Stack>
+                <Typography
+                  sx={{
+                    color: COLORS.primary,
+                    fontWeight: 700,
+                    fontSize: '0.96rem',
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {item.title}
+                </Typography>
 
                 {item.metaText ? (
                   <Typography sx={{ color: COLORS.textLight, fontSize: '0.82rem' }}>
@@ -92,11 +67,6 @@ function BundlePlanItems({ items = [], selectedImageSrc, onItemSelect }) {
                 >
                   {item.priceText}
                 </Typography>
-
-                <Stack direction="row" spacing={0.9} justifyContent="flex-end" sx={{ mt: 0.1 }}>
-                  <FavoriteBorderRoundedIcon sx={{ fontSize: 18, color: COLORS.primaryDark }} />
-                  <DeleteOutlineRoundedIcon sx={{ fontSize: 18, color: COLORS.primaryDark }} />
-                </Stack>
               </Stack>
             </Stack>
           </Box>
