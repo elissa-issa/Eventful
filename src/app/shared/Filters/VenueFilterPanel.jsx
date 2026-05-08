@@ -105,8 +105,8 @@ function VenueFilterPanel({ value, locations = [], onChange, onClearAll, onClose
           <Typography sx={sectionHeaderStyles}>Price Range</Typography>
 
           <Stack direction="row" justifyContent="space-between">
-            <Typography sx={rangeCaptionStyles}>0$</Typography>
-            <Typography sx={rangeCaptionStyles}>100$</Typography>
+            <Typography sx={rangeCaptionStyles}>{value.priceRange[0]}$</Typography>
+            <Typography sx={rangeCaptionStyles}>{value.priceRange[1]}$</Typography>
           </Stack>
 
           <Slider
@@ -134,8 +134,8 @@ function VenueFilterPanel({ value, locations = [], onChange, onClearAll, onClose
           <Typography sx={sectionHeaderStyles}>Quantity</Typography>
 
           <Stack direction="row" justifyContent="space-between">
-            <Typography sx={rangeCaptionStyles}>1 pers</Typography>
-            <Typography sx={rangeCaptionStyles}>500 pers</Typography>
+            <Typography sx={rangeCaptionStyles}>{value.quantityRange[0]} pers</Typography>
+            <Typography sx={rangeCaptionStyles}>{value.quantityRange[1]} pers</Typography>
           </Stack>
 
           <Slider

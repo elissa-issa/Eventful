@@ -1,19 +1,56 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import LocationOnRoundedIcon from '@mui/icons-material/LocationOnRounded'
 import RemoveRoundedIcon from '@mui/icons-material/RemoveRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
-import { Box, IconButton, Popover, Stack, Typography } from '@mui/material'
+import {
+  Box,
+  ClickAwayListener,
+  IconButton,
+  InputBase,
+  Paper,
+  Popover,
+  Popper,
+  Stack,
+  Typography,
+} from '@mui/material'
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
-import { DatePicker } from '@mui/x-date-pickers/DatePicker'
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
+import { StaticDatePicker } from '@mui/x-date-pickers/StaticDatePicker'
 import dayjs from 'dayjs'
+import { useNavigate } from 'react-router-dom'
 import { COLORS } from '../../constants/colors'
 import { HERO_SLIDES } from '../../constants/heroSlides'
 import { LEBANESE_CITIES } from '../../constants/lebaneseCities'
 import HeroCarousel from './HeroCarousel'
 
+const DATE_INPUT_PATTERN = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/
+
+const getDateFromInput = (value) => {
+  const match = value.trim().match(DATE_INPUT_PATTERN)
+
+  if (!match) {
+    return null
+  }
+
+  const [, month, day, year] = match
+  const parsedDate = dayjs(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`)
+
+  if (
+    !parsedDate.isValid() ||
+    parsedDate.year() !== Number(year) ||
+    parsedDate.month() + 1 !== Number(month) ||
+    parsedDate.date() !== Number(day)
+  ) {
+    return null
+  }
+
+  return parsedDate
+}
+
 function HomeHero() {
+  const navigate = useNavigate()
   const [activeSlideIndex, setActiveSlideIndex] = useState(0)
   const [searchFields, setSearchFields] = useState({
     where: '',
@@ -27,6 +64,7 @@ function HomeHero() {
   })
   const [whereAnchorEl, setWhereAnchorEl] = useState(null)
   const [whenAnchorEl, setWhenAnchorEl] = useState(null)
+  const [dateInputValue, setDateInputValue] = useState('')
   const [whoAnchorEl, setWhoAnchorEl] = useState(null)
 
   const handleSlideChange = (direction) => {
@@ -40,10 +78,32 @@ function HomeHero() {
   }
 
   const handleSearch = () => {
-    console.log('Homepage search submitted', {
-      ...searchFields,
-      guests: guestCounts,
-    })
+    const query = searchFields.where.trim()
+    const params = new URLSearchParams()
+
+    if (query) {
+      params.set('q', query)
+    }
+
+    if (searchFields.when) {
+      params.set('date', searchFields.when)
+    }
+
+    if (totalGuests > 0) {
+      params.set('guests', String(totalGuests))
+      Object.entries(guestCounts).forEach(([guestType, count]) => {
+        if (count > 0) {
+          params.set(guestType, String(count))
+        }
+      })
+    }
+
+    if (!params.toString()) {
+      navigate('/services')
+      return
+    }
+
+    navigate(`/search?${params.toString()}`)
   }
 
   const handleWherePickerOpen = (event) => {
@@ -62,7 +122,27 @@ function HomeHero() {
     handleWherePickerClose()
   }
 
+  const handleWhereChange = (event) => {
+    setSearchFields((current) => ({
+      ...current,
+      where: event.target.value,
+    }))
+
+    if (!whereAnchorEl) {
+      setWhereAnchorEl(event.currentTarget)
+    }
+  }
+
+  const handleWhereKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      handleWherePickerClose()
+      handleSearch()
+    }
+  }
+
   const handleWhenPickerOpen = (event) => {
+    setDateInputValue(searchFields.when ? dayjs(searchFields.when).format('MM/DD/YYYY') : '')
     setWhenAnchorEl(event.currentTarget)
   }
 
@@ -71,13 +151,29 @@ function HomeHero() {
   }
 
   const handleWhenChange = (value) => {
+    setDateInputValue(value ? value.format('MM/DD/YYYY') : '')
     setSearchFields((current) => ({
       ...current,
       when: value ? value.format('YYYY-MM-DD') : '',
     }))
+  }
 
-    if (value) {
-      handleWhenPickerClose()
+  const handleDateInputChange = (event) => {
+    const nextValue = event.target.value
+    setDateInputValue(nextValue)
+
+    if (!nextValue.trim()) {
+      handleWhenChange(null)
+      return
+    }
+
+    const parsedDate = getDateFromInput(nextValue)
+
+    if (parsedDate) {
+      setSearchFields((current) => ({
+        ...current,
+        when: parsedDate.format('YYYY-MM-DD'),
+      }))
     }
   }
 
@@ -99,6 +195,15 @@ function HomeHero() {
     }))
   }
 
+  const handleGuestCountInputChange = (guestType, value) => {
+    const nextValue = Number(value)
+
+    setGuestCounts((current) => ({
+      ...current,
+      [guestType]: Number.isFinite(nextValue) ? Math.max(0, Math.floor(nextValue)) : 0,
+    }))
+  }
+
   useEffect(() => {
     const intervalId = window.setInterval(() => {
       setActiveSlideIndex((current) => (current === HERO_SLIDES.length - 1 ? 0 : current + 1))
@@ -110,12 +215,25 @@ function HomeHero() {
   }, [])
 
   const activeSlide = HERO_SLIDES[activeSlideIndex]
-  const whereLabel = searchFields.where || 'Search destinations'
-  const formattedWhen = searchFields.when ? dayjs(searchFields.when).format('MMM D') : 'Add dates'
+  const formattedWhen = searchFields.when ? dayjs(searchFields.when).format('MMM D, YYYY') : 'Add dates'
   const whenValue = searchFields.when ? dayjs(searchFields.when) : null
+  const typedDate = getDateFromInput(dateInputValue)
+  const isDateInputInvalid =
+    dateInputValue.trim().length >= 10 &&
+    !typedDate
   const totalGuests =
     guestCounts.adults + guestCounts.teenagers + guestCounts.children + guestCounts.infants
   const guestLabel = totalGuests > 0 ? `${totalGuests} guests` : 'Add guests'
+  const normalizedWhere = searchFields.where.trim().toLowerCase()
+  const suggestedCities = useMemo(
+    () =>
+      normalizedWhere
+        ? LEBANESE_CITIES.filter((city) =>
+            `${city.name} ${city.description}`.toLowerCase().includes(normalizedWhere),
+          )
+        : LEBANESE_CITIES,
+    [normalizedWhere],
+  )
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -203,30 +321,31 @@ function HomeHero() {
                   >
                     Where
                   </Typography>
-                  <Box
+                  <InputBase
+                    fullWidth
+                    value={searchFields.where}
+                    placeholder="Search destinations"
                     onClick={handleWherePickerOpen}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault()
-                        handleWherePickerOpen(event)
-                      }
+                    onFocus={handleWherePickerOpen}
+                    onChange={handleWhereChange}
+                    onKeyDown={handleWhereKeyDown}
+                    inputProps={{
+                      'aria-label': 'Search destinations',
                     }}
                     sx={{
                       minHeight: 32,
-                      display: 'flex',
-                      alignItems: 'center',
                       color: searchFields.where ? COLORS.primaryDark : COLORS.textLight,
                       fontSize: '1.05rem',
                       fontWeight: searchFields.where ? 700 : 400,
-                      cursor: 'pointer',
+                      '& input': {
+                        p: 0,
+                      },
+                      '& input::placeholder': {
+                        color: COLORS.textLight,
+                        opacity: 1,
+                      },
                     }}
-                  >
-                    <Typography component="span" sx={{ color: 'inherit', fontSize: 'inherit', fontWeight: 'inherit' }}>
-                      {whereLabel}
-                    </Typography>
-                  </Box>
+                  />
                 </Stack>
 
                 <Stack sx={{ flex: 1, px: 2.25, py: { xs: 1.25, md: 0.75 } }}>
@@ -323,75 +442,166 @@ function HomeHero() {
               </Stack>
             </Box>
 
-            <Popover
+            <Popper
               open={Boolean(whereAnchorEl)}
               anchorEl={whereAnchorEl}
-              onClose={handleWherePickerClose}
-              anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-              transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-              PaperProps={{
-                sx: {
-                  mt: 1.5,
-                  width: 420,
-                  maxWidth: 'calc(100vw - 24px)',
-                  maxHeight: 420,
-                  overflowY: 'auto',
-                  borderRadius: 4,
-                  p: 1.5,
+              placement="bottom-start"
+              sx={{ zIndex: 1300 }}
+              modifiers={[
+                {
+                  name: 'offset',
+                  options: {
+                    offset: [0, 12],
+                  },
                 },
-              }}
+              ]}
             >
-              <Stack spacing={0.5}>
-                {LEBANESE_CITIES.map((city, index) => (
-                  <Box
-                    key={city.id}
-                    component="button"
-                    type="button"
-                    onClick={() => handleWhereSelect(city.name)}
-                    sx={{
-                      width: '100%',
-                      border: 0,
-                      borderRadius: 3,
-                      backgroundColor: 'transparent',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      px: 1,
-                      py: 1.25,
-                      transition: 'background-color 180ms ease',
-                      '&:hover': {
-                        backgroundColor: COLORS.primarySoft,
-                      },
-                    }}
-                  >
-                    <Stack direction="row" spacing={1.5} alignItems="center">
-                      <Box
+              <ClickAwayListener onClickAway={handleWherePickerClose}>
+                <Paper
+                  elevation={8}
+                  sx={{
+                    width: 420,
+                    maxWidth: 'calc(100vw - 24px)',
+                    borderRadius: 4,
+                    p: 1.5,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <Stack spacing={1}>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: -0.5 }}>
+                      <IconButton
+                        aria-label="Close destination picker"
+                        onClick={handleWherePickerClose}
                         sx={{
-                          width: 44,
-                          height: 44,
-                          borderRadius: 2,
-                          display: 'grid',
-                          placeItems: 'center',
-                          backgroundColor:
-                            index % 2 === 0 ? 'rgba(234, 122, 36, 0.12)' : 'rgba(43, 120, 204, 0.12)',
-                          color: index % 2 === 0 ? COLORS.accent : COLORS.primary,
-                          flexShrink: 0,
+                          width: 32,
+                          height: 32,
+                          color: COLORS.textLight,
+                          '&:hover': {
+                            backgroundColor: COLORS.primarySoft,
+                            color: COLORS.primary,
+                          },
                         }}
                       >
-                        <LocationOnRoundedIcon />
-                      </Box>
-                      <Box>
-                        <Typography sx={{ color: '#2d2d2d', fontWeight: 700, fontSize: '1rem' }}>
-                          {city.name}
-                        </Typography>
-                        <Typography sx={{ color: COLORS.textLight, fontSize: '0.95rem' }}>
-                          {city.description}
-                        </Typography>
-                      </Box>
+                        <CloseRoundedIcon sx={{ fontSize: 20 }} />
+                      </IconButton>
+                    </Box>
+                    <Stack
+                      spacing={0.5}
+                      sx={{
+                        maxHeight: 360,
+                        overflowY: 'auto',
+                        pr: 0.75,
+                        '&::-webkit-scrollbar': {
+                          width: 8,
+                        },
+                        '&::-webkit-scrollbar-thumb': {
+                          borderRadius: 999,
+                          backgroundColor: 'rgba(15, 45, 75, 0.32)',
+                        },
+                        '&::-webkit-scrollbar-track': {
+                          backgroundColor: 'transparent',
+                        },
+                      }}
+                    >
+                      {suggestedCities.map((city, index) => (
+                        <Box
+                          key={city.id}
+                          component="button"
+                          type="button"
+                          onClick={() => handleWhereSelect(city.name)}
+                          sx={{
+                            width: '100%',
+                            border: 0,
+                            borderRadius: 3,
+                            backgroundColor: 'transparent',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            px: 1,
+                            py: 1.25,
+                            transition: 'background-color 180ms ease',
+                            '&:hover': {
+                              backgroundColor: COLORS.primarySoft,
+                            },
+                          }}
+                        >
+                          <Stack direction="row" spacing={1.5} alignItems="center">
+                            <Box
+                              sx={{
+                                width: 44,
+                                height: 44,
+                                borderRadius: 2,
+                                display: 'grid',
+                                placeItems: 'center',
+                                backgroundColor:
+                                  index % 2 === 0 ? 'rgba(234, 122, 36, 0.12)' : 'rgba(43, 120, 204, 0.12)',
+                                color: index % 2 === 0 ? COLORS.accent : COLORS.primary,
+                                flexShrink: 0,
+                              }}
+                            >
+                              <LocationOnRoundedIcon />
+                            </Box>
+                            <Box>
+                              <Typography sx={{ color: '#2d2d2d', fontWeight: 700, fontSize: '1rem' }}>
+                                {city.name}
+                              </Typography>
+                              <Typography sx={{ color: COLORS.textLight, fontSize: '0.95rem' }}>
+                                {city.description}
+                              </Typography>
+                            </Box>
+                          </Stack>
+                        </Box>
+                      ))}
+                      {suggestedCities.length === 0 && searchFields.where.trim() ? (
+                        <Box
+                          component="button"
+                          type="button"
+                          onClick={() => handleWhereSelect(searchFields.where.trim())}
+                          sx={{
+                            width: '100%',
+                            border: 0,
+                            borderRadius: 3,
+                            backgroundColor: 'transparent',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            px: 1,
+                            py: 1.25,
+                            transition: 'background-color 180ms ease',
+                            '&:hover': {
+                              backgroundColor: COLORS.primarySoft,
+                            },
+                          }}
+                        >
+                          <Stack direction="row" spacing={1.5} alignItems="center">
+                            <Box
+                              sx={{
+                                width: 44,
+                                height: 44,
+                                borderRadius: 2,
+                                display: 'grid',
+                                placeItems: 'center',
+                                backgroundColor: 'rgba(234, 122, 36, 0.12)',
+                                color: COLORS.accent,
+                                flexShrink: 0,
+                              }}
+                            >
+                              <LocationOnRoundedIcon />
+                            </Box>
+                            <Box>
+                              <Typography sx={{ color: '#2d2d2d', fontWeight: 700, fontSize: '1rem' }}>
+                                {searchFields.where.trim()}
+                              </Typography>
+                              <Typography sx={{ color: COLORS.textLight, fontSize: '0.95rem' }}>
+                                Use this custom destination
+                              </Typography>
+                            </Box>
+                          </Stack>
+                        </Box>
+                      ) : null}
                     </Stack>
-                  </Box>
-                ))}
-              </Stack>
-            </Popover>
+                  </Stack>
+                </Paper>
+              </ClickAwayListener>
+            </Popper>
 
             <Popover
               open={Boolean(whenAnchorEl)}
@@ -407,18 +617,58 @@ function HomeHero() {
                 },
               }}
             >
-              <DatePicker
-                value={whenValue}
-                onChange={handleWhenChange}
-                minDate={dayjs().startOf('day')}
-                slotProps={{
-                  textField: {
-                    sx: {
-                      width: 260,
+              <Stack spacing={1}>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: -0.5 }}>
+                  <IconButton
+                    aria-label="Close date picker"
+                    onClick={handleWhenPickerClose}
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      color: COLORS.textLight,
+                      '&:hover': {
+                        backgroundColor: COLORS.primarySoft,
+                        color: COLORS.primary,
+                      },
+                    }}
+                  >
+                    <CloseRoundedIcon sx={{ fontSize: 20 }} />
+                  </IconButton>
+                </Box>
+                <InputBase
+                  value={dateInputValue}
+                  placeholder="MM/DD/YYYY"
+                  onChange={handleDateInputChange}
+                  inputProps={{
+                    'aria-label': 'Date in MM/DD/YYYY format',
+                  }}
+                  sx={{
+                    mx: 1,
+                    px: 1.75,
+                    minHeight: 48,
+                    borderRadius: 2,
+                    border: `1px solid ${isDateInputInvalid ? '#d32f2f' : 'rgba(15, 45, 75, 0.22)'}`,
+                    color: COLORS.primaryDark,
+                    fontSize: '1rem',
+                    '& input': {
+                      p: 0,
                     },
-                  },
-                }}
-              />
+                    '& input::placeholder': {
+                      color: COLORS.textLight,
+                      opacity: 1,
+                    },
+                  }}
+                />
+                <StaticDatePicker
+                  value={whenValue}
+                  onChange={handleWhenChange}
+                  slotProps={{
+                    actionBar: {
+                      actions: [],
+                    },
+                  }}
+                />
+              </Stack>
             </Popover>
 
             <Popover
@@ -439,6 +689,23 @@ function HomeHero() {
               }}
             >
               <Stack spacing={2.5}>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: -1 }}>
+                  <IconButton
+                    aria-label="Close guest picker"
+                    onClick={handleWhoPickerClose}
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      color: COLORS.textLight,
+                      '&:hover': {
+                        backgroundColor: COLORS.primarySoft,
+                        color: COLORS.primary,
+                      },
+                    }}
+                  >
+                    <CloseRoundedIcon sx={{ fontSize: 20 }} />
+                  </IconButton>
+                </Box>
                 {[
                   { key: 'adults', title: 'Adults', subtitle: 'Ages 13 or above' },
                   { key: 'teenagers', title: 'Teenagers', subtitle: 'Ages 13 - 17' },
@@ -469,9 +736,32 @@ function HomeHero() {
                         >
                           <RemoveRoundedIcon sx={{ fontSize: 18 }} />
                         </IconButton>
-                        <Typography sx={{ minWidth: 18, textAlign: 'center', color: '#2d2d2d', fontSize: '1.1rem' }}>
-                          {guestCounts[guestType.key]}
-                        </Typography>
+                        <InputBase
+                          value={guestCounts[guestType.key]}
+                          type="number"
+                          inputProps={{
+                            min: 0,
+                            'aria-label': `${guestType.title} count`,
+                          }}
+                          onChange={(event) =>
+                            handleGuestCountInputChange(guestType.key, event.target.value)
+                          }
+                          sx={{
+                            width: 42,
+                            height: 32,
+                            color: '#2d2d2d',
+                            fontSize: '1.1rem',
+                            '& input': {
+                              p: 0,
+                              textAlign: 'center',
+                              MozAppearance: 'textfield',
+                            },
+                            '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
+                              WebkitAppearance: 'none',
+                              m: 0,
+                            },
+                          }}
+                        />
                         <IconButton
                           aria-label={`Increase ${guestType.title.toLowerCase()}`}
                           onClick={() => handleGuestCountChange(guestType.key, 'increase')}

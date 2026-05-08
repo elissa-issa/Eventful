@@ -19,6 +19,55 @@ const { getBookingDateKeys } = require('../helpers/venueAvailability');
 
 const router = express.Router();
 
+router.get(
+  '/unavailable',
+  asyncHandler(async (req, res) => {
+    const requestedDateKey = req.query.date
+      ? getBookingDateKeys(req.query.date)[0]
+      : null;
+
+    if (!requestedDateKey) {
+      throw new ApiError(400, 'date query parameter must be a valid date');
+    }
+
+    const orders = await Order.find({
+      status: { $ne: 'cancelled' },
+      'items.selectedDate': { $ne: null },
+    });
+    const unavailableServices = new Set();
+
+    for (const order of orders) {
+      for (const item of order.items) {
+        if (!item.selectedDate) {
+          continue;
+        }
+
+        const bookedDateKeys = getBookingDateKeys(
+          item.selectedDate,
+          item.customOptions?.selectedEndDate,
+        );
+
+        if (bookedDateKeys.includes(requestedDateKey)) {
+          unavailableServices.add(
+            `${item.serviceType}:${item.serviceId.toString()}`,
+          );
+        }
+      }
+    }
+
+    res.json({
+      data: Array.from(unavailableServices).map((serviceKey) => {
+        const [serviceType, serviceId] = serviceKey.split(':');
+
+        return {
+          serviceType,
+          serviceId,
+        };
+      }),
+    });
+  }),
+);
+
 function attachCrudRoutes(path, Model, serviceName) {
   const controller = createServiceController(
     createServiceRepository(Model),

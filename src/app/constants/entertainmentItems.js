@@ -32,6 +32,7 @@ const createEntertainment = ({
   ratingValue,
   reviewCount,
   discountLabel = '',
+  badgeLabels = [],
   logoText,
 }) => ({
   id,
@@ -43,6 +44,7 @@ const createEntertainment = ({
   guestText: '',
   priceText,
   discountLabel,
+  badgeLabels,
   vendorName,
   vendorLocation,
   ratingValue,
@@ -92,6 +94,7 @@ export const ENTERTAINMENT_ITEMS = [
     priceValue: 30,
     ratingValue: 4.4,
     reviewCount: 76,
+    badgeLabels: ['Kids'],
   }),
   createEntertainment({
     id: 'dj-rodge',
@@ -116,6 +119,7 @@ export const ENTERTAINMENT_ITEMS = [
     priceValue: 500,
     ratingValue: 4.5,
     reviewCount: 120,
+    badgeLabels: ['12+'],
     logoText: 'RODGE',
   }),
   createEntertainment({
@@ -190,6 +194,7 @@ export const ENTERTAINMENT_ITEMS = [
     priceValue: 180,
     ratingValue: 4.5,
     reviewCount: 64,
+    badgeLabels: ['Kids'],
   }),
   createEntertainment({
     id: 'fireworks-show',
@@ -384,6 +389,7 @@ export const ENTERTAINMENT_ITEMS = [
     priceValue: 150,
     ratingValue: 4.3,
     reviewCount: 35,
+    badgeLabels: ['Kids'],
   }),
   createEntertainment({
     id: 'saxophonist',
@@ -433,5 +439,6 @@ export const ENTERTAINMENT_ITEMS = [
     ratingValue: 4.6,
     reviewCount: 52,
     discountLabel: 'Premium',
+    badgeLabels: ['12+'],
   }),
 ]

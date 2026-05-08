@@ -24,3 +24,10 @@ export async function getServiceBookedDates(serviceType, serviceId) {
   const result = await apiRequest(`/services/${serviceType}/${serviceId}/booked-dates`)
   return result.data || []
 }
+
+export async function getUnavailableServicesByDate(date) {
+  const params = new URLSearchParams({ date })
+  const result = await apiRequest(`/services/unavailable?${params.toString()}`)
+
+  return result.data || []
+}

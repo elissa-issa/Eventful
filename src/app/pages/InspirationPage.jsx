@@ -695,6 +695,7 @@ function InspirationPage() {
                 guestText={item.guestText}
                 priceText={item.priceText}
                 discountLabel={item.discountLabel}
+                badgeLabels={item.badgeLabels}
                 vendorLogoSrc={item.vendorLogoSrc}
                 vendorLogoAlt={item.vendorLogoAlt}
                 isFavorite={Boolean(favoriteItems[favoriteKey])}
