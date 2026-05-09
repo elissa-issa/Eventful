@@ -33,6 +33,7 @@ const createMenu = ({
   ratingValue,
   reviewCount,
   discountLabel = '',
+  badgeLabels = [],
   logoText,
 }) => ({
   id,
@@ -44,6 +45,7 @@ const createMenu = ({
   guestText: `Guests: ${minGuests} - ${maxGuests}`,
   priceText: `${priceValue}$/Person`,
   discountLabel,
+  badgeLabels,
   vendorName,
   vendorLocation,
   ratingValue,
@@ -399,6 +401,7 @@ export const MENU_ITEMS = [
     priceValue: 11,
     ratingValue: 4.4,
     reviewCount: 49,
+    badgeLabels: ['Kids'],
   }),
   createMenu({
     id: 'taco-fiesta',

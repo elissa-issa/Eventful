@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Box, Stack, Typography } from '@mui/material'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
@@ -6,8 +6,10 @@ import { COLORS } from '../constants/colors'
 import { useFavoriteActions, getFavoriteKey } from '../hooks/useFavoriteActions'
 import { useCollectionCartAction } from '../hooks/useCollectionCartAction'
 import { useServicesData } from '../hooks/useServicesData'
+import { getUnavailableServicesByDate } from '../services/services'
 import { useToast } from '../toast/useToast'
-import { getServicePayload } from '../utils/servicePayload'
+import { getServiceMongoId, getServicePayload } from '../utils/servicePayload'
+import { getSearchMatchScore } from '../utils/searchMatching'
 import AlertDialog from '../shared/components/AlertDialog'
 import BundleCard from '../shared/components/BundleCard'
 import SearchEmptyState from '../shared/components/SearchEmptyState'
@@ -15,37 +17,90 @@ import ServiceCard from '../shared/components/ServiceCard'
 
 const SEARCHABLE_SECTIONS = ['bundles', 'venues', 'menus', 'decorations', 'entertainment']
 
-const getSearchableText = (item, section) => {
-  const baseFields = [
-    item.title,
-    item.description,
-    item.detailsDescription,
-    item.vendorName,
-    item.vendorLocation,
-    item.location,
-    item.category,
-    item.guestText,
-    item.priceText,
-    section,
-  ]
+const getNumericValue = (value) => {
+  const numberValue = Number(value)
 
-  if (section === 'bundles') {
-    return [
-      ...baseFields,
-      item.leftText,
-      item.rightText,
-      ...(item.planItems || []).flatMap((planItem) => [
-        planItem.title,
-        planItem.metaText,
-        planItem.priceText,
-      ]),
-    ]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase()
+  return Number.isFinite(numberValue) ? numberValue : null
+}
+
+const getGuestCapacityFromText = (value = '') => {
+  const match = String(value).match(/guests?:\s*(\d+)(?:\s*-\s*(\d+))?/i)
+
+  if (!match) {
+    return null
   }
 
-  return baseFields.filter(Boolean).join(' ').toLowerCase()
+  return Number(match[2] || match[1])
+}
+
+const getGuestCapacity = (item) => {
+  const maxGuests = getNumericValue(item.maxGuests)
+
+  if (maxGuests !== null) {
+    return maxGuests
+  }
+
+  const guestTextCapacity = getGuestCapacityFromText(item.guestText)
+
+  if (guestTextCapacity !== null) {
+    return guestTextCapacity
+  }
+
+  const planItemCapacities = (item.planItems || [])
+    .map((planItem) => getGuestCapacityFromText(planItem.metaText))
+    .filter((capacity) => capacity !== null)
+
+  return planItemCapacities.length > 0 ? Math.min(...planItemCapacities) : null
+}
+
+const canHostGuests = (item, guests) => {
+  if (!guests) {
+    return true
+  }
+
+  const capacity = getGuestCapacity(item)
+
+  return capacity === null || guests <= capacity
+}
+
+const getSearchGuestCounts = (searchParams) => ({
+  adults: Math.max(0, Number(searchParams.get('adults') || 0)) || 0,
+  teenagers: Math.max(0, Number(searchParams.get('teenagers') || 0)) || 0,
+  children: Math.max(0, Number(searchParams.get('children') || 0)) || 0,
+  infants: Math.max(0, Number(searchParams.get('infants') || 0)) || 0,
+})
+
+const hasAgeBadge = (item, badge) =>
+  (item.badgeLabels || []).some((label) => String(label).toLowerCase() === badge)
+
+const isAgeAppropriate = (item, guestCounts) => {
+  const hasGuestBreakdown = Object.values(guestCounts).some((count) => count > 0)
+
+  if (!hasGuestBreakdown) {
+    return true
+  }
+
+  const underTwelveGuests = guestCounts.children + guestCounts.infants
+  const underEighteenGuests = underTwelveGuests + guestCounts.teenagers
+  const adultOnlySearch =
+    guestCounts.adults > 0 &&
+    guestCounts.teenagers === 0 &&
+    guestCounts.children === 0 &&
+    guestCounts.infants === 0
+
+  if (hasAgeBadge(item, '18+') && underEighteenGuests > 0) {
+    return false
+  }
+
+  if (hasAgeBadge(item, '12+') && underTwelveGuests > 0) {
+    return false
+  }
+
+  if (hasAgeBadge(item, 'kids') && adultOnlySearch) {
+    return false
+  }
+
+  return true
 }
 
 function SearchPage() {
@@ -57,9 +112,44 @@ function SearchPage() {
   const { favoriteItems, toggleFavoriteItem } = useFavoriteActions()
   const { collectionPickerDialog, openCollectionPicker } = useCollectionCartAction()
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
+  const [unavailableServiceKeys, setUnavailableServiceKeys] = useState(new Set())
   const [searchParams] = useSearchParams()
   const searchQuery = searchParams.get('q')?.trim() || ''
-  const normalizedSearchQuery = searchQuery.toLowerCase()
+  const selectedDate = searchParams.get('date')?.trim() || ''
+  const selectedGuests = Math.max(0, Number(searchParams.get('guests') || 0)) || 0
+  const selectedGuestCounts = getSearchGuestCounts(searchParams)
+
+  useEffect(() => {
+    let isMounted = true
+
+    if (!selectedDate) {
+      return undefined
+    }
+
+    getUnavailableServicesByDate(selectedDate)
+      .then((unavailableServices) => {
+        if (!isMounted) {
+          return
+        }
+
+        setUnavailableServiceKeys(
+          new Set(
+            unavailableServices.map(
+              (service) => `${service.serviceType}:${service.serviceId}`,
+            ),
+          ),
+        )
+      })
+      .catch(() => {
+        if (isMounted) {
+          setUnavailableServiceKeys(new Set())
+        }
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [selectedDate])
 
   const handleCloseSignInDialog = () => {
     setIsSignInDialogOpen(false)
@@ -120,16 +210,35 @@ function SearchPage() {
     () =>
       SEARCHABLE_SECTIONS.flatMap((section) =>
         (itemsBySection[section] || [])
-          .filter((item) => getSearchableText(item, section).includes(normalizedSearchQuery))
           .map((item, index) => ({
+            item,
+            index,
+            matchScore: getSearchMatchScore(item, section, searchQuery),
+          }))
+          .filter(({ matchScore }) => matchScore !== null)
+          .filter(({ item }) => canHostGuests(item, selectedGuests))
+          .filter(({ item }) => isAgeAppropriate(item, selectedGuestCounts))
+          .filter(({ item }) => {
+            if (!selectedDate) {
+              return true
+            }
+
+            const serviceId = getServiceMongoId(item)
+
+            return !serviceId || !unavailableServiceKeys.has(`${section}:${serviceId}`)
+          })
+          .map(({ item, index, matchScore }) => ({
             ...item,
             resultSection: section,
             resultKey: `${section}-${item.id}-${index}`,
             isBundle: section === 'bundles',
+            matchScore,
           }))
-      ),
-    [itemsBySection, normalizedSearchQuery]
+      ).sort((firstItem, secondItem) => firstItem.matchScore - secondItem.matchScore),
+    [itemsBySection, searchQuery, selectedDate, selectedGuests, selectedGuestCounts, unavailableServiceKeys]
   )
+  const guestSummary = selectedGuests > 0 ? `${selectedGuests} guests` : ''
+  const searchSummaryTarget = [searchQuery, selectedDate, guestSummary].filter(Boolean).join(' on ')
 
   return (
     <>
@@ -148,8 +257,8 @@ function SearchPage() {
           </Typography>
           <Typography sx={{ color: COLORS.textMuted, fontSize: '1rem' }}>
             {searchResults.length > 0
-              ? `${searchResults.length} result${searchResults.length === 1 ? '' : 's'} for "${searchQuery}"`
-              : `No matches for "${searchQuery}"`}
+              ? `${searchResults.length} result${searchResults.length === 1 ? '' : 's'} for "${searchSummaryTarget || 'all services'}"`
+              : `No available matches for "${searchSummaryTarget || 'all services'}"`}
           </Typography>
         </Stack>
 
@@ -208,6 +317,7 @@ function SearchPage() {
                   guestText={item.guestText}
                   priceText={item.priceText}
                   discountLabel={item.discountLabel}
+                  badgeLabels={item.badgeLabels}
                   vendorLogoSrc={item.vendorLogoSrc}
                   vendorLogoAlt={item.vendorLogoAlt}
                   isFavorite={Boolean(favoriteItems[favoriteKey])}

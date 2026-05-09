@@ -104,8 +104,8 @@ function EntertainmentFilterPanel({
           <Typography sx={sectionHeaderStyles}>Price Range</Typography>
 
           <Stack direction="row" justifyContent="space-between">
-            <Typography sx={rangeCaptionStyles}>0$</Typography>
-            <Typography sx={rangeCaptionStyles}>100$</Typography>
+            <Typography sx={rangeCaptionStyles}>{value.priceRange[0]}$</Typography>
+            <Typography sx={rangeCaptionStyles}>{value.priceRange[1]}$</Typography>
           </Stack>
 
           <Slider

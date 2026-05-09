@@ -11,6 +11,7 @@ function ServiceCard({
   guestText,
   priceText,
   discountLabel,
+  badgeLabels = [],
   vendorLogoSrc,
   vendorLogoAlt = 'Vendor logo',
   isFavorite = false,
@@ -20,6 +21,8 @@ function ServiceCard({
   cartButtonLabel = 'Add to Cart',
   onCartButtonClick,
 }) {
+  const labelsToRender = [discountLabel, ...badgeLabels].filter(Boolean)
+
   return (
     <Card
       elevation={0}
@@ -47,23 +50,37 @@ function ServiceCard({
           }}
         />
 
-        {discountLabel ? (
-          <Box
+        {labelsToRender.length > 0 ? (
+          <Stack
+            direction="row"
+            spacing={0.8}
+            useFlexGap
             sx={{
               position: 'absolute',
               top: 16,
               left: 16,
-              borderRadius: '999px',
-              backgroundColor: COLORS.primary,
-              color: COLORS.surface,
-              px: 1.6,
-              py: 0.75,
+              right: 64,
+              flexWrap: 'wrap',
             }}
           >
-            <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, lineHeight: 1 }}>
-              {discountLabel}
-            </Typography>
-          </Box>
+            {labelsToRender.map((label) => (
+              <Box
+                key={label}
+                sx={{
+                  alignSelf: 'flex-start',
+                  borderRadius: '999px',
+                  backgroundColor: COLORS.primary,
+                  color: COLORS.surface,
+                  px: 1.6,
+                  py: 0.75,
+                }}
+              >
+                <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, lineHeight: 1 }}>
+                  {label}
+                </Typography>
+              </Box>
+            ))}
+          </Stack>
         ) : null}
 
         <IconButton

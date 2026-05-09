@@ -32,6 +32,7 @@ const createVenue = ({
   ratingValue,
   reviewCount,
   discountLabel = '',
+  badgeLabels = [],
   logoText,
 }) => ({
   id,
@@ -43,6 +44,7 @@ const createVenue = ({
   guestText: `Guests: ${minGuests} - ${maxGuests}`,
   priceText: `${priceValue}$/Night`,
   discountLabel,
+  badgeLabels,
   vendorName,
   vendorLocation: location,
   ratingValue,
@@ -418,6 +420,7 @@ export const VENUE_ITEMS = [
     ratingValue: 4.7,
     reviewCount: 126,
     discountLabel: 'Summer favorite',
+    badgeLabels: ['18+'],
   }),
   createVenue({
     id: 'conference-downtown',
@@ -442,5 +445,6 @@ export const VENUE_ITEMS = [
     priceValue: 300,
     ratingValue: 4.3,
     reviewCount: 77,
+    badgeLabels: ['18+'],
   }),
 ]

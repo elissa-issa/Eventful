@@ -5,6 +5,7 @@ import { ENTERTAINMENT_ITEMS } from '../constants/entertainmentItems'
 import { MENU_ITEMS } from '../constants/menuItems'
 import { VENUE_ITEMS } from '../constants/venueItems'
 import { getAllServices } from '../services/services'
+import { withBundlePricing } from '../utils/bundlePricing'
 
 const STATIC_ITEMS_BY_SECTION = {
   bundles: BUNDLE_CARDS,
@@ -51,14 +52,21 @@ function mergeStaticWithApiItems(staticItems, apiItems = []) {
 
 function mergeServicesData(apiItemsBySection) {
   if (!apiItemsBySection) {
-    return STATIC_ITEMS_BY_SECTION
+    return {
+      ...STATIC_ITEMS_BY_SECTION,
+      bundles: STATIC_ITEMS_BY_SECTION.bundles.map(withBundlePricing),
+    }
   }
 
   return Object.fromEntries(
-    Object.entries(STATIC_ITEMS_BY_SECTION).map(([section, staticItems]) => [
-      section,
-      mergeStaticWithApiItems(staticItems, apiItemsBySection[section]),
-    ]),
+    Object.entries(STATIC_ITEMS_BY_SECTION).map(([section, staticItems]) => {
+      const items = mergeStaticWithApiItems(staticItems, apiItemsBySection[section])
+
+      return [
+        section,
+        section === 'bundles' ? items.map(withBundlePricing) : items,
+      ]
+    }),
   )
 }
 

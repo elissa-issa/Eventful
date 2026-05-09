@@ -15,6 +15,7 @@ import {
 import { getServiceBookedDates } from '../services/services'
 import { useToast } from '../toast/useToast'
 import { getCollectionItemPayload, getServicePayload } from '../utils/servicePayload'
+import { getBundlePriceText, getBundlePriceValue } from '../utils/bundlePricing'
 import AddReviewDrawer from '../shared/components/AddReviewDrawer'
 import AlertDialog from '../shared/components/AlertDialog'
 import BundlePlanItems from '../shared/components/BundlePlanItems'
@@ -177,7 +178,7 @@ function ServiceItemPage() {
 
     if (section === 'bundles') {
       return {
-        baseAmount: selectedItem.priceValue ?? 0,
+        baseAmount: getBundlePriceValue(selectedItem),
         calculationType: 'flat',
         unitLabel: 'plan',
         defaultQuantity: 1,
@@ -480,7 +481,7 @@ function ServiceItemPage() {
           ratingValue={displayAverageRating}
           reviewCount={reviewCount}
           description={selectedItem.detailsDescription || selectedItem.description}
-          priceText={selectedItem.priceText}
+          priceText={isBundleSection ? getBundlePriceText(selectedItem) : selectedItem.priceText}
           detailBadgeText={selectedItem.detailBadgeText}
           supportingInfoText={selectedItem.supportingInfoText || selectedItem.guestText}
           disabledDates={bookedDates}

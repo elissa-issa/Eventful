@@ -8,6 +8,7 @@ import { useFavoriteActions, getFavoriteKey } from '../hooks/useFavoriteActions'
 import { useServicesData } from '../hooks/useServicesData'
 import { useToast } from '../toast/useToast'
 import { getServicePayload } from '../utils/servicePayload'
+import { getSearchMatchScore } from '../utils/searchMatching'
 import DecorationFilterPanel from '../shared/Filters/DecorationFilterPanel'
 import EntertainmentFilterPanel from '../shared/Filters/EntertainmentFilterPanel'
 import MenuFilterPanel from '../shared/Filters/MenuFilterPanel'
@@ -55,39 +56,6 @@ const DEFAULT_ENTERTAINMENT_FILTERS = {
 
 const SEARCHABLE_SECTIONS = ['bundles', 'venues', 'menus', 'decorations', 'entertainment']
 
-const getSearchableText = (item, section) => {
-  const baseFields = [
-    item.title,
-    item.description,
-    item.detailsDescription,
-    item.vendorName,
-    item.vendorLocation,
-    item.location,
-    item.category,
-    item.guestText,
-    item.priceText,
-    section,
-  ]
-
-  if (section === 'bundles') {
-    return [
-      ...baseFields,
-      item.leftText,
-      item.rightText,
-      ...(item.planItems || []).flatMap((planItem) => [
-        planItem.title,
-        planItem.metaText,
-        planItem.priceText,
-      ]),
-    ]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase()
-  }
-
-  return baseFields.filter(Boolean).join(' ').toLowerCase()
-}
-
 function ServicesPage() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -109,8 +77,7 @@ function ServicesPage() {
   const searchQuery = searchParams.get('q')?.trim() || ''
   const planId = searchParams.get('planId')
   const isPlanMode = Boolean(planId)
-  const normalizedSearchQuery = searchQuery.toLowerCase()
-  const isSearchMode = normalizedSearchQuery.length > 0
+  const isSearchMode = searchQuery.length > 0
 
   const getDetailPath = (serviceType, item) => {
     const routeId = item.routeId || item.itemId || item.id
@@ -196,15 +163,21 @@ function ServicesPage() {
     () =>
       SEARCHABLE_SECTIONS.flatMap((section) =>
         (itemsBySection[section] || [])
-          .filter((item) => getSearchableText(item, section).includes(normalizedSearchQuery))
           .map((item, index) => ({
+            item,
+            index,
+            matchScore: getSearchMatchScore(item, section, searchQuery),
+          }))
+          .filter(({ matchScore }) => matchScore !== null)
+          .map(({ item, index, matchScore }) => ({
             ...item,
             resultSection: section,
             resultKey: `${section}-${item.id}-${index}`,
             isBundle: section === 'bundles',
+            matchScore,
           }))
-      ),
-    [itemsBySection, normalizedSearchQuery]
+      ).sort((firstItem, secondItem) => firstItem.matchScore - secondItem.matchScore),
+    [itemsBySection, searchQuery]
   )
   const locationOptions = useMemo(
     () => LEBANESE_CITIES.map((city) => city.name.split(',')[0]),
@@ -539,6 +512,7 @@ function ServicesPage() {
                     guestText={item.guestText}
                     priceText={item.priceText}
                     discountLabel={item.discountLabel}
+                    badgeLabels={item.badgeLabels}
                     vendorLogoSrc={item.vendorLogoSrc}
                     vendorLogoAlt={item.vendorLogoAlt}
                     isFavorite={Boolean(favoriteItems[backendFavoriteKey])}
