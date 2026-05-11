@@ -2,7 +2,7 @@ import { useState } from 'react'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import FavoriteBorderRoundedIcon from '@mui/icons-material/FavoriteBorderRounded'
 import FavoriteRoundedIcon from '@mui/icons-material/FavoriteRounded'
-import { Box, Button, Checkbox, IconButton, Stack, TextField, Typography } from '@mui/material'
+import { Box, Checkbox, IconButton, Stack, Typography } from '@mui/material'
 import { COLORS } from '../../constants/colors'
 
 const FALLBACK_CART_IMAGE = `data:image/svg+xml;utf8,${encodeURIComponent(`
@@ -23,15 +23,10 @@ function CartItemRow({
   title,
   details = [],
   price,
-  modifyLabel = 'Modify',
   showCheckbox = true,
-  showQuantityStepper = false,
   isFavorite = false,
-  quantity = 1,
   onCheckedChange,
-  onModify,
   onItemClick,
-  onQuantityChange,
   onFavorite,
   onDelete,
 }) {

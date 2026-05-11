@@ -37,6 +37,7 @@ function ServiceItemPage() {
   const planId = searchParams.get('planId')
   const cartItemId = searchParams.get('cartItemId')
   const cartReturnPath = searchParams.get('returnTo') || '/cart'
+  const routeReturnPath = location.state?.returnTo
   const cartInitialQuantity = Number(searchParams.get('quantity') || 1)
   const cartInitialDate = searchParams.get('selectedDate') || ''
   const cartInitialEndDate = searchParams.get('selectedEndDate') || ''
@@ -507,11 +508,12 @@ function ServiceItemPage() {
           onFavoriteToggle={handleFavoriteToggle}
           onBack={() =>
             navigate(
-              isPlanMode
+              routeReturnPath ||
+              (isPlanMode
                 ? `/services?planId=${planId}#${section}`
                 : isCartEditMode
                   ? cartReturnPath
-                : `/services#${section}`
+                  : `/services#${section}`)
             )
           }
           belowGalleryContent={

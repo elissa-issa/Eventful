@@ -9,6 +9,7 @@ import { useServicesData } from '../hooks/useServicesData'
 import { useToast } from '../toast/useToast'
 import { getServicePayload } from '../utils/servicePayload'
 import { getSearchMatchScore } from '../utils/searchMatching'
+import { getServiceItemRoute } from '../utils/serviceRoutes'
 import DecorationFilterPanel from '../shared/Filters/DecorationFilterPanel'
 import EntertainmentFilterPanel from '../shared/Filters/EntertainmentFilterPanel'
 import MenuFilterPanel from '../shared/Filters/MenuFilterPanel'
@@ -80,9 +81,7 @@ function ServicesPage() {
   const isSearchMode = searchQuery.length > 0
 
   const getDetailPath = (serviceType, item) => {
-    const routeId = item.routeId || item.itemId || item.id
-
-    return `/services/${serviceType}/${routeId}${isPlanMode ? `?planId=${planId}` : ''}`
+    return getServiceItemRoute(item, serviceType, { planId: isPlanMode ? planId : '' })
   }
 
   const handleCloseSignInDialog = () => {
