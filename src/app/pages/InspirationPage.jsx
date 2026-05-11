@@ -6,8 +6,7 @@ import WorkspacePremiumRoundedIcon from '@mui/icons-material/WorkspacePremiumRou
 import {
   Box,
   Button,
-  Dialog,
-  DialogContent,
+  Chip,
   IconButton,
   Stack,
   TextField,
@@ -18,15 +17,14 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { COLORS } from '../constants/colors'
-import { INSPIRATION_THEMES } from '../constants/inspirationThemes'
 import AlertDialog from '../shared/components/AlertDialog'
 import HeroCarousel from '../shared/components/HeroCarousel'
-import InspirationThemeCard from '../shared/components/InspirationThemeCard'
 import PremiumPlansDialog from '../shared/components/PremiumPlansDialog'
 import ServiceCard from '../shared/components/ServiceCard'
 import { INSPIRATION_HERO_SLIDES } from '../constants/inspirationHeroSlides'
 import { useFavoriteActions, getFavoriteKey } from '../hooks/useFavoriteActions'
 import { useCollectionCartAction } from '../hooks/useCollectionCartAction'
+import { useServicesData } from '../hooks/useServicesData'
 import { useTopPicks } from '../hooks/useTopPicks'
 import { generateInspirationPlan } from '../services/aiPlanner'
 import { addItemToCollection, createCollection } from '../services/collections'
@@ -34,6 +32,307 @@ import { addItemToCustomizedPlan, createCustomizedPlan } from '../services/custo
 import { useToast } from '../toast/useToast'
 import { isPremiumUser as getIsPremiumUser } from '../utils/premium'
 import { getServicePayload } from '../utils/servicePayload'
+import { getServiceItemRoute } from '../utils/serviceRoutes'
+
+const AI_PLANNER_STORAGE_KEY = 'eventful.aiPlanner.lastResult'
+
+const PLANNER_STOP_WORDS = new Set([
+  'i',
+  'me',
+  'my',
+  'we',
+  'us',
+  'our',
+  'want',
+  'need',
+  'would',
+  'like',
+  'looking',
+  'for',
+  'with',
+  'and',
+  'or',
+  'a',
+  'an',
+  'the',
+  'to',
+  'of',
+  'in',
+  'on',
+  'at',
+  'by',
+  'from',
+  'as',
+  'is',
+  'are',
+  'be',
+  'have',
+  'has',
+  'had',
+  'event',
+  'events',
+  'party',
+  'parties',
+  'please',
+  'plan',
+  'planning',
+  'make',
+  'create',
+  'organize',
+  'that',
+  'this',
+  'it',
+  'some',
+  'any',
+  'also',
+])
+
+const PLANNER_KEYWORD_ALIASES = {
+  seafront: ['seaside', 'sea view', 'sea-facing', 'beach', 'waterfront', 'ocean view'],
+  seaview: ['sea view', 'sea-facing', 'seaside', 'beachfront', 'beach', 'waterfront', 'ocean view'],
+  beach: ['seaside', 'sea view', 'sea-facing', 'waterfront'],
+  'beach venue': ['seaside', 'sea view', 'sea-facing', 'waterfront'],
+  candles: ['candle', 'candle set'],
+  candle: ['candles', 'candle set'],
+  flowers: ['flower', 'floral', 'floral decoration'],
+  'flower decoration': ['flowers', 'floral', 'floral decoration'],
+  floral: ['flower', 'flowers', 'flowers greenery'],
+  pianist: ['piano', 'live piano', 'music', 'musician'],
+  'birthday cake': ['cake', 'chocolate cake'],
+  venue: ['venues', 'location', 'place'],
+}
+
+function normalizeText(value = '') {
+  return String(value)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+function normalizeKeywordToken(token) {
+  if (token.length > 4 && token.endsWith('ies')) {
+    return `${token.slice(0, -3)}y`
+  }
+
+  if (token.length > 3 && token.endsWith('s')) {
+    return token.slice(0, -1)
+  }
+
+  return token
+}
+
+function tokenizePlannerText(value) {
+  return normalizeText(value)
+    .split(' ')
+    .filter((token) => token && !PLANNER_STOP_WORDS.has(token) && token.length > 1)
+}
+
+function toSearchTokens(value) {
+  return normalizeText(value)
+    .split(' ')
+    .filter(Boolean)
+    .map(normalizeKeywordToken)
+}
+
+function buildSearchableServiceText(item = {}, section = item.serviceType) {
+  return [
+    item.title,
+    item.category,
+    item.serviceType || section,
+    item.description,
+    item.detailsDescription,
+    item.location,
+    item.vendorLocation,
+    item.vendorName,
+    item.detailBadgeText,
+    item.placement,
+    item.priceText,
+    item.guestText,
+    Array.isArray(item.tags) ? item.tags.join(' ') : item.tags,
+  ]
+    .filter(Boolean)
+    .join(' ')
+}
+
+function createSearchEntry(searchableValue) {
+  const searchableText = normalizeText(searchableValue)
+
+  return {
+    searchableText,
+    tokenSet: new Set(toSearchTokens(searchableText)),
+  }
+}
+
+function getAllServiceEntries(itemsBySection = {}) {
+  return Object.entries(itemsBySection).flatMap(([section, items = []]) =>
+    items.map((item) => ({
+      item,
+      section,
+      itemId: item.id || item.itemId,
+      serviceType: item.serviceType || section,
+      ...createSearchEntry(buildSearchableServiceText(item, section)),
+    })),
+  )
+}
+
+function expandKeywordWithSynonyms(keyword) {
+  const normalizedKeyword = normalizeText(keyword)
+  const aliasMatches = PLANNER_KEYWORD_ALIASES[normalizedKeyword] || []
+
+  return [normalizedKeyword, ...aliasMatches].map(normalizeText).filter(Boolean)
+}
+
+function keywordMatchesText(keyword, searchEntry) {
+  return expandKeywordWithSynonyms(keyword).some((phrase) => {
+    const phraseTokens = toSearchTokens(phrase)
+
+    return (
+      searchEntry.searchableText.includes(phrase) ||
+      (phraseTokens.length > 0 && phraseTokens.every((token) => searchEntry.tokenSet.has(token)))
+    )
+  })
+}
+
+function getKeywordAvailability(keyword, searchEntries) {
+  return searchEntries.some((entry) => keywordMatchesText(keyword, entry))
+}
+
+function extractPlannerKeywords(message, searchEntries = []) {
+  const tokens = tokenizePlannerText(message)
+  const keywordLabels = []
+  const usedTokenIndexes = new Set()
+
+  tokens.forEach((_, index) => {
+    if (usedTokenIndexes.has(index)) {
+      return
+    }
+
+    for (let size = Math.min(4, tokens.length - index); size > 1; size -= 1) {
+      const phrase = tokens.slice(index, index + size).join(' ')
+
+      if (
+        PLANNER_KEYWORD_ALIASES[phrase] ||
+        (searchEntries.length > 0 && getKeywordAvailability(phrase, searchEntries))
+      ) {
+        keywordLabels.push(phrase)
+        for (let offset = 0; offset < size; offset += 1) {
+          usedTokenIndexes.add(index + offset)
+        }
+        return
+      }
+    }
+  })
+
+  tokens.forEach((token, index) => {
+    if (!usedTokenIndexes.has(index)) {
+      keywordLabels.push(token)
+    }
+  })
+
+  return Array.from(new Set(keywordLabels)).slice(0, 12)
+}
+
+function resolveRecommendedService(recommendedItem, serviceEntries) {
+  const serviceType = recommendedItem.serviceType
+  const itemId = recommendedItem.itemId
+  const matchedEntry = serviceEntries.find(
+    (entry) =>
+      entry.serviceType === serviceType &&
+      (entry.itemId === itemId || entry.item?.itemId === itemId || entry.item?.id === itemId),
+  )
+
+  return matchedEntry?.item || recommendedItem.service || null
+}
+
+function getRecommendedSearchEntries(generatedPlan, serviceEntries) {
+  if (!generatedPlan?.recommendedItems?.length) {
+    return []
+  }
+
+  return generatedPlan.recommendedItems.map((recommendedItem) => {
+    const resolvedService = resolveRecommendedService(recommendedItem, serviceEntries)
+    const searchableText = [
+      buildSearchableServiceText(
+        {
+          ...(resolvedService || {}),
+          ...(recommendedItem.service || {}),
+          serviceType: recommendedItem.serviceType,
+        },
+        recommendedItem.serviceType,
+      ),
+      recommendedItem.reason,
+    ].join(' ')
+
+    return createSearchEntry(searchableText)
+  })
+}
+
+function getKeywordChipsAfterPlan(prompt, generatedPlan, itemsBySection = {}) {
+  const serviceEntries = getAllServiceEntries(itemsBySection)
+  const recommendedEntries = getRecommendedSearchEntries(generatedPlan, serviceEntries)
+  const matchingEntries = [...recommendedEntries, ...serviceEntries]
+  const keywords = extractPlannerKeywords(prompt, matchingEntries)
+
+  return keywords.map((label) => ({
+    label,
+    isAvailable: getKeywordAvailability(label, matchingEntries),
+  }))
+}
+
+function saveAiPlannerResult({ prompt, generatedPlan, keywordChips }) {
+  if (!prompt || !generatedPlan) {
+    return
+  }
+
+  try {
+    window.sessionStorage.setItem(
+      AI_PLANNER_STORAGE_KEY,
+      JSON.stringify({
+        prompt,
+        generatedPlan,
+        keywordChips,
+        recommendedItems: generatedPlan.recommendedItems || [],
+        createdAt: Date.now(),
+      }),
+    )
+  } catch {
+    // Session storage is a convenience for route restoration; planning still works without it.
+  }
+}
+
+function loadAiPlannerResult() {
+  try {
+    const storedValue = window.sessionStorage.getItem(AI_PLANNER_STORAGE_KEY)
+
+    if (!storedValue) {
+      return null
+    }
+
+    const parsedValue = JSON.parse(storedValue)
+
+    if (!parsedValue?.prompt || !parsedValue?.generatedPlan) {
+      return null
+    }
+
+    return parsedValue
+  } catch {
+    return null
+  }
+}
+
+function findServiceFromPlanItem(planItem, itemsBySection = {}) {
+  const section = planItem.serviceType
+  const itemId = planItem.itemId
+  const sectionItems = itemsBySection[section] || []
+
+  return (
+    sectionItems.find((item) => item.routeId === itemId || item.itemId === itemId || item.id === itemId) ||
+    planItem.service ||
+    null
+  )
+}
 
 function PremiumUpgradeCard({ onUpgradeClick }) {
   return (
@@ -122,18 +421,17 @@ function InspirationPage() {
   const { showToast } = useToast()
   const { favoriteItems, toggleFavoriteItem } = useFavoriteActions()
   const { collectionPickerDialog, openCollectionPicker } = useCollectionCartAction()
+  const { itemsBySection } = useServicesData()
   const isLargeUp = useMediaQuery(theme.breakpoints.up('lg'))
   const isSmallUp = useMediaQuery(theme.breakpoints.up('sm'))
-  const featureTheme = INSPIRATION_THEMES.find((theme) => theme.layout === 'feature')
-  const sideTheme = INSPIRATION_THEMES.find((theme) => theme.layout === 'side')
-  const standardThemes = INSPIRATION_THEMES.filter((theme) => theme.layout === 'standard')
   const [activeHeroSlideIndex, setActiveHeroSlideIndex] = useState(0)
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false)
   const [isPremiumDialogOpen, setIsPremiumDialogOpen] = useState(false)
   const [isPlansDialogOpen, setIsPlansDialogOpen] = useState(false)
-  const [selectedTheme, setSelectedTheme] = useState(null)
   const [aiMessage, setAiMessage] = useState('')
   const [aiMessageError, setAiMessageError] = useState('')
+  const [submittedPrompt, setSubmittedPrompt] = useState('')
+  const [plannerKeywordChips, setPlannerKeywordChips] = useState([])
   const [aiPlan, setAiPlan] = useState(null)
   const [aiPlanError, setAiPlanError] = useState('')
   const [isGeneratingAiPlan, setIsGeneratingAiPlan] = useState(false)
@@ -179,15 +477,6 @@ function InspirationPage() {
 
   const handleClosePremiumDialog = () => {
     setIsPremiumDialogOpen(false)
-  }
-
-  const handleExploreTheme = (theme) => {
-    if (!isPremiumUser) {
-      handleOpenPremiumDialog()
-      return
-    }
-
-    setSelectedTheme(theme)
   }
 
   const handleProtectedAction = async (action) => {
@@ -238,6 +527,32 @@ function InspirationPage() {
     quantity: 1,
   })
 
+  const handleAiRecommendedItemClick = (item) => {
+    const service = findServiceFromPlanItem(item, itemsBySection)
+    const detailPath = getServiceItemRoute(
+      {
+        ...(service || {}),
+        routeId: service?.routeId || item.itemId,
+        itemId: service?.itemId || item.itemId,
+        serviceType: item.serviceType,
+      },
+      item.serviceType,
+    )
+
+    if (detailPath) {
+      saveAiPlannerResult({
+        prompt: submittedPrompt || aiMessage.trim(),
+        generatedPlan: aiPlan,
+        keywordChips: plannerKeywordChips,
+      })
+      navigate(detailPath, {
+        state: {
+          returnTo: '/inspiration#ai-planner',
+        },
+      })
+    }
+  }
+
   const handleGenerateAiPlan = async () => {
     const trimmedMessage = aiMessage.trim()
 
@@ -248,6 +563,8 @@ function InspirationPage() {
 
     setAiMessageError('')
     setAiPlanError('')
+    setSubmittedPrompt(trimmedMessage)
+    setPlannerKeywordChips([])
     setIsGeneratingAiPlan(true)
 
     try {
@@ -261,8 +578,16 @@ function InspirationPage() {
       }
 
       setAiPlan(plan)
+      const keywordChips = getKeywordChipsAfterPlan(trimmedMessage, plan, itemsBySection)
+      setPlannerKeywordChips(keywordChips)
+      saveAiPlannerResult({
+        prompt: trimmedMessage,
+        generatedPlan: plan,
+        keywordChips,
+      })
     } catch (error) {
       const message = error.message || ''
+      setPlannerKeywordChips([])
       setAiPlanError(
         message.includes('No matching') || message.includes('not found')
           ? "We couldn't find enough matching services. Try adding more details."
@@ -332,6 +657,19 @@ function InspirationPage() {
   }
 
   const activeHeroSlide = INSPIRATION_HERO_SLIDES[activeHeroSlideIndex]
+
+  useEffect(() => {
+    const savedResult = loadAiPlannerResult()
+
+    if (!savedResult) {
+      return
+    }
+
+    setAiMessage(savedResult.prompt)
+    setSubmittedPrompt(savedResult.prompt)
+    setAiPlan(savedResult.generatedPlan)
+    setPlannerKeywordChips(savedResult.keywordChips || [])
+  }, [])
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -418,9 +756,53 @@ function InspirationPage() {
         {isPremiumUser ? (
           <Stack spacing={2.2}>
             <Stack spacing={0.65}>
-              <Typography sx={{ color: COLORS.primary, fontWeight: 800, fontSize: '1.8rem' }}>
-                AI Event Planner
-              </Typography>
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1}
+                alignItems={{ xs: 'flex-start', sm: 'center' }}
+                sx={{ flexWrap: 'wrap' }}
+              >
+                <Typography
+                  sx={{
+                    color: COLORS.primary,
+                    fontWeight: 800,
+                    fontSize: '1.8rem',
+                    lineHeight: 1.15,
+                    mr: { sm: 0.5 },
+                  }}
+                >
+                  AI Event Planner
+                </Typography>
+
+                {plannerKeywordChips.length ? (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 0.75,
+                      minWidth: 0,
+                    }}
+                  >
+                    {plannerKeywordChips.map(({ label, isAvailable }) => (
+                      <Chip
+                        key={`${submittedPrompt}-${label}-${isAvailable ? 'available' : 'missing'}`}
+                        label={label}
+                        size="small"
+                        sx={{
+                          bgcolor: isAvailable ? 'success.main' : 'error.main',
+                          borderColor: isAvailable ? 'success.main' : 'error.main',
+                          borderRadius: 999,
+                          color: '#fff',
+                          fontWeight: 600,
+                          '& .MuiChip-label': {
+                            color: '#fff',
+                          },
+                        }}
+                      />
+                    ))}
+                  </Box>
+                ) : null}
+              </Stack>
               <Typography sx={{ color: COLORS.textLight, fontSize: '1rem' }}>
                 Tell us what you want, and we&apos;ll build a plan using Eventful services.
               </Typography>
@@ -435,6 +817,8 @@ function InspirationPage() {
                   value={aiMessage}
                   onChange={(event) => {
                     setAiMessage(event.target.value)
+                    setSubmittedPrompt('')
+                    setPlannerKeywordChips([])
                     if (event.target.value.trim()) {
                       setAiMessageError('')
                     }
@@ -497,11 +881,31 @@ function InspirationPage() {
                   {aiPlan.recommendedItems.map((item) => (
                     <Box
                       key={`${item.serviceType}:${item.itemId}`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleAiRecommendedItemClick(item)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          handleAiRecommendedItemClick(item)
+                        }
+                      }}
                       sx={{
                         borderRadius: 2,
                         border: `1px solid ${COLORS.border}`,
                         overflow: 'hidden',
                         backgroundColor: '#fff',
+                        cursor: 'pointer',
+                        transition: 'transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease',
+                        '&:hover': {
+                          borderColor: COLORS.primary,
+                          boxShadow: '0 14px 28px rgba(15, 45, 75, 0.12)',
+                          transform: 'translateY(-2px)',
+                        },
+                        '&:focus-visible': {
+                          outline: `3px solid ${COLORS.primary}`,
+                          outlineOffset: 3,
+                        },
                       }}
                     >
                       {item.service?.imageSrc ? (
@@ -747,59 +1151,6 @@ function InspirationPage() {
         open={isPlansDialogOpen}
         onClose={() => setIsPlansDialogOpen(false)}
       />
-
-      <Dialog
-        open={Boolean(selectedTheme)}
-        onClose={() => setSelectedTheme(null)}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 3,
-            overflow: 'hidden',
-            boxShadow: '0 24px 60px rgba(15, 45, 75, 0.22)',
-          },
-        }}
-      >
-        {selectedTheme ? (
-          <DialogContent sx={{ p: 0 }}>
-            <Box
-              component="img"
-              src={selectedTheme.imageSrc}
-              alt={selectedTheme.imageAlt}
-              sx={{ width: '100%', height: 260, objectFit: 'cover', display: 'block' }}
-            />
-            <Stack spacing={1.2} sx={{ p: { xs: 2.5, sm: 3 } }}>
-              <Typography sx={{ color: COLORS.primaryDark, fontWeight: 800, fontSize: '1.55rem' }}>
-                {selectedTheme.title}
-              </Typography>
-              <Typography sx={{ color: COLORS.textMuted, fontWeight: 600, lineHeight: 1.5 }}>
-                Premium inspiration board unlocked. Use this theme as a starting point for your
-                next Eventful plan.
-              </Typography>
-              <Button
-                variant="contained"
-                onClick={() => {
-                  setSelectedTheme(null)
-                  navigate('/customize')
-                }}
-                sx={{
-                  alignSelf: 'flex-start',
-                  mt: 0.8,
-                  borderRadius: 999,
-                  px: 2.25,
-                  textTransform: 'none',
-                  fontWeight: 800,
-                  backgroundColor: COLORS.accent,
-                  '&:hover': { backgroundColor: COLORS.accentHover },
-                }}
-              >
-                Start Planning
-              </Button>
-            </Stack>
-          </DialogContent>
-        ) : null}
-      </Dialog>
 
       {collectionPickerDialog}
     </Stack>
